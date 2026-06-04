@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:ssh_manager/features/ssh/domain/entities/ssh_server.dart';
 
 import 'package:ssh_manager/features/ssh/presentation/bloc/server_list_bloc.dart';
+import 'package:ssh_manager/features/ssh/presentation/widgets/add_server_dialog.dart';
 import 'package:ssh_manager/features/ssh/presentation/widgets/server_card.dart';
 
 class HomePage extends StatelessWidget {
@@ -34,7 +36,16 @@ class HomePage extends StatelessWidget {
         },
       ),
       floatingActionButton: FloatingActionButton.extended(
-        onPressed: () {},
+        onPressed: () async {
+          final result =
+              await showDialog<({SshServer server, String password})>(
+                context: context,
+                builder: (_) => const AddServerDialog(),
+              );
+          if (result != null && context.mounted) {
+            context.read<ServerListBloc>().add(ServerAdded(result.server));
+          }
+        },
         icon: const Icon(Icons.add),
         label: const Text("Add Server"),
       ),

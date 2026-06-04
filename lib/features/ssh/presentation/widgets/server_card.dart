@@ -25,6 +25,17 @@ class ServerCard extends StatelessWidget {
                   color: theme.colorScheme.onSurfaceVariant,
                 ),
               ),
+              if (server.description.isNotEmpty) ...[
+                const SizedBox(height: 4),
+                Text(
+                  server.description,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    color: theme.colorScheme.onSurfaceVariant,
+                  ),
+                ),
+              ],
               const Spacer(),
               Align(
                 alignment: .bottomRight,

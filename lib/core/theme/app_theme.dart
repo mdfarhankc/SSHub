@@ -13,6 +13,11 @@ abstract final class AppTheme {
     return ThemeData(
       colorScheme: scheme,
       scaffoldBackgroundColor: scheme.surface,
+      inputDecorationTheme: InputDecorationTheme(
+        border: OutlineInputBorder(borderRadius: .all(.circular(10))),
+        isDense: true,
+        errorMaxLines: 2,
+      ),
     );
   }
 }
