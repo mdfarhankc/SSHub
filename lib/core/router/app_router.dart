@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:ssh_manager/features/settings/presentation/pages/settings_page.dart';
 
 import 'package:ssh_manager/features/splash/presentation/cubit/splash_cubit.dart';
 import 'package:ssh_manager/features/splash/presentation/pages/splash_page.dart';
@@ -26,6 +27,8 @@ abstract final class AppRouter {
             child: const HomePage(),
           ),
         );
+      case SettingsPage.route:
+        return MaterialPageRoute(builder: (_) => const SettingsPage());
       default:
         return MaterialPageRoute(
           builder: (_) => const Scaffold(body: Center(child: Text("404"))),

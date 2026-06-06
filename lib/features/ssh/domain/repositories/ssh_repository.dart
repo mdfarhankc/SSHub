@@ -5,4 +5,5 @@ abstract interface class SshRepository {
   Future<void> addServer(SshServer server, {required String password});
   Future<void> deleteServer(String id);
   Future<String?> getPassword(String id);
+  Future<void> clearAll();
 }

@@ -35,4 +35,13 @@ class SshRepositoryImpl implements SshRepository {
   Future<String?> getPassword(String id) {
     return _secretDatasource.read(id);
   }
+
+  @override
+  Future<void> clearAll() async {
+    final servers = await _localDatasource.load();
+    for (final s in servers) {
+      await _secretDatasource.delete(s.id);
+    }
+    await _localDatasource.save([]);
+  }
 }

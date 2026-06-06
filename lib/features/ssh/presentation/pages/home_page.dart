@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:ssh_manager/features/settings/presentation/pages/settings_page.dart';
 import 'package:ssh_manager/features/ssh/domain/entities/ssh_server.dart';
 
 import 'package:ssh_manager/features/ssh/presentation/bloc/server_list_bloc.dart';
@@ -13,6 +14,20 @@ class HomePage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      appBar: AppBar(
+        title: const Text("SSHub"),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.settings),
+            onPressed: () async {
+              await Navigator.pushNamed(context, SettingsPage.route);
+              if (context.mounted) {
+                context.read<ServerListBloc>().add(ServerListLoaded());
+              }
+            },
+          ),
+        ],
+      ),
       body: BlocBuilder<ServerListBloc, ServerListState>(
         builder: (context, state) {
           switch (state.status) {
