@@ -43,7 +43,9 @@ class HomePage extends StatelessWidget {
                 builder: (_) => const AddServerDialog(),
               );
           if (result != null && context.mounted) {
-            context.read<ServerListBloc>().add(ServerAdded(result.server));
+            context.read<ServerListBloc>().add(
+              ServerAdded(result.server, result.password),
+            );
           }
         },
         icon: const Icon(Icons.add),

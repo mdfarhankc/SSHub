@@ -1,4 +1,4 @@
-package com.example.ssh_manager
+package com.mdfarhankc.ssh_manager
 
 import io.flutter.embedding.android.FlutterActivity
 

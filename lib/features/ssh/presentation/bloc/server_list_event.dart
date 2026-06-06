@@ -6,7 +6,8 @@ final class ServerListLoaded extends ServerListEvent {}
 
 final class ServerAdded extends ServerListEvent {
   final SshServer server;
-  ServerAdded(this.server);
+  final String password;
+  ServerAdded(this.server, this.password);
 }
 
 final class ServerDeleted extends ServerListEvent {
