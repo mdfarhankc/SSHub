@@ -136,8 +136,9 @@ class _ServerCardState extends State<ServerCard> {
                       PopupMenuItem(value: .edit, child: Text("Edit")),
                       PopupMenuItem(value: .delete, child: Text("Delete")),
                     ],
-                    child: const Padding(
-                      padding: EdgeInsets.all(4),
+                    child: const SizedBox(
+                      width: 40,
+                      height: 40,
                       child: Icon(Icons.more_vert, size: 20),
                     ),
                   ),

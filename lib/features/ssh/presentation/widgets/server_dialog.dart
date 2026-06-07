@@ -70,7 +70,7 @@ class _ServerDialogState extends State<ServerDialog> {
     return AlertDialog(
       title: Text(_isEditing ? "Edit Server" : "Add Server"),
       content: SizedBox(
-        width: 400,
+        width: MediaQuery.sizeOf(context).width < 480 ? double.maxFinite : 400,
         child: Form(
           key: _formKey,
           autovalidateMode: _autovalidateMode,

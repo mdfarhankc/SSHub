@@ -39,16 +39,29 @@ class HomePage extends StatelessWidget {
             case (ServerListStatus.loading || ServerListStatus.initial):
               return Center(child: CircularProgressIndicator());
             case (ServerListStatus.success):
-              return GridView.builder(
-                padding: const EdgeInsets.all(16),
-                gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
-                  maxCrossAxisExtent: 320,
-                  mainAxisSpacing: 12,
-                  crossAxisSpacing: 12,
-                  childAspectRatio: 1.4,
-                ),
-                itemCount: state.servers.length,
-                itemBuilder: (_, i) => ServerCard(server: state.servers[i]),
+              return LayoutBuilder(
+                builder: (context, constraints) {
+                  final width = constraints.maxWidth;
+                  final columns = width < 600
+                      ? 1
+                      : width < 900
+                      ? 2
+                      : width < 1300
+                      ? 3
+                      : 4;
+                  return GridView.builder(
+                    padding: const EdgeInsets.all(16),
+                    gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                      crossAxisCount: columns,
+                      mainAxisSpacing: 12,
+                      crossAxisSpacing: 12,
+                      mainAxisExtent: 184,
+                    ),
+                    itemCount: state.servers.length,
+                    itemBuilder: (_, i) =>
+                        ServerCard(server: state.servers[i]),
+                  );
+                },
               );
             case (ServerListStatus.failure):
               return Center(child: Text("Failed to load servers"));

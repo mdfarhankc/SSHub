@@ -29,19 +29,32 @@ class SettingsPage extends StatelessWidget {
         children: [
           // Theme
           const SettingsSectionHeader("Appearance"),
-          ListTile(
-            title: const Text("Theme"),
-            trailing: SegmentedButton<AppThemeMode>(
-              segments: const [
-                ButtonSegment(
-                  value: AppThemeMode.system,
-                  label: Text("System"),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text("Theme"),
+                const SizedBox(height: 8),
+                SegmentedButton<AppThemeMode>(
+                  segments: const [
+                    ButtonSegment(
+                      value: AppThemeMode.system,
+                      label: Text("System"),
+                    ),
+                    ButtonSegment(
+                      value: AppThemeMode.light,
+                      label: Text("Light"),
+                    ),
+                    ButtonSegment(
+                      value: AppThemeMode.dark,
+                      label: Text("Dark"),
+                    ),
+                  ],
+                  selected: {settings.themeMode},
+                  onSelectionChanged: (s) => cubit.updateThemeMode(s.first),
                 ),
-                ButtonSegment(value: AppThemeMode.light, label: Text("Light")),
-                ButtonSegment(value: AppThemeMode.dark, label: Text("Dark")),
               ],
-              selected: {settings.themeMode},
-              onSelectionChanged: (s) => cubit.updateThemeMode(s.first),
             ),
           ),
           // Terminal
@@ -58,17 +71,25 @@ class SettingsPage extends StatelessWidget {
             ),
             trailing: Text(settings.terminalFontSize.toStringAsFixed(0)),
           ),
-          ListTile(
-            title: const Text("Font family"),
-            trailing: DropdownMenu<String>(
-              initialSelection: settings.terminalFontFamily,
-              dropdownMenuEntries: [
-                for (final f in _fontFamilies)
-                  DropdownMenuEntry(value: f, label: f),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text("Font family"),
+                const SizedBox(height: 8),
+                DropdownMenu<String>(
+                  expandedInsets: EdgeInsets.zero,
+                  initialSelection: settings.terminalFontFamily,
+                  dropdownMenuEntries: [
+                    for (final f in _fontFamilies)
+                      DropdownMenuEntry(value: f, label: f),
+                  ],
+                  onSelected: (f) {
+                    if (f != null) cubit.updateTerminalFontFamily(f);
+                  },
+                ),
               ],
-              onSelected: (f) {
-                if (f != null) cubit.updateTerminalFontFamily(f);
-              },
             ),
           ),
           // Data
