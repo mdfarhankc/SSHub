@@ -5,6 +5,8 @@ SSHub is a fast, minimal SSH client for the desktop, built with Flutter. Save yo
 ## Features
 
 - Manage your SSH servers as a grid of cards
+- Add, edit and delete servers
+- Color tag each server for quick visual identification
 - Full in-app terminal powered by `dartssh2` + `xterm`
 - Passwords stored securely in the OS keychain (Windows Credential Manager, macOS Keychain, etc.), never in plain text
 - Server list stored locally as JSON, so your data never leaves your machine
@@ -13,7 +15,6 @@ SSHub is a fast, minimal SSH client for the desktop, built with Flutter. Save yo
 
 ### Planned
 
-- Edit and delete servers
 - SSH key authentication
 - Multiple sessions and tabs
 - Host key verification
