@@ -2,7 +2,7 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:path_provider/path_provider.dart';
-import 'package:ssh_manager/features/settings/data/models/app_settings_model.dart';
+import 'package:sshub/features/settings/data/models/app_settings_model.dart';
 
 class SettingsLocalDatasource {
   const SettingsLocalDatasource();

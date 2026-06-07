@@ -10,6 +10,12 @@ final class ServerAdded extends ServerListEvent {
   ServerAdded(this.server, this.password);
 }
 
+final class ServerUpdated extends ServerListEvent {
+  final SshServer server;
+  final String? password;
+  ServerUpdated(this.server, this.password);
+}
+
 final class ServerDeleted extends ServerListEvent {
   final String id;
   ServerDeleted(this.id);

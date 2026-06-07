@@ -1,8 +1,8 @@
 import 'package:equatable/equatable.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
-import 'package:ssh_manager/features/settings/domain/entities/app_settings.dart';
-import 'package:ssh_manager/features/settings/domain/repositories/settings_repository.dart';
+import 'package:sshub/features/settings/domain/entities/app_settings.dart';
+import 'package:sshub/features/settings/domain/repositories/settings_repository.dart';
 
 part 'settings_state.dart';
 
@@ -27,8 +27,10 @@ class SettingsCubit extends Cubit<SettingsState> {
   void updateTerminalFontFamily(String family) =>
       _update(state.settings.copyWith(terminalFontFamily: family));
 
-  void _update(AppSettings settings) {
+  Future<void> _update(AppSettings settings) async {
     emit(SettingsState(settings: settings));
-    _repository.save(settings);
+    try {
+      await _repository.save(settings);
+    } catch (_) {}
   }
 }

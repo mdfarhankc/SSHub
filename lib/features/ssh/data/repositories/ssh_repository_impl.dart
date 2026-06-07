@@ -1,8 +1,8 @@
-import 'package:ssh_manager/features/ssh/data/datasources/secret_datasource.dart';
-import 'package:ssh_manager/features/ssh/data/datasources/server_local_datasource.dart';
-import 'package:ssh_manager/features/ssh/data/models/ssh_server_model.dart';
-import 'package:ssh_manager/features/ssh/domain/entities/ssh_server.dart';
-import 'package:ssh_manager/features/ssh/domain/repositories/ssh_repository.dart';
+import 'package:sshub/features/ssh/data/datasources/secret_datasource.dart';
+import 'package:sshub/features/ssh/data/datasources/server_local_datasource.dart';
+import 'package:sshub/features/ssh/data/models/ssh_server_model.dart';
+import 'package:sshub/features/ssh/domain/entities/ssh_server.dart';
+import 'package:sshub/features/ssh/domain/repositories/ssh_repository.dart';
 
 class SshRepositoryImpl implements SshRepository {
   final ServerLocalDatasource _localDatasource;
@@ -43,5 +43,20 @@ class SshRepositoryImpl implements SshRepository {
       await _secretDatasource.delete(s.id);
     }
     await _localDatasource.save([]);
+  }
+
+  @override
+  Future<void> updateServer(
+    SshServer server, {
+    required String? password,
+  }) async {
+    final servers = await _localDatasource.load();
+    await _localDatasource.save([
+      for (final s in servers)
+        if (s.id == server.id) SshServerModel.fromEntity(server) else s,
+    ]);
+    if (password != null) {
+      await _secretDatasource.write(server.id, password);
+    }
   }
 }

@@ -10,6 +10,7 @@ class SshServer extends Equatable {
   final String username;
   final String description;
   final AuthType authType;
+  final int? colorValue;
 
   const SshServer({
     required this.id,
@@ -19,6 +20,7 @@ class SshServer extends Equatable {
     this.description = '',
     this.port = 22,
     this.authType = AuthType.password,
+    this.colorValue,
   });
 
   @override
@@ -30,5 +32,6 @@ class SshServer extends Equatable {
     username,
     description,
     authType,
+    colorValue,
   ];
 }

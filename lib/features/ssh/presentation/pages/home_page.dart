@@ -1,11 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:ssh_manager/features/settings/presentation/pages/settings_page.dart';
-import 'package:ssh_manager/features/ssh/domain/entities/ssh_server.dart';
-
-import 'package:ssh_manager/features/ssh/presentation/bloc/server_list_bloc.dart';
-import 'package:ssh_manager/features/ssh/presentation/widgets/add_server_dialog.dart';
-import 'package:ssh_manager/features/ssh/presentation/widgets/server_card.dart';
+import 'package:sshub/features/settings/presentation/pages/settings_page.dart';
+import 'package:sshub/features/ssh/domain/entities/ssh_server.dart';
+import 'package:sshub/features/ssh/presentation/bloc/server_list_bloc.dart';
+import 'package:sshub/features/ssh/presentation/widgets/server_card.dart';
+import 'package:sshub/features/ssh/presentation/widgets/server_dialog.dart';
 
 class HomePage extends StatelessWidget {
   const HomePage({super.key});
@@ -28,7 +27,13 @@ class HomePage extends StatelessWidget {
           ),
         ],
       ),
-      body: BlocBuilder<ServerListBloc, ServerListState>(
+      body: BlocConsumer<ServerListBloc, ServerListState>(
+        listenWhen: (previous, current) => current.errorMessage != null,
+        listener: (context, state) {
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(SnackBar(content: Text(state.errorMessage!)));
+        },
         builder: (context, state) {
           switch (state.status) {
             case (ServerListStatus.loading || ServerListStatus.initial):
@@ -37,7 +42,7 @@ class HomePage extends StatelessWidget {
               return GridView.builder(
                 padding: const EdgeInsets.all(16),
                 gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
-                  maxCrossAxisExtent: 280,
+                  maxCrossAxisExtent: 320,
                   mainAxisSpacing: 12,
                   crossAxisSpacing: 12,
                   childAspectRatio: 1.4,
@@ -53,13 +58,13 @@ class HomePage extends StatelessWidget {
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () async {
           final result =
-              await showDialog<({SshServer server, String password})>(
+              await showDialog<({SshServer server, String? password})>(
                 context: context,
-                builder: (_) => const AddServerDialog(),
+                builder: (_) => const ServerDialog(),
               );
           if (result != null && context.mounted) {
             context.read<ServerListBloc>().add(
-              ServerAdded(result.server, result.password),
+              ServerAdded(result.server, result.password!),
             );
           }
         },

@@ -1,4 +1,4 @@
-import 'package:ssh_manager/features/settings/domain/entities/app_settings.dart';
+import 'package:sshub/features/settings/domain/entities/app_settings.dart';
 
 class AppSettingsModel extends AppSettings {
   const AppSettingsModel({
@@ -14,7 +14,7 @@ class AppSettingsModel extends AppSettings {
             AppThemeMode.system,
         terminalFontSize: (json['terminalFontSize'] as num?)?.toDouble() ?? 14,
         terminalFontFamily:
-            json['terminalFontFamily'] as String? ?? 'monospace',
+            json['terminalFontFamily'] as String? ?? 'Cascadia Mono',
       );
 
   Map<String, dynamic> toJson() => {

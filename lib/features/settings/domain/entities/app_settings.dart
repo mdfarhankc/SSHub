@@ -10,7 +10,7 @@ class AppSettings extends Equatable {
   const AppSettings({
     this.themeMode = .system,
     this.terminalFontSize = 14,
-    this.terminalFontFamily = 'monospace',
+    this.terminalFontFamily = 'Cascadia Mono',
   });
 
   AppSettings copyWith({

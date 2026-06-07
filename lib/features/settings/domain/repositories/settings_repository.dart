@@ -1,4 +1,4 @@
-import 'package:ssh_manager/features/settings/domain/entities/app_settings.dart';
+import 'package:sshub/features/settings/domain/entities/app_settings.dart';
 
 abstract interface class SettingsRepository {
   Future<AppSettings> load();

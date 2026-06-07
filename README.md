@@ -1,20 +1,20 @@
 # SSHub
 
-A simple, local SSH connection manager built with Flutter. Store your servers, connect with one click, and work in an embedded terminal without external tools.
-
-> Work in progress: the embedded terminal is currently under development.
+SSHub is a fast, minimal SSH client for the desktop, built with Flutter. Save your servers, connect with one click, and work in a full terminal. Credentials stay encrypted on your machine.
 
 ## Features
 
 - Manage your SSH servers as a grid of cards
+- Full in-app terminal powered by `dartssh2` + `xterm`
 - Passwords stored securely in the OS keychain (Windows Credential Manager, macOS Keychain, etc.), never in plain text
 - Server list stored locally as JSON, so your data never leaves your machine
-- Embedded in-app terminal via `dartssh2` + `xterm` (in progress)
+- Settings: light / dark / system theme, terminal font size and family
+- Friendly connection errors with one-click retry
 
 ### Planned
 
+- Edit and delete servers
 - SSH key authentication
-- Edit / delete servers
 - Multiple sessions and tabs
 - Host key verification
 
@@ -31,8 +31,10 @@ Desktop (Windows) is the primary target. Web is not supported because browsers c
 | Framework | Flutter |
 | State management | flutter_bloc |
 | SSH | dartssh2 |
-| Terminal | xterm |
+| Terminal | xterm (vendored, see note) |
 | Secret storage | flutter_secure_storage |
+
+> Note: `third_party/xterm` is a local copy of [xterm.dart](https://github.com/TerminalStudio/xterm.dart) with a one-line fix for broken keyboard input on Flutter 3.44+ Windows ([xterm.dart#207](https://github.com/TerminalStudio/xterm.dart/issues/207)). The `dependency_overrides` entry in `pubspec.yaml` points to it and can be removed once the fix lands upstream.
 
 ## Getting Started
 
@@ -52,10 +54,11 @@ lib/
 ├── core/            # router, theme
 └── features/
     ├── splash/
+    ├── settings/
     └── ssh/
-        ├── data/          # datasources, models, repository impl
-        ├── domain/        # entities, repository interfaces
-        └── presentation/  # blocs, pages, widgets
+        ├── data/          # datasources, models, repository impls
+        ├── domain/        # entities, repository interfaces, usecases
+        └── presentation/  # blocs, cubits, pages, widgets
 ```
 
 ## Author

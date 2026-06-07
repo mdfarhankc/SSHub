@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
-import 'package:ssh_manager/features/splash/presentation/cubit/splash_cubit.dart';
-import 'package:ssh_manager/features/ssh/presentation/pages/home_page.dart';
+import 'package:sshub/features/splash/presentation/cubit/splash_cubit.dart';
+import 'package:sshub/features/ssh/presentation/pages/home_page.dart';
 
 class SplashPage extends StatelessWidget {
   const SplashPage({super.key});

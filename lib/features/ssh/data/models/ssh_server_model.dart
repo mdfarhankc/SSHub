@@ -1,4 +1,4 @@
-import 'package:ssh_manager/features/ssh/domain/entities/ssh_server.dart';
+import 'package:sshub/features/ssh/domain/entities/ssh_server.dart';
 
 class SshServerModel extends SshServer {
   const SshServerModel({
@@ -9,6 +9,7 @@ class SshServerModel extends SshServer {
     super.port,
     super.description,
     super.authType,
+    super.colorValue,
   });
 
   factory SshServerModel.fromJson(Map<String, dynamic> json) => SshServerModel(
@@ -19,6 +20,7 @@ class SshServerModel extends SshServer {
     port: json['port'] as int? ?? 22,
     description: json['description'] as String? ?? '',
     authType: AuthType.values.byName(json['authType'] as String),
+    colorValue: json['colorValue'] as int?,
   );
 
   Map<String, dynamic> toJson() => {
@@ -29,6 +31,7 @@ class SshServerModel extends SshServer {
     'port': port,
     'description': description,
     'authType': authType.name,
+    'colorValue': colorValue,
   };
 
   factory SshServerModel.fromEntity(SshServer e) => SshServerModel(
@@ -39,5 +42,6 @@ class SshServerModel extends SshServer {
     port: e.port,
     description: e.description,
     authType: e.authType,
+    colorValue: e.colorValue,
   );
 }

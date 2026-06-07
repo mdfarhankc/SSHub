@@ -1,18 +1,20 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
-import 'package:ssh_manager/core/router/app_router.dart';
-import 'package:ssh_manager/core/theme/app_theme.dart';
-import 'package:ssh_manager/features/settings/data/datasources/settings_local_datasource.dart';
-import 'package:ssh_manager/features/settings/data/repositories/settings_repository_impl.dart';
-import 'package:ssh_manager/features/settings/domain/entities/app_settings.dart';
-import 'package:ssh_manager/features/settings/domain/repositories/settings_repository.dart';
-import 'package:ssh_manager/features/settings/presentation/cubit/settings_cubit.dart';
-import 'package:ssh_manager/features/splash/presentation/pages/splash_page.dart';
-import 'package:ssh_manager/features/ssh/data/datasources/secret_datasource.dart';
-import 'package:ssh_manager/features/ssh/data/datasources/server_local_datasource.dart';
-import 'package:ssh_manager/features/ssh/data/repositories/ssh_repository_impl.dart';
-import 'package:ssh_manager/features/ssh/domain/repositories/ssh_repository.dart';
+import 'package:sshub/core/router/app_router.dart';
+import 'package:sshub/core/theme/app_theme.dart';
+import 'package:sshub/features/settings/data/datasources/settings_local_datasource.dart';
+import 'package:sshub/features/settings/data/repositories/settings_repository_impl.dart';
+import 'package:sshub/features/settings/domain/entities/app_settings.dart';
+import 'package:sshub/features/settings/domain/repositories/settings_repository.dart';
+import 'package:sshub/features/settings/presentation/cubit/settings_cubit.dart';
+import 'package:sshub/features/splash/presentation/pages/splash_page.dart';
+import 'package:sshub/features/ssh/data/datasources/secret_datasource.dart';
+import 'package:sshub/features/ssh/data/datasources/server_local_datasource.dart';
+import 'package:sshub/features/ssh/data/repositories/ssh_connection_repository_impl.dart';
+import 'package:sshub/features/ssh/data/repositories/ssh_repository_impl.dart';
+import 'package:sshub/features/ssh/domain/repositories/ssh_connection_repository.dart';
+import 'package:sshub/features/ssh/domain/repositories/ssh_repository.dart';
 
 void main() {
   runApp(const MyApp());
@@ -23,7 +25,7 @@ class MyApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return MultiBlocProvider(
+    return MultiRepositoryProvider(
       providers: [
         RepositoryProvider<SshRepository>(
           create: (_) => const SshRepositoryImpl(
@@ -34,6 +36,9 @@ class MyApp extends StatelessWidget {
         RepositoryProvider<SettingsRepository>(
           create: (_) =>
               const SettingsRepositoryImpl(SettingsLocalDatasource()),
+        ),
+        RepositoryProvider<SshConnectionRepository>(
+          create: (_) => const SshConnectionRepositoryImpl(),
         ),
       ],
       child: BlocProvider(

@@ -1,8 +1,8 @@
-import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:equatable/equatable.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 
-import 'package:ssh_manager/features/ssh/domain/entities/ssh_server.dart';
-import 'package:ssh_manager/features/ssh/domain/repositories/ssh_repository.dart';
+import 'package:sshub/features/ssh/domain/entities/ssh_server.dart';
+import 'package:sshub/features/ssh/domain/repositories/ssh_repository.dart';
 
 part 'server_list_state.dart';
 part 'server_list_event.dart';
@@ -13,6 +13,7 @@ class ServerListBloc extends Bloc<ServerListEvent, ServerListState> {
   ServerListBloc(this._repository) : super(const ServerListState()) {
     on<ServerListLoaded>(_onLoaded);
     on<ServerAdded>(_onAdded);
+    on<ServerUpdated>(_onUpdated);
     on<ServerDeleted>(_onDeleted);
   }
 
@@ -37,7 +38,26 @@ class ServerListBloc extends Bloc<ServerListEvent, ServerListState> {
       await _repository.addServer(event.server, password: event.password);
       emit(state.copyWith(servers: [...state.servers, event.server]));
     } catch (e) {
-      emit(state.copyWith(status: ServerListStatus.failure));
+      emit(state.copyWith(errorMessage: "Could not add server"));
+    }
+  }
+
+  Future<void> _onUpdated(
+    ServerUpdated event,
+    Emitter<ServerListState> emit,
+  ) async {
+    try {
+      await _repository.updateServer(event.server, password: event.password);
+      emit(
+        state.copyWith(
+          servers: [
+            for (final s in state.servers)
+              if (s.id == event.server.id) event.server else s,
+          ],
+        ),
+      );
+    } catch (e) {
+      emit(state.copyWith(errorMessage: "Could not update server"));
     }
   }
 
@@ -53,7 +73,7 @@ class ServerListBloc extends Bloc<ServerListEvent, ServerListState> {
         ),
       );
     } catch (e) {
-      emit(state.copyWith(status: ServerListStatus.failure));
+      emit(state.copyWith(errorMessage: "Could not delete server"));
     }
   }
 }

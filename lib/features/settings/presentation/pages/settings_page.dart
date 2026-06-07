@@ -1,14 +1,21 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:ssh_manager/features/settings/domain/entities/app_settings.dart';
-import 'package:ssh_manager/features/settings/presentation/cubit/settings_cubit.dart';
-import 'package:ssh_manager/features/settings/presentation/widgets/settings_section_header.dart';
-import 'package:ssh_manager/features/ssh/domain/repositories/ssh_repository.dart';
+
+import 'package:sshub/features/settings/domain/entities/app_settings.dart';
+import 'package:sshub/features/settings/presentation/cubit/settings_cubit.dart';
+import 'package:sshub/features/settings/presentation/widgets/settings_section_header.dart';
+import 'package:sshub/features/ssh/domain/repositories/ssh_repository.dart';
 
 class SettingsPage extends StatelessWidget {
   const SettingsPage({super.key});
-  static const route = "settings";
-  static const _fontFamilies = ["monospace", "Consolas", "Courier New"];
+
+  static const route = "/settings";
+  static const _fontFamilies = [
+    "Cascadia Mono",
+    "monospace",
+    "Consolas",
+    "Courier New",
+  ];
 
   @override
   Widget build(BuildContext context) {
@@ -18,10 +25,10 @@ class SettingsPage extends StatelessWidget {
     return Scaffold(
       appBar: AppBar(title: const Text("Settings")),
       body: ListView(
-        padding: const .all(16),
+        padding: const EdgeInsets.all(16),
         children: [
           // Theme
-          SettingsSectionHeader("Theme"),
+          const SettingsSectionHeader("Appearance"),
           ListTile(
             title: const Text("Theme"),
             trailing: SegmentedButton<AppThemeMode>(

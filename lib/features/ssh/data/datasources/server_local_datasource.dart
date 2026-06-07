@@ -2,7 +2,7 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:path_provider/path_provider.dart';
-import 'package:ssh_manager/features/ssh/data/models/ssh_server_model.dart';
+import 'package:sshub/features/ssh/data/models/ssh_server_model.dart';
 
 class ServerLocalDatasource {
   const ServerLocalDatasource();
