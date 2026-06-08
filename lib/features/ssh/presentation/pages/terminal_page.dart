@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:sshub/core/theme/app_terminal_theme.dart';
@@ -6,6 +8,7 @@ import 'package:sshub/features/ssh/domain/entities/ssh_server.dart';
 import 'package:sshub/features/ssh/domain/repositories/ssh_connection_repository.dart';
 import 'package:sshub/features/ssh/presentation/cubit/terminal_cubit.dart';
 import 'package:sshub/features/ssh/presentation/widgets/status_dot.dart';
+import 'package:sshub/features/ssh/presentation/widgets/terminal_key_bar.dart';
 import 'package:xterm/xterm.dart' hide TerminalState;
 
 class TerminalPage extends StatefulWidget {
@@ -80,15 +83,23 @@ class _TerminalPageState extends State<TerminalPage> {
               ),
             ),
             TerminalDisconnected() => const Center(child: Text("Disconnected")),
-            TerminalConnected() => TerminalView(
-              terminal,
-              theme: AppTerminalTheme.dark,
-              padding: const EdgeInsets.all(12),
-              autofocus: true,
-              textStyle: TerminalStyle(
-                fontSize: settings.terminalFontSize,
-                fontFamily: settings.terminalFontFamily,
-              ),
+            TerminalConnected() => Column(
+              children: [
+                Expanded(
+                  child: TerminalView(
+                    terminal,
+                    theme: AppTerminalTheme.dark,
+                    padding: const EdgeInsets.all(12),
+                    autofocus: true,
+                    textStyle: TerminalStyle(
+                      fontSize: settings.terminalFontSize,
+                      fontFamily: settings.terminalFontFamily,
+                    ),
+                  ),
+                ),
+                if (Platform.isAndroid || Platform.isIOS)
+                  TerminalKeyBar(terminal: terminal),
+              ],
             ),
           },
         );
