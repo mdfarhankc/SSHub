@@ -13,6 +13,7 @@ abstract final class AppTheme {
 
     return ThemeData(
       colorScheme: scheme,
+      fontFamily: "Inter",
       scaffoldBackgroundColor: scheme.surface,
       inputDecorationTheme: InputDecorationTheme(
         border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
