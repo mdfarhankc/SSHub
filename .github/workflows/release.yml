@@ -22,11 +22,17 @@ jobs:
           channel: stable
       - run: flutter pub get
       - run: flutter build windows --release
-      - name: Package
-        run: Compress-Archive -Path build/windows/x64/runner/Release/* -DestinationPath sshub-windows-x64.zip
+      - name: Build installer
+        run: |
+          choco install innosetup --no-progress -y
+          & "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" windows\packaging\sshub.iss
+      - name: Package portable
+        run: Compress-Archive -Path build/windows/x64/runner/Release/* -DestinationPath dist/sshub-windows-x64-portable.zip
       - uses: softprops/action-gh-release@v2
         with:
-          files: sshub-windows-x64.zip
+          files: |
+            dist/sshub-windows-setup.exe
+            dist/sshub-windows-x64-portable.zip
 
   linux:
     runs-on: ubuntu-latest
@@ -42,11 +48,24 @@ jobs:
           sudo apt-get install -y clang cmake ninja-build pkg-config libgtk-3-dev liblzma-dev libsecret-1-dev libjsoncpp-dev
       - run: flutter pub get
       - run: flutter build linux --release
-      - name: Package
-        run: tar -czf sshub-linux-x64.tar.gz -C build/linux/x64/release/bundle .
+      - name: Build AppImage
+        run: |
+          mkdir -p AppDir/usr/bin dist
+          cp -r build/linux/x64/release/bundle/* AppDir/usr/bin/
+          cp assets/icon/icon.png AppDir/sshub.png
+          printf '%s\n' '[Desktop Entry]' 'Name=SSHub' 'Exec=sshub' 'Icon=sshub' 'Type=Application' 'Categories=Utility;' > AppDir/sshub.desktop
+          printf '%s\n' '#!/bin/bash' 'HERE="$(dirname "$(readlink -f "${0}")")"' 'exec "${HERE}/usr/bin/sshub" "$@"' > AppDir/AppRun
+          chmod +x AppDir/AppRun
+          wget -q https://github.com/AppImage/AppImageKit/releases/download/continuous/appimagetool-x86_64.AppImage
+          chmod +x appimagetool-x86_64.AppImage
+          APPIMAGE_EXTRACT_AND_RUN=1 ./appimagetool-x86_64.AppImage AppDir dist/sshub-linux-x86_64.AppImage
+      - name: Package portable
+        run: tar -czf dist/sshub-linux-x64.tar.gz -C build/linux/x64/release/bundle .
       - uses: softprops/action-gh-release@v2
         with:
-          files: sshub-linux-x64.tar.gz
+          files: |
+            dist/sshub-linux-x86_64.AppImage
+            dist/sshub-linux-x64.tar.gz
 
   android:
     runs-on: ubuntu-latest
@@ -92,10 +111,13 @@ jobs:
           channel: stable
       - run: flutter pub get
       - run: flutter build macos --release
-      - name: Package
+      - name: Build dmg
         run: |
           APP=$(ls -d build/macos/Build/Products/Release/*.app | head -1)
-          ditto -c -k --keepParent "$APP" sshub-macos.zip
+          mkdir -p dmg dist
+          cp -R "$APP" dmg/
+          ln -s /Applications dmg/Applications
+          hdiutil create -volname "SSHub" -srcfolder dmg -ov -format UDZO dist/sshub-macos.dmg
       - uses: softprops/action-gh-release@v2
         with:
-          files: sshub-macos.zip
+          files: dist/sshub-macos.dmg
