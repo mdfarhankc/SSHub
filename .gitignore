@@ -43,3 +43,13 @@ app.*.map.json
 /android/app/debug
 /android/app/profile
 /android/app/release
+
+Makefile
+
+# Android signing (never commit keys or passwords)
+/android/key.properties
+**/*.jks
+**/*.keystore
+
+# Backups exported by the app (a plain backup contains passwords)
+*sshub-backup*.json
