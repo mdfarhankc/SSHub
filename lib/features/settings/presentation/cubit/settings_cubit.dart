@@ -8,11 +8,10 @@ part 'settings_state.dart';
 
 class SettingsCubit extends Cubit<SettingsState> {
   final SettingsRepository _repository;
-  SettingsCubit(this._repository) : super(const SettingsState()) {
-    _load();
-  }
+  SettingsCubit(this._repository, AppSettings initial)
+    : super(SettingsState(settings: initial));
 
-  Future<void> _load() async {
+  Future<void> reload() async {
     try {
       emit(SettingsState(settings: await _repository.load()));
     } catch (_) {}
