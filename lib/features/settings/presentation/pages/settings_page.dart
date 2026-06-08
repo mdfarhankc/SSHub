@@ -1,10 +1,19 @@
+import 'dart:convert';
+import 'dart:io';
+
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:sshub/core/backup/backup_crypto.dart';
 
 import 'package:sshub/features/settings/domain/entities/app_settings.dart';
+import 'package:sshub/features/settings/domain/repositories/backup_repository.dart';
 import 'package:sshub/features/settings/presentation/cubit/settings_cubit.dart';
+import 'package:sshub/features/settings/presentation/widgets/export_options_dialog.dart';
+import 'package:sshub/features/settings/presentation/widgets/passphrase_dialog.dart';
 import 'package:sshub/features/settings/presentation/widgets/settings_section_header.dart';
 import 'package:sshub/features/ssh/domain/repositories/ssh_repository.dart';
+import 'package:sshub/features/ssh/presentation/bloc/server_list_bloc.dart';
 
 class SettingsPage extends StatelessWidget {
   const SettingsPage({super.key});
@@ -95,6 +104,20 @@ class SettingsPage extends StatelessWidget {
           // Data
           const SettingsSectionHeader("Data"),
           ListTile(
+            leading: const Icon(Icons.upload_file_outlined),
+            title: const Text("Export data"),
+            subtitle: const Text(
+              "Back up servers, passwords and settings to a file",
+            ),
+            onTap: () => _exportData(context),
+          ),
+          ListTile(
+            leading: const Icon(Icons.download_outlined),
+            title: const Text("Import data"),
+            subtitle: const Text("Restore servers and settings from a backup"),
+            onTap: () => _importData(context),
+          ),
+          ListTile(
             leading: Icon(
               Icons.delete_forever,
               color: Theme.of(context).colorScheme.error,
@@ -109,6 +132,87 @@ class SettingsPage extends StatelessWidget {
         ],
       ),
     );
+  }
+
+  void _snack(BuildContext context, String message, {bool success = true}) =>
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(message, style: Theme.of(context).textTheme.labelLarge),
+          backgroundColor: success ? Colors.green : Colors.red,
+        ),
+      );
+
+  Future<void> _exportData(BuildContext context) async {
+    final options = await showDialog<ExportOptions>(
+      context: context,
+      builder: (_) => const ExportOptionsDialog(),
+    );
+    if (options == null || !context.mounted) return;
+
+    final repo = context.read<BackupRepository>();
+    try {
+      final content = await repo.export(
+        includeServers: options.includeServers,
+        includeSettings: options.includeSettings,
+        passphrase: options.passphrase,
+      );
+      final path = await FilePicker.platform.saveFile(
+        dialogTitle: "Save SSHub backup",
+        fileName: options.passphrase != null
+            ? "sshub-backup.json"
+            : "sshub-backup-plain.json",
+        type: FileType.custom,
+        allowedExtensions: ["json"],
+        bytes: utf8.encode(content),
+      );
+      if (path == null) return;
+      if (!Platform.isAndroid && !Platform.isIOS) {
+        await File(path).writeAsString(content);
+      }
+      if (context.mounted) _snack(context, "Backup exported");
+    } catch (_) {
+      if (context.mounted) _snack(context, "Export failed", success: false);
+    }
+  }
+
+  Future<void> _importData(BuildContext context) async {
+    final result = await FilePicker.platform.pickFiles(
+      dialogTitle: "Select SSHub backup",
+      type: FileType.custom,
+      allowedExtensions: ["json"],
+      withData: true,
+    );
+    final bytes = result?.files.single.bytes;
+    if (bytes == null || !context.mounted) return;
+    final content = utf8.decode(bytes);
+
+    String? passphrase;
+    try {
+      if (BackupCrypto.isEncrypted(content)) {
+        passphrase = await showDialog<String>(
+          context: context,
+          builder: (_) => const PassphraseDialog(),
+        );
+        if (passphrase == null || !context.mounted) return;
+      }
+    } on BackupException catch (e) {
+      if (context.mounted) _snack(context, e.message, success: false);
+      return;
+    }
+
+    final repo = context.read<BackupRepository>();
+    try {
+      final count = await repo.import(content, passphrase);
+      if (context.mounted) {
+        context.read<SettingsCubit>().reload();
+        context.read<ServerListBloc>().add(ServerListLoaded());
+        _snack(context, "Imported $count servers");
+      }
+    } on BackupException catch (e) {
+      if (context.mounted) _snack(context, e.message, success: false);
+    } catch (_) {
+      if (context.mounted) _snack(context, "Import failed", success: false);
+    }
   }
 
   Future<void> _confirmClearAll(BuildContext context) async {
@@ -137,6 +241,7 @@ class SettingsPage extends StatelessWidget {
     if (confirmed == true && context.mounted) {
       await context.read<SshRepository>().clearAll();
       if (context.mounted) {
+        context.read<ServerListBloc>().add(ServerListLoaded());
         ScaffoldMessenger.of(
           context,
         ).showSnackBar(const SnackBar(content: Text("All data cleared")));
