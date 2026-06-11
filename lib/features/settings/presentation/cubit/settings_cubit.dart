@@ -26,6 +26,12 @@ class SettingsCubit extends Cubit<SettingsState> {
   void updateTerminalFontFamily(String family) =>
       _update(state.settings.copyWith(terminalFontFamily: family));
 
+  void updateAppLock(bool enabled) =>
+      _update(state.settings.copyWith(appLockEnabled: enabled));
+
+  void updateLockPasswordReveal(bool enabled) =>
+      _update(state.settings.copyWith(lockPasswordReveal: enabled));
+
   Future<void> _update(AppSettings settings) async {
     emit(SettingsState(settings: settings));
     try {

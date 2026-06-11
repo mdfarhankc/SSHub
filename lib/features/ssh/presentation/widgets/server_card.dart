@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
+import 'package:sshub/core/theme/app_theme.dart';
 import 'package:sshub/core/theme/server_colors.dart';
 import 'package:sshub/features/ssh/domain/entities/ssh_server.dart';
 import 'package:sshub/features/ssh/presentation/bloc/server_list_bloc.dart';
@@ -23,10 +24,7 @@ class _ServerCardState extends State<ServerCard> {
   SshServer get server => widget.server;
 
   Future<void> _edit() async {
-    final result = await showDialog<({SshServer server, String? password})>(
-      context: context,
-      builder: (_) => ServerDialog(server: server),
-    );
+    final result = await ServerDialog.show(context, server: server);
     if (result != null && mounted) {
       context.read<ServerListBloc>().add(
         ServerUpdated(result.server, result.password),
@@ -62,14 +60,31 @@ class _ServerCardState extends State<ServerCard> {
     }
   }
 
+  void _connect() {
+    context.read<ServerListBloc>().add(
+      ServerUpdated(server.copyWith(lastConnectedAt: DateTime.now()), null),
+    );
+    Navigator.pushNamed(context, TerminalPage.route, arguments: server);
+  }
+
+  String _lastSeen() {
+    final t = server.lastConnectedAt;
+    if (t == null) return "Not connected yet";
+    final d = DateTime.now().difference(t);
+    final ago = d.inSeconds < 60
+        ? "just now"
+        : d.inMinutes < 60
+        ? "${d.inMinutes}m ago"
+        : d.inHours < 24
+        ? "${d.inHours}h ago"
+        : "${d.inDays}d ago";
+    return "Last seen: $ago";
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final accent = ServerColors.resolve(server.colorValue, theme.colorScheme);
-    final onAccent =
-        ThemeData.estimateBrightnessForColor(accent) == Brightness.dark
-        ? Colors.white
-        : Colors.black;
 
     return MouseRegion(
       onEnter: (_) => setState(() => _hovering = true),
@@ -78,47 +93,80 @@ class _ServerCardState extends State<ServerCard> {
         duration: const Duration(milliseconds: 150),
         curve: Curves.easeOut,
         decoration: BoxDecoration(
-          color: Color.alphaBlend(
-            accent.withValues(alpha: _hovering ? 0.14 : 0.07),
-            theme.colorScheme.surfaceContainer,
-          ),
-          borderRadius: const BorderRadius.all(Radius.circular(12)),
+          color: theme.colorScheme.surfaceContainer,
+          borderRadius: BorderRadius.circular(AppTheme.radius),
           border: Border.all(
-            color: _hovering ? accent : accent.withValues(alpha: 0.25),
+            color: _hovering
+                ? theme.colorScheme.outline
+                : theme.colorScheme.outlineVariant,
             width: _hovering ? 1.5 : 1,
           ),
           boxShadow: _hovering
               ? [
                   BoxShadow(
-                    color: accent.withValues(alpha: 0.35),
-                    blurRadius: 14,
-                    spreadRadius: 1,
+                    color: Colors.black.withValues(alpha: 0.08),
+                    blurRadius: 12,
+                    offset: const Offset(0, 2),
                   ),
                 ]
               : null,
         ),
         child: Padding(
-          padding: const EdgeInsets.fromLTRB(16, 12, 8, 12),
+          padding: const EdgeInsets.fromLTRB(16, 12, 8, 8),
           child: Column(
             crossAxisAlignment: .start,
             children: [
               Row(
+                crossAxisAlignment: .start,
                 children: [
                   Container(
-                    padding: const EdgeInsets.all(6),
+                    padding: const EdgeInsets.all(8),
                     decoration: BoxDecoration(
                       color: accent.withValues(alpha: 0.18),
-                      borderRadius: const BorderRadius.all(Radius.circular(8)),
+                      borderRadius: BorderRadius.circular(AppTheme.radius),
                     ),
-                    child: Icon(Icons.dns_outlined, size: 18, color: accent),
+                    child: Icon(Icons.dns_outlined, size: 22, color: accent),
                   ),
-                  const SizedBox(width: 10),
+                  const SizedBox(width: 12),
                   Expanded(
-                    child: Text(
-                      server.label,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: theme.textTheme.titleMedium,
+                    child: Column(
+                      crossAxisAlignment: .start,
+                      children: [
+                        Text(
+                          server.label,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: theme.textTheme.titleMedium?.copyWith(
+                            fontWeight: .w600,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Row(
+                          children: [
+                            Container(
+                              width: 8,
+                              height: 8,
+                              decoration: const BoxDecoration(
+                                color: Color(0xFF22C55E),
+                                shape: BoxShape.circle,
+                              ),
+                            ),
+                            const SizedBox(width: 6),
+                            Flexible(
+                              child: Text(
+                                server.host,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: TextStyle(
+                                  fontFamily: "monospace",
+                                  fontSize: 13,
+                                  color: theme.colorScheme.onSurfaceVariant,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
                     ),
                   ),
                   PopupMenuButton<_CardAction>(
@@ -144,20 +192,8 @@ class _ServerCardState extends State<ServerCard> {
                   ),
                 ],
               ),
-              const SizedBox(height: 8),
-              Padding(
-                padding: const EdgeInsets.only(right: 8),
-                child: Text(
-                  "${server.username}@${server.host}:${server.port}",
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: theme.textTheme.bodySmall?.copyWith(
-                    color: theme.colorScheme.onSurfaceVariant,
-                  ),
-                ),
-              ),
               if (server.description.isNotEmpty) ...[
-                const SizedBox(height: 4),
+                const SizedBox(height: 10),
                 Padding(
                   padding: const EdgeInsets.only(right: 8),
                   child: Text(
@@ -171,26 +207,31 @@ class _ServerCardState extends State<ServerCard> {
                 ),
               ],
               const Spacer(),
-              Padding(
-                padding: const EdgeInsets.only(right: 8),
-                child: SizedBox(
-                  width: double.infinity,
-                  child: FilledButton.icon(
-                    style: FilledButton.styleFrom(
-                      backgroundColor: accent,
-                      foregroundColor: onAccent,
+              const Divider(height: 16),
+              Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      _lastSeen(),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: theme.colorScheme.onSurfaceVariant,
+                      ),
                     ),
-                    onPressed: () {
-                      Navigator.pushNamed(
-                        context,
-                        TerminalPage.route,
-                        arguments: server,
-                      );
-                    },
-                    icon: const Icon(Icons.terminal, size: 18),
-                    label: const Text("Connect"),
                   ),
-                ),
+                  TextButton(
+                    onPressed: _connect,
+                    child: const Row(
+                      mainAxisSize: .min,
+                      children: [
+                        Text("Connect"),
+                        SizedBox(width: 4),
+                        Icon(Icons.arrow_forward, size: 16),
+                      ],
+                    ),
+                  ),
+                ],
               ),
             ],
           ),

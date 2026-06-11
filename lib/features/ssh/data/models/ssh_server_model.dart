@@ -10,6 +10,7 @@ class SshServerModel extends SshServer {
     super.description,
     super.authType,
     super.colorValue,
+    super.lastConnectedAt,
   });
 
   factory SshServerModel.fromJson(Map<String, dynamic> json) => SshServerModel(
@@ -21,6 +22,9 @@ class SshServerModel extends SshServer {
     description: json['description'] as String? ?? '',
     authType: AuthType.values.byName(json['authType'] as String),
     colorValue: json['colorValue'] as int?,
+    lastConnectedAt: json['lastConnectedAt'] != null
+        ? DateTime.fromMillisecondsSinceEpoch(json['lastConnectedAt'] as int)
+        : null,
   );
 
   Map<String, dynamic> toJson() => {
@@ -32,6 +36,7 @@ class SshServerModel extends SshServer {
     'description': description,
     'authType': authType.name,
     'colorValue': colorValue,
+    'lastConnectedAt': lastConnectedAt?.millisecondsSinceEpoch,
   };
 
   factory SshServerModel.fromEntity(SshServer e) => SshServerModel(
@@ -43,5 +48,6 @@ class SshServerModel extends SshServer {
     description: e.description,
     authType: e.authType,
     colorValue: e.colorValue,
+    lastConnectedAt: e.lastConnectedAt,
   );
 }

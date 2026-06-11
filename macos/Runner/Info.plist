@@ -28,5 +28,7 @@
 	<string>MainMenu</string>
 	<key>NSPrincipalClass</key>
 	<string>NSApplication</string>
+	<key>NSFaceIDUsageDescription</key>
+	<string>SSHub uses Face ID to unlock the app and reveal your saved passwords.</string>
 </dict>
 </plist>

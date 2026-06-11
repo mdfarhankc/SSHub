@@ -11,6 +11,7 @@ class SshServer extends Equatable {
   final String description;
   final AuthType authType;
   final int? colorValue;
+  final DateTime? lastConnectedAt;
 
   const SshServer({
     required this.id,
@@ -21,7 +22,29 @@ class SshServer extends Equatable {
     this.port = 22,
     this.authType = AuthType.password,
     this.colorValue,
+    this.lastConnectedAt,
   });
+
+  SshServer copyWith({
+    String? label,
+    String? host,
+    int? port,
+    String? username,
+    String? description,
+    AuthType? authType,
+    int? colorValue,
+    DateTime? lastConnectedAt,
+  }) => SshServer(
+    id: id,
+    label: label ?? this.label,
+    host: host ?? this.host,
+    port: port ?? this.port,
+    username: username ?? this.username,
+    description: description ?? this.description,
+    authType: authType ?? this.authType,
+    colorValue: colorValue ?? this.colorValue,
+    lastConnectedAt: lastConnectedAt ?? this.lastConnectedAt,
+  );
 
   @override
   List<Object?> get props => [
@@ -33,5 +56,6 @@ class SshServer extends Equatable {
     description,
     authType,
     colorValue,
+    lastConnectedAt,
   ];
 }

@@ -14,13 +14,16 @@ class SplashPage extends StatefulWidget {
 
 class _SplashPageState extends State<SplashPage> {
   bool _navigated = false;
+  bool _minDelayPassed = false;
 
   @override
   void initState() {
     super.initState();
-    if (_loaded(context.read<ServerListBloc>().state)) {
-      WidgetsBinding.instance.addPostFrameCallback((_) => _goHome());
-    }
+    // Keep the splash on screen for at least a moment, even if data is ready.
+    Future.delayed(const Duration(seconds: 1), () {
+      _minDelayPassed = true;
+      _goHome();
+    });
   }
 
   bool _loaded(ServerListState state) =>
@@ -28,7 +31,8 @@ class _SplashPageState extends State<SplashPage> {
       state.status == ServerListStatus.failure;
 
   void _goHome() {
-    if (_navigated || !mounted) return;
+    if (_navigated || !mounted || !_minDelayPassed) return;
+    if (!_loaded(context.read<ServerListBloc>().state)) return;
     _navigated = true;
     Navigator.pushReplacementNamed(context, HomePage.route);
   }
