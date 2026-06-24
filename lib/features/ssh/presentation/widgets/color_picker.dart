@@ -53,25 +53,42 @@ class _Swatch extends StatelessWidget {
   Widget build(BuildContext context) {
     return InkWell(
       onTap: onTap,
-      customBorder: const CircleBorder(),
-      child: Container(
-        width: 30,
-        height: 30,
+      borderRadius: BorderRadius.circular(12),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        width: 36,
+        height: 36,
         decoration: BoxDecoration(
-          color: color,
-          shape: .circle,
-          border: selected
-              ? Border.all(
-                  color: Theme.of(context).colorScheme.onSurface,
-                  width: 2,
-                )
-              : null,
+          color: color.withValues(alpha: 0.2),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(
+            color: selected ? color : Colors.transparent,
+            width: 2,
+          ),
         ),
-        child: icon != null
-            ? Icon(icon, size: 16, color: Theme.of(context).colorScheme.surface)
-            : selected
-            ? const Icon(Icons.check, size: 16, color: Colors.white)
-            : null,
+        child: Center(
+          child: Container(
+            width: 20,
+            height: 20,
+            decoration: BoxDecoration(
+              color: color,
+              borderRadius: BorderRadius.circular(6),
+              boxShadow: [
+                if (selected)
+                  BoxShadow(
+                    color: color.withValues(alpha: 0.4),
+                    blurRadius: 8,
+                    offset: const Offset(0, 2),
+                  ),
+              ],
+            ),
+            child: icon != null
+                ? Icon(icon, size: 12, color: Colors.white)
+                : selected
+                ? const Icon(Icons.check, size: 12, color: Colors.white)
+                : null,
+          ),
+        ),
       ),
     );
   }

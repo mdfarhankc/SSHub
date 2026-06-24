@@ -8,6 +8,7 @@ class SshServer extends Equatable {
   final String host;
   final int port;
   final String username;
+  final String password;
   final String description;
   final AuthType authType;
   final int? colorValue;
@@ -18,6 +19,7 @@ class SshServer extends Equatable {
     required this.label,
     required this.host,
     required this.username,
+    this.password = '',
     this.description = '',
     this.port = 22,
     this.authType = AuthType.password,
@@ -30,6 +32,7 @@ class SshServer extends Equatable {
     String? host,
     int? port,
     String? username,
+    String? password,
     String? description,
     AuthType? authType,
     int? colorValue,
@@ -40,6 +43,7 @@ class SshServer extends Equatable {
     host: host ?? this.host,
     port: port ?? this.port,
     username: username ?? this.username,
+    password: password ?? this.password,
     description: description ?? this.description,
     authType: authType ?? this.authType,
     colorValue: colorValue ?? this.colorValue,
@@ -53,6 +57,7 @@ class SshServer extends Equatable {
     host,
     port,
     username,
+    password,
     description,
     authType,
     colorValue,

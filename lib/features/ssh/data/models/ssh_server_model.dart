@@ -6,6 +6,7 @@ class SshServerModel extends SshServer {
     required super.label,
     required super.host,
     required super.username,
+    super.password,
     super.port,
     super.description,
     super.authType,
@@ -18,9 +19,11 @@ class SshServerModel extends SshServer {
     label: json['label'] as String,
     host: json['host'] as String,
     username: json['username'] as String,
+    password: json['password'] as String? ?? '',
     port: json['port'] as int? ?? 22,
     description: json['description'] as String? ?? '',
-    authType: AuthType.values.byName(json['authType'] as String),
+    authType:
+        AuthType.values.asNameMap()[json['authType']] ?? AuthType.password,
     colorValue: json['colorValue'] as int?,
     lastConnectedAt: json['lastConnectedAt'] != null
         ? DateTime.fromMillisecondsSinceEpoch(json['lastConnectedAt'] as int)
@@ -32,6 +35,7 @@ class SshServerModel extends SshServer {
     'label': label,
     'host': host,
     'username': username,
+    'password': password,
     'port': port,
     'description': description,
     'authType': authType.name,
@@ -44,6 +48,7 @@ class SshServerModel extends SshServer {
     label: e.label,
     host: e.host,
     username: e.username,
+    password: e.password,
     port: e.port,
     description: e.description,
     authType: e.authType,

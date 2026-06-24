@@ -55,7 +55,7 @@ class SettingsRow extends StatelessWidget {
           );
 
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 12),
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
       child: LayoutBuilder(
         builder: (context, constraints) {
           if (keepInline) {
@@ -67,16 +67,16 @@ class SettingsRow extends StatelessWidget {
               ],
             );
           }
-          if (stack || constraints.maxWidth < 400) {
+          if (stack || constraints.maxWidth < 450) {
             return Column(
-              crossAxisAlignment: .stretch,
-              children: [textRow, const SizedBox(height: 12), control],
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [textRow, const SizedBox(height: 16), control],
             );
           }
           return Row(
             children: [
               Expanded(child: text),
-              const SizedBox(width: 16),
+              const SizedBox(width: 24),
               control,
             ],
           );

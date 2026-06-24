@@ -4,38 +4,42 @@ import 'package:sshub/core/backup/backup_crypto.dart';
 import 'package:sshub/features/settings/data/datasources/settings_local_datasource.dart';
 import 'package:sshub/features/settings/data/models/app_settings_model.dart';
 import 'package:sshub/features/settings/domain/repositories/backup_repository.dart';
-import 'package:sshub/features/ssh/data/datasources/secret_datasource.dart';
+import 'package:sshub/features/snippets/data/datasources/snippet_local_datasource.dart';
+import 'package:sshub/features/snippets/data/models/snippet_model.dart';
 import 'package:sshub/features/ssh/data/datasources/server_local_datasource.dart';
 import 'package:sshub/features/ssh/data/models/ssh_server_model.dart';
 
 class BackupRepositoryImpl implements BackupRepository {
   // Keep in sync with the version in pubspec.yaml on each release.
-  static const _appVersion = "1.0.0";
+  static const _appVersion = "2.0.0";
 
   final ServerLocalDatasource _serverDs;
-  final SecretDatasource _secretDs;
   final SettingsLocalDatasource _settingsDs;
+  final SnippetLocalDatasource _snippetDs;
 
-  const BackupRepositoryImpl(this._serverDs, this._secretDs, this._settingsDs);
+  const BackupRepositoryImpl(
+    this._serverDs,
+    this._settingsDs,
+    this._snippetDs,
+  );
 
   @override
   Future<String> export({
     required bool includeServers,
     required bool includeSettings,
+    required bool includeSnippets,
     String? passphrase,
   }) async {
     final payload = <String, dynamic>{};
 
     if (includeServers) {
       final servers = await _serverDs.load();
-      final list = <Map<String, dynamic>>[];
-      for (final s in servers) {
-        final json = s.toJson();
-        final pw = await _secretDs.read(s.id);
-        if (pw != null) json['password'] = pw;
-        list.add(json);
-      }
-      payload['servers'] = list;
+      payload['servers'] = [for (final s in servers) s.toJson()];
+    }
+
+    if (includeSnippets) {
+      final snippets = await _snippetDs.load();
+      payload['snippets'] = [for (final s in snippets) s.toJson()];
     }
 
     if (includeSettings) {
@@ -79,11 +83,22 @@ class BackupRepositoryImpl implements BackupRepository {
       for (final json in imported) {
         final model = SshServerModel.fromJson(json);
         byId[model.id] = model;
-        final pw = json['password'];
-        if (pw is String) await _secretDs.write(model.id, pw);
       }
       await _serverDs.save(byId.values.toList());
       count = imported.length;
+    }
+
+    if (data['snippets'] != null) {
+      final imported = [
+        for (final e in data['snippets'] as List) e as Map<String, dynamic>,
+      ];
+      final existing = await _snippetDs.load();
+      final byId = {for (final s in existing) s.id: s};
+      for (final json in imported) {
+        final model = SnippetModel.fromJson(json);
+        byId[model.id] = model;
+      }
+      await _snippetDs.save(byId.values.toList());
     }
 
     if (data['settings'] != null) {

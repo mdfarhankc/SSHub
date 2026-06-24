@@ -4,6 +4,8 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:sshub/features/settings/domain/entities/app_settings.dart';
 import 'package:sshub/features/settings/domain/repositories/settings_repository.dart';
 import 'package:sshub/features/settings/presentation/cubit/settings_cubit.dart';
+import 'package:sshub/features/snippets/domain/repositories/snippet_repository.dart';
+import 'package:sshub/features/snippets/presentation/bloc/snippet_list_bloc.dart';
 import 'package:sshub/features/ssh/domain/repositories/ssh_repository.dart';
 import 'package:sshub/features/ssh/presentation/bloc/server_list_bloc.dart';
 
@@ -30,6 +32,11 @@ class AppBlocProviders extends StatelessWidget {
           create: (context) =>
               ServerListBloc(context.read<SshRepository>())
                 ..add(ServerListLoaded()),
+        ),
+        BlocProvider(
+          create: (context) =>
+              SnippetListBloc(context.read<SnippetRepository>())
+                ..add(SnippetListLoaded()),
         ),
       ],
       child: child,

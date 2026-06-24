@@ -35,7 +35,7 @@ class ServerListBloc extends Bloc<ServerListEvent, ServerListState> {
     Emitter<ServerListState> emit,
   ) async {
     try {
-      await _repository.addServer(event.server, password: event.password);
+      await _repository.addServer(event.server);
       emit(state.copyWith(servers: [...state.servers, event.server]));
     } catch (e) {
       emit(state.copyWith(errorMessage: "Could not add server"));
@@ -47,7 +47,7 @@ class ServerListBloc extends Bloc<ServerListEvent, ServerListState> {
     Emitter<ServerListState> emit,
   ) async {
     try {
-      await _repository.updateServer(event.server, password: event.password);
+      await _repository.updateServer(event.server);
       emit(
         state.copyWith(
           servers: [

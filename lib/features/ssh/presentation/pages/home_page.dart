@@ -1,9 +1,24 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:sshub/core/responsive/responsive.dart';
+import 'package:sshub/core/shortcuts/app_shortcuts.dart';
+import 'package:sshub/core/shortcuts/shortcuts_help_dialog.dart';
+import 'package:sshub/core/theme/app_theme.dart';
+import 'package:sshub/features/settings/presentation/pages/settings_page.dart';
+import 'package:sshub/features/snippets/presentation/pages/snippets_page.dart';
 import 'package:sshub/features/ssh/domain/entities/ssh_server.dart';
 import 'package:sshub/features/ssh/presentation/bloc/server_list_bloc.dart';
 import 'package:sshub/features/ssh/presentation/widgets/home_header.dart';
 import 'package:sshub/features/ssh/presentation/widgets/server_card.dart';
+import 'package:sshub/features/ssh/presentation/widgets/server_dialog.dart';
+
+const _gridDelegate = SliverGridDelegateWithMaxCrossAxisExtent(
+  maxCrossAxisExtent: 450,
+  mainAxisSpacing: 16,
+  crossAxisSpacing: 16,
+  mainAxisExtent: 180,
+);
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -15,6 +30,13 @@ class HomePage extends StatefulWidget {
 
 class _HomePageState extends State<HomePage> {
   String _query = "";
+  final _searchFocus = FocusNode();
+
+  @override
+  void dispose() {
+    _searchFocus.dispose();
+    super.dispose();
+  }
 
   List<SshServer> _filter(List<SshServer> servers) {
     final q = _query.trim().toLowerCase();
@@ -29,66 +51,284 @@ class _HomePageState extends State<HomePage> {
         .toList();
   }
 
+  Future<void> _openSettings(BuildContext context) async {
+    await Navigator.pushNamed(context, SettingsPage.route);
+    if (context.mounted) {
+      context.read<ServerListBloc>().add(ServerListLoaded());
+    }
+  }
+
+  Future<void> _addServer(BuildContext context) async {
+    final result = await ServerDialog.show(context);
+    if (result != null && context.mounted) {
+      context.read<ServerListBloc>().add(ServerAdded(result));
+    }
+  }
+
+  void _focusSearch() => _searchFocus.requestFocus();
+
+  Map<ShortcutActivator, VoidCallback> _shortcutBindings(
+    BuildContext context,
+  ) => {
+    ...shortcutBinding(LogicalKeyboardKey.keyN, () => _addServer(context)),
+    ...shortcutBinding(LogicalKeyboardKey.keyF, _focusSearch),
+    ...shortcutBinding(
+      LogicalKeyboardKey.keyE,
+      () => Navigator.pushNamed(context, SnippetsPage.route),
+    ),
+    ...shortcutBinding(LogicalKeyboardKey.comma, () => _openSettings(context)),
+    const SingleActivator(LogicalKeyboardKey.f1): () =>
+        ShortcutsHelpDialog.show(context),
+  };
+
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
+    final mod = shortcutModifierLabel;
+
     return Scaffold(
-      body: Column(
-        children: [
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
-            child: HomeHeader(
-              onSearchChanged: (value) => setState(() => _query = value),
+      body: CallbackShortcuts(
+        bindings: _shortcutBindings(context),
+        child: Focus(
+          autofocus: true,
+          child: Center(
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(
+                maxWidth: AppTheme.maxContentWidth,
+              ),
+              child: BlocConsumer<ServerListBloc, ServerListState>(
+                listenWhen: (previous, current) => current.errorMessage != null,
+                listener: (context, state) {
+                  ScaffoldMessenger.of(
+                    context,
+                  ).showSnackBar(SnackBar(content: Text(state.errorMessage!)));
+                },
+                builder: (context, state) {
+                  final servers = _filter(state.servers);
+                  final isLoading =
+                      state.status == ServerListStatus.loading ||
+                      state.status == ServerListStatus.initial;
+
+                  const hPad = 16.0;
+                  final isMobile = context.isMobile;
+                  final showStats =
+                      !isLoading && state.servers.isNotEmpty && _query.isEmpty;
+
+                  return CustomScrollView(
+                    slivers: [
+                      SliverAppBar(
+                        pinned: true,
+                        expandedHeight: 132,
+                        toolbarHeight: 64,
+                        backgroundColor: scheme.surface,
+                        surfaceTintColor: Colors.transparent,
+                        actions: [
+                          IconButton(
+                            onPressed: () => ShortcutsHelpDialog.show(context),
+                            icon: const Icon(Icons.help_outline_rounded),
+                            color: scheme.onSurfaceVariant,
+                            tooltip: "Help (F1)",
+                          ),
+                          IconButton(
+                            onPressed: () => Navigator.pushNamed(
+                              context,
+                              SnippetsPage.route,
+                            ),
+                            icon: const Icon(Icons.bolt_outlined),
+                            color: scheme.onSurfaceVariant,
+                            tooltip: "Snippets ($mod+E)",
+                          ),
+                          IconButton(
+                            onPressed: () => _openSettings(context),
+                            icon: const Icon(Icons.settings_outlined),
+                            color: scheme.onSurfaceVariant,
+                            tooltip: "Settings ($mod+,)",
+                          ),
+                          const SizedBox(width: 8),
+                        ],
+                        flexibleSpace: FlexibleSpaceBar(
+                          titlePadding: const EdgeInsetsDirectional.only(
+                            start: hPad,
+                            bottom: 16,
+                          ),
+                          expandedTitleScale: 1.6,
+                          title: Text(
+                            "SSHub",
+                            style: theme.textTheme.titleLarge?.copyWith(
+                              fontWeight: FontWeight.w800,
+                              letterSpacing: -0.5,
+                              color: scheme.primary,
+                            ),
+                          ),
+                          background: showStats
+                              ? Align(
+                                  alignment: Alignment.bottomRight,
+                                  child: Padding(
+                                    padding: const EdgeInsets.only(
+                                      right: hPad,
+                                      bottom: 24,
+                                    ),
+                                    child: Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        _HeaderStat(
+                                          icon: Icons.dns_rounded,
+                                          value: state.servers.length
+                                              .toString(),
+                                          label: "Servers",
+                                          compact: isMobile,
+                                        ),
+                                        SizedBox(width: isMobile ? 14 : 20),
+                                        _HeaderStat(
+                                          icon: Icons.history_rounded,
+                                          value: state.servers
+                                              .where(
+                                                (s) =>
+                                                    s.lastConnectedAt != null,
+                                              )
+                                              .length
+                                              .toString(),
+                                          label: "Connected",
+                                          compact: isMobile,
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                )
+                              : null,
+                        ),
+                      ),
+                      SliverPersistentHeader(
+                        pinned: true,
+                        delegate: _ToolbarHeaderDelegate(
+                          hPad: hPad,
+                          child: HomeHeader(
+                            searchFocusNode: _searchFocus,
+                            onSearchChanged: (value) =>
+                                setState(() => _query = value),
+                          ),
+                        ),
+                      ),
+                      if (isLoading)
+                        SliverPadding(
+                          padding: EdgeInsets.fromLTRB(hPad, 16, hPad, 16),
+                          sliver: SliverGrid(
+                            gridDelegate: _gridDelegate,
+                            delegate: SliverChildBuilderDelegate(
+                              (context, index) => const _SkeletonCard(),
+                              childCount: 6,
+                            ),
+                          ),
+                        )
+                      else if (state.status == ServerListStatus.failure)
+                        const SliverFillRemaining(
+                          child: Center(child: Text("Failed to load servers")),
+                        )
+                      else if (servers.isEmpty)
+                        SliverFillRemaining(
+                          hasScrollBody: false,
+                          child: _EmptyState(
+                            searching: _query.trim().isNotEmpty,
+                          ),
+                        )
+                      else
+                        SliverPadding(
+                          padding: EdgeInsets.fromLTRB(hPad, 16, hPad, 16),
+                          sliver: SliverGrid(
+                            gridDelegate: _gridDelegate,
+                            delegate: SliverChildBuilderDelegate(
+                              (context, index) =>
+                                  ServerCard(server: servers[index]),
+                              childCount: servers.length,
+                            ),
+                          ),
+                        ),
+                      const SliverToBoxAdapter(child: SizedBox(height: 32)),
+                    ],
+                  );
+                },
+              ),
             ),
           ),
-          Expanded(
-            child: BlocConsumer<ServerListBloc, ServerListState>(
-              listenWhen: (previous, current) => current.errorMessage != null,
-              listener: (context, state) {
-                ScaffoldMessenger.of(
-                  context,
-                ).showSnackBar(SnackBar(content: Text(state.errorMessage!)));
-              },
-              builder: (context, state) {
-                switch (state.status) {
-                  case (ServerListStatus.loading || ServerListStatus.initial):
-                    return const Center(child: CircularProgressIndicator());
-                  case (ServerListStatus.success):
-                    final servers = _filter(state.servers);
-                    if (servers.isEmpty) {
-                      return _EmptyState(searching: _query.trim().isNotEmpty);
-                    }
-                    return LayoutBuilder(
-                      builder: (context, constraints) {
-                        final width = constraints.maxWidth;
-                        final columns = width < 600
-                            ? 1
-                            : width < 900
-                            ? 2
-                            : width < 1300
-                            ? 3
-                            : 4;
-                        return GridView.builder(
-                          padding: const EdgeInsets.all(16),
-                          gridDelegate:
-                              SliverGridDelegateWithFixedCrossAxisCount(
-                                crossAxisCount: columns,
-                                mainAxisSpacing: 12,
-                                crossAxisSpacing: 12,
-                                mainAxisExtent: 184,
-                              ),
-                          itemCount: servers.length,
-                          itemBuilder: (_, i) => ServerCard(server: servers[i]),
-                        );
-                      },
-                    );
-                  case (ServerListStatus.failure):
-                    return const Center(child: Text("Failed to load servers"));
-                }
-              },
+        ),
+      ),
+    );
+  }
+}
+
+class _ToolbarHeaderDelegate extends SliverPersistentHeaderDelegate {
+  final double hPad;
+  final Widget child;
+  const _ToolbarHeaderDelegate({required this.hPad, required this.child});
+
+  static const double _height = 72;
+
+  @override
+  double get minExtent => _height;
+
+  @override
+  double get maxExtent => _height;
+
+  @override
+  Widget build(
+    BuildContext context,
+    double shrinkOffset,
+    bool overlapsContent,
+  ) {
+    final scheme = Theme.of(context).colorScheme;
+    return Container(
+      color: scheme.surface,
+      alignment: Alignment.center,
+      padding: EdgeInsets.fromLTRB(hPad, 8, hPad, 8),
+      child: child,
+    );
+  }
+
+  @override
+  bool shouldRebuild(covariant _ToolbarHeaderDelegate oldDelegate) =>
+      oldDelegate.child != child || oldDelegate.hPad != hPad;
+}
+
+class _HeaderStat extends StatelessWidget {
+  final IconData icon;
+  final String value;
+  final String label;
+  final bool compact;
+
+  const _HeaderStat({
+    required this.icon,
+    required this.value,
+    required this.label,
+    this.compact = false,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
+
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Icon(icon, size: 16, color: scheme.primary),
+        const SizedBox(width: 6),
+        Text(
+          value,
+          style: theme.textTheme.titleMedium?.copyWith(
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+        if (!compact) ...[
+          const SizedBox(width: 5),
+          Text(
+            label,
+            style: theme.textTheme.bodySmall?.copyWith(
+              color: scheme.onSurfaceVariant,
             ),
           ),
         ],
-      ),
+      ],
     );
   }
 }
@@ -102,31 +342,130 @@ class _EmptyState extends StatelessWidget {
     final theme = Theme.of(context);
     final scheme = theme.colorScheme;
     return Center(
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(
-            searching ? Icons.search_off : Icons.dns_outlined,
-            size: 48,
-            color: scheme.onSurfaceVariant,
-          ),
-          const SizedBox(height: 12),
-          Text(
-            searching ? "No matching servers" : "No servers yet",
-            style: theme.textTheme.titleMedium?.copyWith(
-              color: scheme.onSurfaceVariant,
+      child: Padding(
+        padding: const EdgeInsets.all(32.0),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              padding: const EdgeInsets.all(24),
+              decoration: BoxDecoration(
+                color: scheme.primaryContainer.withValues(alpha: 0.2),
+                shape: BoxShape.circle,
+              ),
+              child: Icon(
+                searching ? Icons.search_off_rounded : Icons.dns_rounded,
+                size: 64,
+                color: scheme.primary,
+              ),
             ),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            searching
-                ? "Try a different name, host or description."
-                : "Add a server to get started.",
-            style: theme.textTheme.bodySmall?.copyWith(
-              color: scheme.onSurfaceVariant,
+            const SizedBox(height: 24),
+            Text(
+              searching ? "No servers found" : "No servers added yet",
+              textAlign: TextAlign.center,
+              style: theme.textTheme.headlineSmall?.copyWith(
+                fontWeight: FontWeight.bold,
+              ),
             ),
-          ),
-        ],
+            const SizedBox(height: 8),
+            Text(
+              searching
+                  ? "We couldn't find any servers matching your search query. Try something else?"
+                  : "Start by adding your first SSH server to manage it from SSHub.",
+              textAlign: TextAlign.center,
+              style: theme.textTheme.bodyMedium?.copyWith(
+                color: scheme.onSurfaceVariant,
+              ),
+            ),
+            if (!searching) ...[
+              const SizedBox(height: 24),
+              FilledButton.icon(
+                onPressed: () {
+                  ServerDialog.show(context).then((result) {
+                    if (result != null && context.mounted) {
+                      context.read<ServerListBloc>().add(ServerAdded(result));
+                    }
+                  });
+                },
+                icon: const Icon(Icons.add_rounded),
+                label: const Text("Add your first server"),
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _SkeletonCard extends StatefulWidget {
+  const _SkeletonCard();
+
+  @override
+  State<_SkeletonCard> createState() => _SkeletonCardState();
+}
+
+class _SkeletonCardState extends State<_SkeletonCard>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _controller = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 1100),
+  )..repeat(reverse: true);
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+
+    Widget block(double width, double height) => Container(
+      width: width,
+      height: height,
+      decoration: BoxDecoration(
+        color: scheme.onSurface,
+        borderRadius: BorderRadius.circular(6),
+      ),
+    );
+
+    return Container(
+      decoration: BoxDecoration(
+        color: scheme.surface,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: scheme.outlineVariant),
+      ),
+      padding: const EdgeInsets.all(16),
+      child: FadeTransition(
+        opacity: Tween(begin: 0.04, end: 0.12).animate(_controller),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                block(40, 40),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      block(120, 14),
+                      const SizedBox(height: 8),
+                      block(80, 12),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+            const Spacer(),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [block(90, 18), block(18, 18)],
+            ),
+          ],
+        ),
       ),
     );
   }

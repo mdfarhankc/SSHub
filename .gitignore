@@ -55,3 +55,6 @@ Makefile
 
 # Backups exported by the app (a plain backup contains passwords)
 *sshub-backup*.json
+
+# Local DevTools options
+devtools_options.yaml

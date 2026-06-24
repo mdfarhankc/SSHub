@@ -1,7 +1,7 @@
 name: sshub
 description: "SSHub is a fast, minimal SSH client for the desktop. Save your servers, connect with one click, and work in a full terminal. Credentials stay encrypted on your machine."
 publish_to: 'none'
-version: 1.0.0+1
+version: 2.0.0+2
 
 environment:
   sdk: ^3.12.0
@@ -10,28 +10,42 @@ dependencies:
   flutter:
     sdk: flutter
 
+  # UI
   cupertino_icons: ^1.0.8
+
+  # State management
   flutter_bloc: ^9.1.1
   equatable: ^2.0.8
-  uuid: ^4.5.3
-  path_provider: ^2.1.5
-  flutter_secure_storage: ^10.3.1
 
-  # Ssh connection and in-built terminal
+  # SSH connection and in-built terminal
   dartssh2: ^2.17.1
   xterm: ^4.0.0
-  
-  file_picker: ^10.0.0
-  cryptography: ^2.9.0
 
-  # Authentication
+  # Local storage and files
+  path_provider: ^2.1.5
+  flutter_secure_storage: ^10.3.1
+  file_picker: ^10.0.0
+
+  # Security
+  cryptography: ^2.9.0
   local_auth: ^3.0.1
+
+  # Utilities
+  uuid: ^4.5.3
+
+  # Update check and external links
+  http: ^1.2.0
+  package_info_plus: ^8.0.0
+  url_launcher: ^6.3.0
 
 dev_dependencies:
   flutter_test:
     sdk: flutter
 
+  # Linting
   flutter_lints: ^6.0.0
+
+  # App icon generation
   flutter_launcher_icons: ^0.14.4
 
 dependency_overrides:
@@ -43,6 +57,7 @@ flutter:
 
   assets:
     - assets/icon/icon.png
+    - assets/icon/icon_without_bg.png
 
   fonts:
     - family: Inter
@@ -54,4 +69,12 @@ flutter:
         - asset: assets/fonts/Inter-SemiBold.ttf
           weight: 600
         - asset: assets/fonts/Inter-Bold.ttf
+          weight: 700
+    - family: JetBrains Mono
+      fonts:
+        - asset: assets/fonts/JetBrainsMono-Regular.ttf
+          weight: 400
+        - asset: assets/fonts/JetBrainsMono-Medium.ttf
+          weight: 500
+        - asset: assets/fonts/JetBrainsMono-Bold.ttf
           weight: 700

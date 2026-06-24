@@ -15,6 +15,8 @@ class DialogField extends StatefulWidget {
   final bool autofocus;
   final bool required;
 
+  final Future<bool> Function()? onReveal;
+
   const DialogField({
     super.key,
     required this.controller,
@@ -29,6 +31,7 @@ class DialogField extends StatefulWidget {
     this.inputFormatters,
     this.textInputAction = .next,
     this.onSubmitted,
+    this.onReveal,
   });
 
   @override
@@ -38,9 +41,35 @@ class DialogField extends StatefulWidget {
 class _DialogFieldState extends State<DialogField> {
   // Only relevant when obscureText is true: whether the secret is hidden.
   bool _obscured = true;
+  bool _revealed = false;
+  bool _revealing = false;
+
+  Future<void> _toggleObscured() async {
+    if (!_obscured) {
+      setState(() => _obscured = true);
+      return;
+    }
+    if (widget.onReveal != null && !_revealed) {
+      setState(() => _revealing = true);
+      final allowed = await widget.onReveal!();
+      if (!mounted) return;
+      setState(() {
+        _revealing = false;
+        if (allowed) {
+          _revealed = true;
+          _obscured = false;
+        }
+      });
+      return;
+    }
+    setState(() => _obscured = false);
+  }
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
+
     return TextFormField(
       autofocus: widget.autofocus,
       controller: widget.controller,
@@ -52,17 +81,42 @@ class _DialogFieldState extends State<DialogField> {
       decoration: InputDecoration(
         labelText: widget.name,
         hintText: widget.hint,
-        prefixIcon: widget.icon == null ? null : Icon(widget.icon),
+        filled: true,
+        fillColor: scheme.surfaceContainerHighest.withValues(alpha: 0.3),
+        prefixIcon: widget.icon == null ? null : Icon(widget.icon, size: 20),
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide.none,
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide.none,
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide(color: scheme.primary, width: 1.5),
+        ),
+        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
         suffixIcon: !widget.obscureText
             ? null
+            : _revealing
+            ? const Padding(
+                padding: EdgeInsets.all(12),
+                child: SizedBox(
+                  width: 20,
+                  height: 20,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                ),
+              )
             : IconButton(
                 tooltip: _obscured ? "Show password" : "Hide password",
                 icon: Icon(
                   _obscured
                       ? Icons.visibility_outlined
                       : Icons.visibility_off_outlined,
+                  size: 20,
                 ),
-                onPressed: () => setState(() => _obscured = !_obscured),
+                onPressed: _toggleObscured,
               ),
       ),
       validator:

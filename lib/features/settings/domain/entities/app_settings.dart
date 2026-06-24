@@ -8,13 +8,17 @@ class AppSettings extends Equatable {
   final String terminalFontFamily;
   final bool appLockEnabled;
   final bool lockPasswordReveal;
+  final bool lockSnippetReveal;
+  final bool onboardingComplete;
 
   const AppSettings({
     this.themeMode = .system,
     this.terminalFontSize = 14,
-    this.terminalFontFamily = 'Cascadia Mono',
+    this.terminalFontFamily = 'JetBrains Mono',
     this.appLockEnabled = false,
     this.lockPasswordReveal = false,
+    this.lockSnippetReveal = false,
+    this.onboardingComplete = false,
   });
 
   AppSettings copyWith({
@@ -23,12 +27,16 @@ class AppSettings extends Equatable {
     String? terminalFontFamily,
     bool? appLockEnabled,
     bool? lockPasswordReveal,
+    bool? lockSnippetReveal,
+    bool? onboardingComplete,
   }) => AppSettings(
     themeMode: themeMode ?? this.themeMode,
     terminalFontSize: terminalFontSize ?? this.terminalFontSize,
     terminalFontFamily: terminalFontFamily ?? this.terminalFontFamily,
     appLockEnabled: appLockEnabled ?? this.appLockEnabled,
     lockPasswordReveal: lockPasswordReveal ?? this.lockPasswordReveal,
+    lockSnippetReveal: lockSnippetReveal ?? this.lockSnippetReveal,
+    onboardingComplete: onboardingComplete ?? this.onboardingComplete,
   );
 
   @override
@@ -38,5 +46,7 @@ class AppSettings extends Equatable {
     terminalFontFamily,
     appLockEnabled,
     lockPasswordReveal,
+    lockSnippetReveal,
+    onboardingComplete,
   ];
 }

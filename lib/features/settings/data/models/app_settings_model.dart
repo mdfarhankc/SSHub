@@ -7,6 +7,8 @@ class AppSettingsModel extends AppSettings {
     super.terminalFontFamily,
     super.appLockEnabled,
     super.lockPasswordReveal,
+    super.lockSnippetReveal,
+    super.onboardingComplete,
   });
 
   factory AppSettingsModel.fromJson(Map<String, dynamic> json) =>
@@ -16,9 +18,11 @@ class AppSettingsModel extends AppSettings {
             AppThemeMode.system,
         terminalFontSize: (json['terminalFontSize'] as num?)?.toDouble() ?? 14,
         terminalFontFamily:
-            json['terminalFontFamily'] as String? ?? 'Cascadia Mono',
+            json['terminalFontFamily'] as String? ?? 'JetBrains Mono',
         appLockEnabled: json['appLockEnabled'] as bool? ?? false,
         lockPasswordReveal: json['lockPasswordReveal'] as bool? ?? false,
+        lockSnippetReveal: json['lockSnippetReveal'] as bool? ?? false,
+        onboardingComplete: json['onboardingComplete'] as bool? ?? false,
       );
 
   Map<String, dynamic> toJson() => {
@@ -27,6 +31,8 @@ class AppSettingsModel extends AppSettings {
     'terminalFontFamily': terminalFontFamily,
     'appLockEnabled': appLockEnabled,
     'lockPasswordReveal': lockPasswordReveal,
+    'lockSnippetReveal': lockSnippetReveal,
+    'onboardingComplete': onboardingComplete,
   };
 
   factory AppSettingsModel.fromEntity(AppSettings e) => AppSettingsModel(
@@ -35,5 +41,7 @@ class AppSettingsModel extends AppSettings {
     terminalFontFamily: e.terminalFontFamily,
     appLockEnabled: e.appLockEnabled,
     lockPasswordReveal: e.lockPasswordReveal,
+    lockSnippetReveal: e.lockSnippetReveal,
+    onboardingComplete: e.onboardingComplete,
   );
 }

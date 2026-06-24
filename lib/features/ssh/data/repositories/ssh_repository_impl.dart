@@ -1,4 +1,3 @@
-import 'package:sshub/features/ssh/data/datasources/secret_datasource.dart';
 import 'package:sshub/features/ssh/data/datasources/server_local_datasource.dart';
 import 'package:sshub/features/ssh/data/models/ssh_server_model.dart';
 import 'package:sshub/features/ssh/domain/entities/ssh_server.dart';
@@ -6,57 +5,35 @@ import 'package:sshub/features/ssh/domain/repositories/ssh_repository.dart';
 
 class SshRepositoryImpl implements SshRepository {
   final ServerLocalDatasource _localDatasource;
-  final SecretDatasource _secretDatasource;
-  const SshRepositoryImpl(this._localDatasource, this._secretDatasource);
+  const SshRepositoryImpl(this._localDatasource);
 
   @override
-  Future<List<SshServer>> getServers() {
-    return _localDatasource.load();
-  }
+  Future<List<SshServer>> getServers() => _localDatasource.load();
 
   @override
-  Future<void> addServer(SshServer server, {required String password}) async {
+  Future<void> addServer(SshServer server) async {
     final servers = await _localDatasource.load();
     await _localDatasource.save([
       ...servers,
       SshServerModel.fromEntity(server),
     ]);
-    await _secretDatasource.write(server.id, password);
+  }
+
+  @override
+  Future<void> updateServer(SshServer server) async {
+    final servers = await _localDatasource.load();
+    await _localDatasource.save([
+      for (final s in servers)
+        if (s.id == server.id) SshServerModel.fromEntity(server) else s,
+    ]);
   }
 
   @override
   Future<void> deleteServer(String id) async {
     final servers = await _localDatasource.load();
     await _localDatasource.save(servers.where((s) => s.id != id).toList());
-    await _secretDatasource.delete(id);
   }
 
   @override
-  Future<String?> getPassword(String id) {
-    return _secretDatasource.read(id);
-  }
-
-  @override
-  Future<void> clearAll() async {
-    final servers = await _localDatasource.load();
-    for (final s in servers) {
-      await _secretDatasource.delete(s.id);
-    }
-    await _localDatasource.save([]);
-  }
-
-  @override
-  Future<void> updateServer(
-    SshServer server, {
-    required String? password,
-  }) async {
-    final servers = await _localDatasource.load();
-    await _localDatasource.save([
-      for (final s in servers)
-        if (s.id == server.id) SshServerModel.fromEntity(server) else s,
-    ]);
-    if (password != null) {
-      await _secretDatasource.write(server.id, password);
-    }
-  }
+  Future<void> clearAll() => _localDatasource.clear();
 }

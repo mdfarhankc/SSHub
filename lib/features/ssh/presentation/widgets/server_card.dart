@@ -26,9 +26,7 @@ class _ServerCardState extends State<ServerCard> {
   Future<void> _edit() async {
     final result = await ServerDialog.show(context, server: server);
     if (result != null && mounted) {
-      context.read<ServerListBloc>().add(
-        ServerUpdated(result.server, result.password),
-      );
+      context.read<ServerListBloc>().add(ServerUpdated(result));
     }
   }
 
@@ -62,7 +60,7 @@ class _ServerCardState extends State<ServerCard> {
 
   void _connect() {
     context.read<ServerListBloc>().add(
-      ServerUpdated(server.copyWith(lastConnectedAt: DateTime.now()), null),
+      ServerUpdated(server.copyWith(lastConnectedAt: DateTime.now())),
     );
     Navigator.pushNamed(context, TerminalPage.route, arguments: server);
   }
@@ -84,158 +82,179 @@ class _ServerCardState extends State<ServerCard> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final accent = ServerColors.resolve(server.colorValue, theme.colorScheme);
+    final scheme = theme.colorScheme;
+    final accent = ServerColors.resolve(server.colorValue, scheme);
+    final isDark = theme.brightness == Brightness.dark;
 
     return MouseRegion(
       onEnter: (_) => setState(() => _hovering = true),
       onExit: (_) => setState(() => _hovering = false),
       child: AnimatedContainer(
-        duration: const Duration(milliseconds: 150),
-        curve: Curves.easeOut,
+        duration: const Duration(milliseconds: 200),
+        curve: Curves.easeInOut,
         decoration: BoxDecoration(
-          color: theme.colorScheme.surfaceContainer,
-          borderRadius: BorderRadius.circular(AppTheme.radius),
+          color: scheme.surface,
+          borderRadius: BorderRadius.circular(20),
           border: Border.all(
-            color: _hovering
-                ? theme.colorScheme.outline
-                : theme.colorScheme.outlineVariant,
-            width: _hovering ? 1.5 : 1,
+            color: _hovering ? accent.withValues(alpha: 0.5) : scheme.outlineVariant,
+            width: _hovering ? 2 : 1,
           ),
           boxShadow: _hovering
               ? [
                   BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.08),
-                    blurRadius: 12,
-                    offset: const Offset(0, 2),
+                    color: accent.withValues(alpha: isDark ? 0.28 : 0.18),
+                    blurRadius: 20,
+                    offset: const Offset(0, 6),
                   ),
                 ]
-              : null,
+              : AppTheme.cardShadow(theme.brightness),
         ),
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(16, 12, 8, 8),
-          child: Column(
-            crossAxisAlignment: .start,
-            children: [
-              Row(
-                crossAxisAlignment: .start,
-                children: [
-                  Container(
-                    padding: const EdgeInsets.all(8),
-                    decoration: BoxDecoration(
-                      color: accent.withValues(alpha: 0.18),
-                      borderRadius: BorderRadius.circular(AppTheme.radius),
-                    ),
-                    child: Icon(Icons.dns_outlined, size: 22, color: accent),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: .start,
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(20),
+          child: Material(
+            color: Colors.transparent,
+            child: InkWell(
+              onTap: _connect,
+              child: Padding(
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
                       children: [
-                        Text(
-                          server.label,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: theme.textTheme.titleMedium?.copyWith(
-                            fontWeight: .w600,
+                        Container(
+                          padding: const EdgeInsets.all(10),
+                          decoration: BoxDecoration(
+                            color: accent.withValues(alpha: 0.1),
+                            borderRadius: BorderRadius.circular(12),
                           ),
+                          child: Icon(Icons.terminal_rounded, size: 20, color: accent),
                         ),
-                        const SizedBox(height: 4),
-                        Row(
-                          children: [
-                            Container(
-                              width: 8,
-                              height: 8,
-                              decoration: const BoxDecoration(
-                                color: Color(0xFF22C55E),
-                                shape: BoxShape.circle,
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                server.label,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: theme.textTheme.titleMedium?.copyWith(
+                                  fontWeight: FontWeight.bold,
+                                ),
                               ),
-                            ),
-                            const SizedBox(width: 6),
-                            Flexible(
-                              child: Text(
+                              Text(
                                 server.host,
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
-                                style: TextStyle(
-                                  fontFamily: "monospace",
-                                  fontSize: 13,
-                                  color: theme.colorScheme.onSurfaceVariant,
+                                style: theme.textTheme.bodySmall?.copyWith(
+                                  color: scheme.onSurfaceVariant,
+                                  fontFamily: AppTheme.mono,
                                 ),
                               ),
+                            ],
+                          ),
+                        ),
+                        _buildPopupMenu(scheme),
+                      ],
+                    ),
+                    const SizedBox(height: 12),
+                    if (server.description.isNotEmpty)
+                      Text(
+                        server.description,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          color: scheme.onSurfaceVariant,
+                        ),
+                      ),
+                    const Spacer(),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 8,
+                            vertical: 4,
+                          ),
+                          decoration: BoxDecoration(
+                            color: scheme.surfaceContainerHighest,
+                            borderRadius: BorderRadius.circular(6),
+                          ),
+                          child: Text(
+                            _lastSeen(),
+                            style: theme.textTheme.labelSmall?.copyWith(
+                              fontSize: 10,
+                              fontWeight: FontWeight.w600,
                             ),
-                          ],
+                          ),
+                        ),
+                        Icon(
+                          Icons.arrow_forward_rounded,
+                          size: 18,
+                          color: _hovering ? accent : scheme.onSurfaceVariant,
                         ),
                       ],
                     ),
-                  ),
-                  PopupMenuButton<_CardAction>(
-                    tooltip: "Options",
-                    position: .under,
-                    onSelected: (action) {
-                      switch (action) {
-                        case .edit:
-                          _edit();
-                        case .delete:
-                          _confirmDelete();
-                      }
-                    },
-                    itemBuilder: (_) => const [
-                      PopupMenuItem(value: .edit, child: Text("Edit")),
-                      PopupMenuItem(value: .delete, child: Text("Delete")),
-                    ],
-                    child: const SizedBox(
-                      width: 40,
-                      height: 40,
-                      child: Icon(Icons.more_vert, size: 20),
-                    ),
-                  ),
-                ],
-              ),
-              if (server.description.isNotEmpty) ...[
-                const SizedBox(height: 10),
-                Padding(
-                  padding: const EdgeInsets.only(right: 8),
-                  child: Text(
-                    server.description,
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                    style: theme.textTheme.bodySmall?.copyWith(
-                      color: theme.colorScheme.onSurfaceVariant,
-                    ),
-                  ),
+                  ],
                 ),
-              ],
-              const Spacer(),
-              const Divider(height: 16),
-              Row(
-                children: [
-                  Expanded(
-                    child: Text(
-                      _lastSeen(),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: theme.textTheme.bodySmall?.copyWith(
-                        color: theme.colorScheme.onSurfaceVariant,
-                      ),
-                    ),
-                  ),
-                  TextButton(
-                    onPressed: _connect,
-                    child: const Row(
-                      mainAxisSize: .min,
-                      children: [
-                        Text("Connect"),
-                        SizedBox(width: 4),
-                        Icon(Icons.arrow_forward, size: 16),
-                      ],
-                    ),
-                  ),
-                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildPopupMenu(ColorScheme scheme) {
+    return PopupMenuButton<_CardAction>(
+      tooltip: "Server options",
+      offset: const Offset(0, 40),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      elevation: 3,
+      onSelected: (action) {
+        switch (action) {
+          case .edit:
+            _edit();
+          case .delete:
+            _confirmDelete();
+        }
+      },
+      itemBuilder: (_) => [
+        const PopupMenuItem(
+          value: .edit,
+          child: Row(
+            children: [
+              Icon(Icons.edit_rounded, size: 18),
+              SizedBox(width: 12),
+              Text("Edit Settings"),
+            ],
+          ),
+        ),
+        const PopupMenuDivider(),
+        PopupMenuItem(
+          value: .delete,
+          child: Row(
+            children: [
+              Icon(Icons.delete_forever_rounded, size: 18, color: Colors.redAccent),
+              const SizedBox(width: 12),
+              Text(
+                "Remove Server",
+                style: TextStyle(
+                  color: Colors.redAccent,
+                  fontWeight: FontWeight.w500,
+                ),
               ),
             ],
           ),
         ),
+      ],
+      child: Container(
+        padding: const EdgeInsets.all(8),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(10),
+        ),
+        child: const Icon(Icons.more_horiz_rounded, size: 22),
       ),
     );
   }

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
+import 'package:sshub/core/auth/app_lock_gate.dart';
 import 'package:sshub/core/providers/app_bloc_providers.dart';
 import 'package:sshub/core/providers/app_repository_providers.dart';
 import 'package:sshub/core/router/app_router.dart';
@@ -21,6 +22,7 @@ void main() async {
 
 class MyApp extends StatelessWidget {
   final AppSettings initialSettings;
+
   const MyApp({super.key, required this.initialSettings});
 
   @override
@@ -42,10 +44,9 @@ class MyApp extends StatelessWidget {
                 AppThemeMode.dark => ThemeMode.dark,
               },
               onGenerateRoute: AppRouter.onGenerateRoute,
-              onGenerateInitialRoutes: (initialRoute) => [
-                AppRouter.onGenerateRoute(RouteSettings(name: initialRoute)),
-              ],
               initialRoute: SplashPage.route,
+              builder: (context, child) =>
+                  AppLockGate(child: child ?? const SizedBox.shrink()),
             );
           },
         ),

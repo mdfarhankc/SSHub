@@ -3,10 +3,12 @@ import 'package:flutter/material.dart';
 class ExportOptions {
   final bool includeServers;
   final bool includeSettings;
+  final bool includeSnippets;
   final String? passphrase;
   const ExportOptions({
     required this.includeServers,
     required this.includeSettings,
+    required this.includeSnippets,
     this.passphrase,
   });
 }
@@ -24,6 +26,7 @@ class _ExportOptionsDialogState extends State<ExportOptionsDialog> {
   final _verify = TextEditingController();
   bool _servers = true;
   bool _settings = true;
+  bool _snippets = true;
   bool _encrypt = false;
   bool _obscured = true;
 
@@ -41,6 +44,7 @@ class _ExportOptionsDialogState extends State<ExportOptionsDialog> {
       ExportOptions(
         includeServers: _servers,
         includeSettings: _settings,
+        includeSnippets: _snippets,
         passphrase: _encrypt ? _pass.text : null,
       ),
     );
@@ -48,7 +52,7 @@ class _ExportOptionsDialogState extends State<ExportOptionsDialog> {
 
   @override
   Widget build(BuildContext context) {
-    final canExport = _servers || _settings;
+    final canExport = _servers || _settings || _snippets;
     return AlertDialog(
       title: const Text("Export data"),
       content: SizedBox(
@@ -67,6 +71,13 @@ class _ExportOptionsDialogState extends State<ExportOptionsDialog> {
               ),
               CheckboxListTile(
                 contentPadding: EdgeInsets.zero,
+                title: const Text("Include snippets"),
+                subtitle: const Text("Saved tokens and commands"),
+                value: _snippets,
+                onChanged: (v) => setState(() => _snippets = v ?? false),
+              ),
+              CheckboxListTile(
+                contentPadding: EdgeInsets.zero,
                 title: const Text("Include settings"),
                 value: _settings,
                 onChanged: (v) => setState(() => _settings = v ?? false),
@@ -77,7 +88,7 @@ class _ExportOptionsDialogState extends State<ExportOptionsDialog> {
                 subtitle: Text(
                   _encrypt
                       ? "Protected with a passphrase"
-                      : "Passwords will be stored in plain text",
+                      : "Secrets will be stored in plain text",
                 ),
                 value: _encrypt,
                 onChanged: (v) => setState(() => _encrypt = v),
