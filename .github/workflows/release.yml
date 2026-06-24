@@ -30,6 +30,7 @@ jobs:
         run: Compress-Archive -Path build/windows/x64/runner/Release/* -DestinationPath dist/sshub-windows-x64-portable.zip
       - uses: softprops/action-gh-release@v2
         with:
+          body_path: RELEASE_NOTES.md
           files: |
             dist/sshub-windows-setup.exe
             dist/sshub-windows-x64-portable.zip
@@ -63,6 +64,7 @@ jobs:
         run: tar -czf dist/sshub-linux-x64.tar.gz -C build/linux/x64/release/bundle .
       - uses: softprops/action-gh-release@v2
         with:
+          body_path: RELEASE_NOTES.md
           files: |
             dist/sshub-linux-x86_64.AppImage
             dist/sshub-linux-x64.tar.gz
@@ -99,6 +101,7 @@ jobs:
         run: mv build/app/outputs/flutter-apk/app-release.apk sshub-android.apk
       - uses: softprops/action-gh-release@v2
         with:
+          body_path: RELEASE_NOTES.md
           files: sshub-android.apk
 
   macos:
@@ -120,4 +123,5 @@ jobs:
           hdiutil create -volname "SSHub" -srcfolder dmg -ov -format UDZO dist/sshub-macos.dmg
       - uses: softprops/action-gh-release@v2
         with:
+          body_path: RELEASE_NOTES.md
           files: dist/sshub-macos.dmg
