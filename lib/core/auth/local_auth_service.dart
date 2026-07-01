@@ -29,8 +29,17 @@ class LocalAuthService {
         localizedReason: reason,
         persistAcrossBackgrounding: true,
       );
+    } on LocalAuthException catch (e) {
+      switch (e.code) {
+        case LocalAuthExceptionCode.noCredentialsSet:
+        case LocalAuthExceptionCode.noBiometricsEnrolled:
+        case LocalAuthExceptionCode.noBiometricHardware:
+          return true;
+        default:
+          return false;
+      }
     } on Exception {
-      return true;
+      return false;
     } finally {
       _busy = false;
     }

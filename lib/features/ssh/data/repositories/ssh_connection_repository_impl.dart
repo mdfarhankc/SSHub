@@ -1,20 +1,28 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
+import 'dart:typed_data';
 
 import 'package:dartssh2/dartssh2.dart';
 
+import 'package:sshub/features/ssh/data/datasources/known_hosts_datasource.dart';
 import 'package:sshub/features/ssh/domain/entities/ssh_server.dart';
 import 'package:sshub/features/ssh/domain/repositories/ssh_connection_repository.dart';
 
 class SshConnectionRepositoryImpl implements SshConnectionRepository {
-  const SshConnectionRepositoryImpl();
+  final KnownHostsDatasource _knownHosts;
+  const SshConnectionRepositoryImpl(this._knownHosts);
 
   @override
   Future<SshSessionHandle> connect(
     SshServer server, {
-    required String password,
+    String? password,
+    String? privateKey,
+    String? keyPassphrase,
   }) async {
+    final identities = privateKey == null || privateKey.isEmpty
+        ? null
+        : _identities(privateKey, keyPassphrase);
     try {
       final socket = await SSHSocket.connect(
         server.host,
@@ -24,7 +32,10 @@ class SshConnectionRepositoryImpl implements SshConnectionRepository {
       final client = SSHClient(
         socket,
         username: server.username,
-        onPasswordRequest: () => password,
+        identities: identities,
+        onPasswordRequest: password == null ? null : () => password,
+        onVerifyHostKey: (type, fingerprint) =>
+            _verifyHostKey(server, fingerprint),
       );
 
       await client.authenticated;
@@ -33,6 +44,11 @@ class SshConnectionRepositoryImpl implements SshConnectionRepository {
         pty: const SSHPtyConfig(width: 80, height: 25),
       );
       return _DartSshSessionHandle(client, session);
+    } on SSHHostkeyError {
+      throw const SshConnectionException(
+        "The server's host key changed since the last connection. This could "
+        "be a man-in-the-middle attack, so the connection was refused.",
+      );
     } on SSHAuthFailError {
       throw const SshConnectionException(
         "Authentication failed. Check the username and password.",
@@ -45,6 +61,33 @@ class SshConnectionRepositoryImpl implements SshConnectionRepository {
       throw SshConnectionException("Connection to ${server.host} timed out.");
     }
   }
+
+  List<SSHKeyPair> _identities(String privateKey, String? passphrase) {
+    try {
+      return SSHKeyPair.fromPem(privateKey, passphrase);
+    } on SSHKeyDecryptError {
+      throw const SshConnectionException(
+        "Wrong passphrase for the private key.",
+      );
+    } catch (_) {
+      throw const SshConnectionException("Invalid or unsupported private key.");
+    }
+  }
+
+  // Trust on first use: remember the fingerprint the first time, then refuse
+  // if it ever differs (a changed host key can mean a man-in-the-middle).
+  Future<bool> _verifyHostKey(SshServer server, Uint8List fingerprint) async {
+    final current = _hex(fingerprint);
+    final known = await _knownHosts.fingerprintFor(server.host, server.port);
+    if (known == null) {
+      await _knownHosts.remember(server.host, server.port, current);
+      return true;
+    }
+    return known == current;
+  }
+
+  static String _hex(Uint8List bytes) =>
+      bytes.map((b) => b.toRadixString(16).padLeft(2, '0')).join(':');
 }
 
 class _DartSshSessionHandle implements SshSessionHandle {

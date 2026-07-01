@@ -27,7 +27,7 @@ class _ExportOptionsDialogState extends State<ExportOptionsDialog> {
   bool _servers = true;
   bool _settings = true;
   bool _snippets = true;
-  bool _encrypt = false;
+  bool _encrypt = true;
   bool _obscured = true;
 
   @override
@@ -109,7 +109,11 @@ class _ExportOptionsDialogState extends State<ExportOptionsDialog> {
                       onPressed: () => setState(() => _obscured = !_obscured),
                     ),
                   ),
-                  validator: (v) => (v == null || v.isEmpty) ? "Required" : null,
+                  validator: (v) {
+                    if (v == null || v.isEmpty) return "Required";
+                    if (v.length < 12) return "Use at least 12 characters";
+                    return null;
+                  },
                 ),
                 const SizedBox(height: 12),
                 TextFormField(

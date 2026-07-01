@@ -95,7 +95,9 @@ class _OnboardingPageState extends State<OnboardingPage> {
       body: SafeArea(
         child: Center(
           child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: AppTheme.maxContentWidth),
+            constraints: const BoxConstraints(
+              maxWidth: AppTheme.maxContentWidth,
+            ),
             child: Column(
               children: [
                 Align(

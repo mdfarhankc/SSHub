@@ -1,9 +1,10 @@
 import 'dart:convert';
 
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'package:sshub/features/snippets/data/datasources/snippet_datasource.dart';
 import 'package:sshub/features/snippets/data/models/snippet_model.dart';
 
-class SnippetLocalDatasource {
+class SnippetLocalDatasource implements SnippetDatasource {
   static const _namespace = "sshub_snippets";
   static const _key = "sshub_snippets";
 
@@ -17,6 +18,7 @@ class SnippetLocalDatasource {
     ),
   ]);
 
+  @override
   Future<List<SnippetModel>> load() async {
     final raw = await _storage.read(key: _key);
     if (raw == null || raw.trim().isEmpty) return [];
@@ -27,6 +29,7 @@ class SnippetLocalDatasource {
     ];
   }
 
+  @override
   Future<void> save(List<SnippetModel> snippets) async {
     await _storage.write(
       key: _key,
@@ -34,5 +37,6 @@ class SnippetLocalDatasource {
     );
   }
 
+  @override
   Future<void> clear() => _storage.delete(key: _key);
 }

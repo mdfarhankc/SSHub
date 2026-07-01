@@ -1,5 +1,6 @@
 import 'dart:ui' show FontFeature;
 
+import 'package:flutter/cupertino.dart' show CupertinoPageTransitionsBuilder;
 import 'package:flutter/material.dart';
 
 abstract final class AppTheme {
@@ -10,7 +11,10 @@ abstract final class AppTheme {
   static final ThemeData light = _build(Brightness.light);
   static final ThemeData dark = _build(Brightness.dark);
 
-  static List<BoxShadow> cardShadow(Brightness brightness, {bool strong = false}) {
+  static List<BoxShadow> cardShadow(
+    Brightness brightness, {
+    bool strong = false,
+  }) {
     final dark = brightness == Brightness.dark;
     return [
       BoxShadow(
@@ -25,22 +29,28 @@ abstract final class AppTheme {
 
   static ThemeData _build(Brightness brightness) {
     final dark = brightness == Brightness.dark;
-    final scheme = ColorScheme.fromSeed(
-      seedColor: const Color(0xFF2563EB),
-      brightness: brightness,
-    ).copyWith(
-      surface: dark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
-      surfaceContainerLowest:
-          dark ? const Color(0xFF0B1120) : const Color(0xFFFFFFFF),
-      surfaceContainerLow:
-          dark ? const Color(0xFF172033) : const Color(0xFFF8FAFC),
-      surfaceContainer:
-          dark ? const Color(0xFF1E293B) : const Color(0xFFF1F5F9),
-      surfaceContainerHigh:
-          dark ? const Color(0xFF263449) : const Color(0xFFE9EEF4),
-      surfaceContainerHighest:
-          dark ? const Color(0xFF2E3D55) : const Color(0xFFE2E8F0),
-    );
+    final scheme =
+        ColorScheme.fromSeed(
+          seedColor: const Color(0xFF2563EB),
+          brightness: brightness,
+        ).copyWith(
+          surface: dark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
+          surfaceContainerLowest: dark
+              ? const Color(0xFF0B1120)
+              : const Color(0xFFFFFFFF),
+          surfaceContainerLow: dark
+              ? const Color(0xFF172033)
+              : const Color(0xFFF8FAFC),
+          surfaceContainer: dark
+              ? const Color(0xFF1E293B)
+              : const Color(0xFFF1F5F9),
+          surfaceContainerHigh: dark
+              ? const Color(0xFF263449)
+              : const Color(0xFFE9EEF4),
+          surfaceContainerHighest: dark
+              ? const Color(0xFF2E3D55)
+              : const Color(0xFFE2E8F0),
+        );
 
     final buttonShape = WidgetStatePropertyAll(
       RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
@@ -57,11 +67,11 @@ abstract final class AppTheme {
       textTheme: _textTheme(base.textTheme),
       pageTransitionsTheme: const PageTransitionsTheme(
         builders: {
-          TargetPlatform.android: FadeUpwardsPageTransitionsBuilder(),
-          TargetPlatform.iOS: FadeUpwardsPageTransitionsBuilder(),
-          TargetPlatform.windows: FadeUpwardsPageTransitionsBuilder(),
-          TargetPlatform.macOS: FadeUpwardsPageTransitionsBuilder(),
-          TargetPlatform.linux: FadeUpwardsPageTransitionsBuilder(),
+          TargetPlatform.iOS: CupertinoPageTransitionsBuilder(),
+          TargetPlatform.android: ZoomPageTransitionsBuilder(),
+          TargetPlatform.windows: ZoomPageTransitionsBuilder(),
+          TargetPlatform.macOS: ZoomPageTransitionsBuilder(),
+          TargetPlatform.linux: ZoomPageTransitionsBuilder(),
         },
       ),
       appBarTheme: const AppBarTheme(
@@ -83,7 +93,10 @@ abstract final class AppTheme {
           borderRadius: BorderRadius.circular(12),
           borderSide: BorderSide(color: scheme.primary, width: 1.5),
         ),
-        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: 16,
+          vertical: 16,
+        ),
         isDense: true,
         errorMaxLines: 2,
       ),
@@ -149,8 +162,11 @@ abstract final class AppTheme {
 
   static TextTheme _textTheme(TextTheme base) {
     const figures = [FontFeature.tabularFigures()];
-    TextStyle? tune(TextStyle? s, double spacing, double height) =>
-        s?.copyWith(letterSpacing: spacing, height: height, fontFeatures: figures);
+    TextStyle? tune(TextStyle? s, double spacing, double height) => s?.copyWith(
+      letterSpacing: spacing,
+      height: height,
+      fontFeatures: figures,
+    );
 
     return base.copyWith(
       displayLarge: tune(base.displayLarge, -1.5, 1.1),

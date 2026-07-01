@@ -1,27 +1,21 @@
 import 'dart:convert';
 
+import 'package:sshub/core/app_info.dart';
 import 'package:sshub/core/backup/backup_crypto.dart';
-import 'package:sshub/features/settings/data/datasources/settings_local_datasource.dart';
+import 'package:sshub/features/settings/data/datasources/settings_datasource.dart';
 import 'package:sshub/features/settings/data/models/app_settings_model.dart';
 import 'package:sshub/features/settings/domain/repositories/backup_repository.dart';
-import 'package:sshub/features/snippets/data/datasources/snippet_local_datasource.dart';
+import 'package:sshub/features/snippets/data/datasources/snippet_datasource.dart';
 import 'package:sshub/features/snippets/data/models/snippet_model.dart';
-import 'package:sshub/features/ssh/data/datasources/server_local_datasource.dart';
+import 'package:sshub/features/ssh/data/datasources/server_datasource.dart';
 import 'package:sshub/features/ssh/data/models/ssh_server_model.dart';
 
 class BackupRepositoryImpl implements BackupRepository {
-  // Keep in sync with the version in pubspec.yaml on each release.
-  static const _appVersion = "2.0.0";
+  final ServerDatasource _serverDs;
+  final SettingsDatasource _settingsDs;
+  final SnippetDatasource _snippetDs;
 
-  final ServerLocalDatasource _serverDs;
-  final SettingsLocalDatasource _settingsDs;
-  final SnippetLocalDatasource _snippetDs;
-
-  const BackupRepositoryImpl(
-    this._serverDs,
-    this._settingsDs,
-    this._snippetDs,
-  );
+  const BackupRepositoryImpl(this._serverDs, this._settingsDs, this._snippetDs);
 
   @override
   Future<String> export({
@@ -47,11 +41,11 @@ class BackupRepositoryImpl implements BackupRepository {
     }
 
     if (passphrase != null) {
-      return BackupCrypto.encrypt(jsonEncode(payload), passphrase, _appVersion);
+      return BackupCrypto.encrypt(jsonEncode(payload), passphrase, appVersion);
     }
     return const JsonEncoder.withIndent('  ').convert({
       'app': 'sshub',
-      'version': _appVersion,
+      'version': appVersion,
       'encrypted': false,
       'data': payload,
     });

@@ -3,9 +3,11 @@ import 'dart:io';
 
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:path_provider/path_provider.dart';
+import 'package:sshub/core/logging/app_log.dart';
+import 'package:sshub/features/ssh/data/datasources/server_datasource.dart';
 import 'package:sshub/features/ssh/data/models/ssh_server_model.dart';
 
-class ServerLocalDatasource {
+class ServerLocalDatasource implements ServerDatasource {
   static const _namespace = "sshub_servers";
   static const _key = "sshub_servers";
   static const _legacyPrefix = "ssh_password_";
@@ -20,6 +22,7 @@ class ServerLocalDatasource {
     ),
   ]);
 
+  @override
   Future<List<SshServerModel>> load() async {
     final raw = await _storage.read(key: _key);
     if (raw == null) return _migrateLegacy();
@@ -31,6 +34,7 @@ class ServerLocalDatasource {
     ];
   }
 
+  @override
   Future<void> save(List<SshServerModel> servers) async {
     await _storage.write(
       key: _key,
@@ -38,6 +42,7 @@ class ServerLocalDatasource {
     );
   }
 
+  @override
   Future<void> clear() => _storage.delete(key: _key);
 
   // One-time import from the previous split storage: a plaintext servers.json
@@ -68,7 +73,9 @@ class ServerLocalDatasource {
     await save(migrated);
     try {
       await file.delete();
-    } catch (_) {}
+    } catch (e) {
+      appLog("Failed to delete legacy servers.json after migration", e);
+    }
     for (final m in migrated) {
       await _storage.delete(key: "$_legacyPrefix${m.id}");
     }

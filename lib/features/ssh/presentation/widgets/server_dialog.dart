@@ -1,3 +1,6 @@
+import 'dart:convert';
+
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -5,6 +8,7 @@ import 'package:sshub/core/auth/local_auth_service.dart';
 import 'package:sshub/core/responsive/responsive.dart';
 import 'package:sshub/features/settings/presentation/cubit/settings_cubit.dart';
 import 'package:sshub/features/ssh/domain/entities/ssh_server.dart';
+import 'package:sshub/features/ssh/presentation/widgets/auth_type_selector.dart';
 import 'package:sshub/features/ssh/presentation/widgets/color_picker.dart';
 import 'package:sshub/features/ssh/presentation/widgets/dialog_field.dart';
 import 'package:uuid/uuid.dart';
@@ -16,10 +20,7 @@ class ServerDialog extends StatefulWidget {
 
   // Presents the form as a bottom sheet on narrow screens and a centered
   // dialog otherwise, returning the saved server or null if cancelled.
-  static Future<SshServer?> show(
-    BuildContext context, {
-    SshServer? server,
-  }) {
+  static Future<SshServer?> show(BuildContext context, {SshServer? server}) {
     if (Responsive.isMobile(context)) {
       return showModalBottomSheet<SshServer>(
         context: context,
@@ -52,7 +53,10 @@ class _ServerDialogState extends State<ServerDialog> {
     text: widget.server?.description ?? "",
   );
   final TextEditingController _password = TextEditingController();
+  final TextEditingController _privateKey = TextEditingController();
+  final TextEditingController _keyPassphrase = TextEditingController();
   late int? _color = widget.server?.colorValue;
+  late AuthType _authType = widget.server?.authType ?? AuthType.password;
 
   bool get _isEditing => widget.server != null;
   // Quiet until the first failed save, then validate live as the user types.
@@ -65,6 +69,8 @@ class _ServerDialogState extends State<ServerDialog> {
     _port.dispose();
     _username.dispose();
     _password.dispose();
+    _privateKey.dispose();
+    _keyPassphrase.dispose();
     _description.dispose();
     super.dispose();
   }
@@ -75,17 +81,30 @@ class _ServerDialogState extends State<ServerDialog> {
       return;
     }
     // Secrets pass through untouched: never trim, never log.
-    // When editing with the field left blank, keep the existing password.
-    final password = _isEditing && _password.text.isEmpty
-        ? (widget.server?.password ?? '')
-        : _password.text;
+    // When editing with a secret field left blank, keep the existing value.
+    final isPassword = _authType == AuthType.password;
+    final password = isPassword
+        ? _keptSecret(_password, widget.server?.password)
+        : '';
+    final keepingKey = _isEditing && _privateKey.text.isEmpty;
+    final privateKey = isPassword
+        ? ''
+        : _keptSecret(_privateKey, widget.server?.privateKey);
+    final passphrase = isPassword
+        ? ''
+        : (keepingKey && _keyPassphrase.text.isEmpty
+              ? (widget.server?.passphrase ?? '')
+              : _keyPassphrase.text);
     final server = SshServer(
       id: widget.server?.id ?? const Uuid().v7(),
       label: _label.text.trim(),
       host: _host.text.trim(),
       port: int.parse(_port.text.trim()),
       username: _username.text.trim(),
+      authType: _authType,
       password: password,
+      privateKey: privateKey,
+      passphrase: passphrase,
       description: _description.text.trim(),
       colorValue: _color,
       lastConnectedAt: widget.server?.lastConnectedAt,
@@ -93,10 +112,26 @@ class _ServerDialogState extends State<ServerDialog> {
     Navigator.pop(context, server);
   }
 
+  // On edit, a blank secret field means "keep what's stored".
+  String _keptSecret(TextEditingController controller, String? existing) =>
+      _isEditing && controller.text.isEmpty
+      ? (existing ?? '')
+      : controller.text;
+
+  Future<void> _importKeyFile() async {
+    final result = await FilePicker.platform.pickFiles(withData: true);
+    final bytes = result?.files.single.bytes;
+    if (bytes == null || !mounted) return;
+    setState(() => _privateKey.text = utf8.decode(bytes));
+  }
+
   Future<bool> _revealPassword() async {
     final auth = context.read<LocalAuthService>();
-    final lock =
-        context.read<SettingsCubit>().state.settings.lockPasswordReveal;
+    final lock = context
+        .read<SettingsCubit>()
+        .state
+        .settings
+        .lockPasswordReveal;
     if (lock) {
       final ok = await auth.authenticate("Reveal saved server password");
       if (!ok) return false;
@@ -105,6 +140,79 @@ class _ServerDialogState extends State<ServerDialog> {
     if (!mounted || password.isEmpty) return false;
     _password.text = password;
     return true;
+  }
+
+  // A stored secret exists only when editing a server that already has one.
+  bool _hasStored(String? secret) => _isEditing && (secret ?? '').isNotEmpty;
+
+  Widget _keyFields(ColorScheme scheme) {
+    final theme = Theme.of(context);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Expanded(
+              child: Text(
+                "Private Key",
+                style: theme.textTheme.labelLarge?.copyWith(
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+            TextButton.icon(
+              onPressed: _importKeyFile,
+              icon: const Icon(Icons.upload_file_outlined, size: 18),
+              label: const Text("Import"),
+            ),
+          ],
+        ),
+        const SizedBox(height: 4),
+        TextFormField(
+          controller: _privateKey,
+          minLines: 3,
+          maxLines: 6,
+          style: const TextStyle(fontFamily: "monospace", fontSize: 12),
+          decoration: InputDecoration(
+            hintText: _hasStored(widget.server?.privateKey)
+                ? "Leave blank to keep current key"
+                : "-----BEGIN OPENSSH PRIVATE KEY-----",
+            filled: true,
+            fillColor: scheme.surfaceContainerHighest.withValues(alpha: 0.3),
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: BorderSide.none,
+            ),
+            enabledBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: BorderSide.none,
+            ),
+            focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: BorderSide(color: scheme.primary, width: 1.5),
+            ),
+            contentPadding: const EdgeInsets.all(16),
+          ),
+          validator: (v) {
+            if (_hasStored(widget.server?.privateKey)) return null;
+            return (v == null || v.trim().isEmpty)
+                ? "Private key is required"
+                : null;
+          },
+        ),
+        const SizedBox(height: 12),
+        DialogField(
+          controller: _keyPassphrase,
+          name: "Key Passphrase",
+          icon: Icons.password_outlined,
+          obscureText: true,
+          required: false,
+          textInputAction: .done,
+          onSubmitted: (_) => _onSave(),
+          hint: "Only if the key is encrypted",
+        ),
+      ],
+    );
   }
 
   Widget _fields() {
@@ -181,18 +289,26 @@ class _ServerDialogState extends State<ServerDialog> {
           hint: "root",
           icon: Icons.account_circle_outlined,
         ),
-        const SizedBox(height: 12),
-        DialogField(
-          controller: _password,
-          name: "SSH Password",
-          icon: Icons.vpn_key_outlined,
-          obscureText: true,
-          textInputAction: .done,
-          onSubmitted: (_) => _onSave(),
-          required: !_isEditing,
-          hint: _isEditing ? "Leave blank to keep current" : "••••••••",
-          onReveal: _isEditing ? _revealPassword : null,
+        const SizedBox(height: 16),
+        AuthTypeSelector(
+          value: _authType,
+          onChanged: (type) => setState(() => _authType = type),
         ),
+        const SizedBox(height: 12),
+        if (_authType == AuthType.password)
+          DialogField(
+            controller: _password,
+            name: "SSH Password",
+            icon: Icons.vpn_key_outlined,
+            obscureText: true,
+            textInputAction: .done,
+            onSubmitted: (_) => _onSave(),
+            required: !_hasStored(widget.server?.password),
+            hint: _isEditing ? "Leave blank to keep current" : "••••••••",
+            onReveal: _isEditing ? _revealPassword : null,
+          )
+        else
+          _keyFields(scheme),
         const SizedBox(height: 24),
         _SectionHeader(
           icon: Icons.palette_outlined,
@@ -277,7 +393,9 @@ class _ServerDialogState extends State<ServerDialog> {
                   borderRadius: BorderRadius.circular(16),
                 ),
                 child: Icon(
-                  _isEditing ? Icons.edit_note_rounded : Icons.add_to_photos_rounded,
+                  _isEditing
+                      ? Icons.edit_note_rounded
+                      : Icons.add_to_photos_rounded,
                   color: scheme.primary,
                 ),
               ),
@@ -344,7 +462,9 @@ class _ServerDialogState extends State<ServerDialog> {
                     padding: const EdgeInsets.symmetric(vertical: 16),
                     elevation: 0,
                   ),
-                  child: Text(_isEditing ? "Update Connection" : "Save Connection"),
+                  child: Text(
+                    _isEditing ? "Update Connection" : "Save Connection",
+                  ),
                 ),
               ),
             ],

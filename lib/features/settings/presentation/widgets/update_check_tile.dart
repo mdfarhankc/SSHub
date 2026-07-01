@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:sshub/core/update/update_service.dart';
+import 'package:sshub/core/widgets/app_snack_bar.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 class UpdateCheckTile extends StatefulWidget {
@@ -21,20 +22,25 @@ class _UpdateCheckTileState extends State<UpdateCheckTile> {
       if (info.updateAvailable) {
         _showUpdateDialog(info);
       } else {
-        _snack("You're on the latest version (v${info.currentVersion}).");
+        showAppSnackBar(
+          context,
+          "You're on the latest version (v${info.currentVersion}).",
+        );
       }
     } on UpdateException catch (e) {
-      if (mounted) _snack(e.message);
+      if (mounted) showAppSnackBar(context, e.message, success: false);
     } catch (_) {
-      if (mounted) _snack("Could not check for updates.");
+      if (mounted) {
+        showAppSnackBar(
+          context,
+          "Could not check for updates.",
+          success: false,
+        );
+      }
     } finally {
       if (mounted) setState(() => _checking = false);
     }
   }
-
-  void _snack(String message) => ScaffoldMessenger.of(
-    context,
-  ).showSnackBar(SnackBar(content: Text(message)));
 
   void _showUpdateDialog(UpdateInfo info) {
     final theme = Theme.of(context);
@@ -100,7 +106,7 @@ class _UpdateCheckTileState extends State<UpdateCheckTile> {
     return InkWell(
       onTap: _checking ? null : _check,
       child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
         child: Row(
           children: [
             Icon(

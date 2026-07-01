@@ -59,9 +59,8 @@ class _ServerCardState extends State<ServerCard> {
   }
 
   void _connect() {
-    context.read<ServerListBloc>().add(
-      ServerUpdated(server.copyWith(lastConnectedAt: DateTime.now())),
-    );
+    // "Last seen" is stamped by the terminal once the session actually
+    // connects, so a failed attempt does not mark the server as reached.
     Navigator.pushNamed(context, TerminalPage.route, arguments: server);
   }
 
@@ -96,7 +95,9 @@ class _ServerCardState extends State<ServerCard> {
           color: scheme.surface,
           borderRadius: BorderRadius.circular(20),
           border: Border.all(
-            color: _hovering ? accent.withValues(alpha: 0.5) : scheme.outlineVariant,
+            color: _hovering
+                ? accent.withValues(alpha: 0.5)
+                : scheme.outlineVariant,
             width: _hovering ? 2 : 1,
           ),
           boxShadow: _hovering
@@ -128,7 +129,11 @@ class _ServerCardState extends State<ServerCard> {
                             color: accent.withValues(alpha: 0.1),
                             borderRadius: BorderRadius.circular(12),
                           ),
-                          child: Icon(Icons.terminal_rounded, size: 20, color: accent),
+                          child: Icon(
+                            Icons.terminal_rounded,
+                            size: 20,
+                            color: accent,
+                          ),
                         ),
                         const SizedBox(width: 12),
                         Expanded(
@@ -236,7 +241,11 @@ class _ServerCardState extends State<ServerCard> {
           value: .delete,
           child: Row(
             children: [
-              Icon(Icons.delete_forever_rounded, size: 18, color: Colors.redAccent),
+              Icon(
+                Icons.delete_forever_rounded,
+                size: 18,
+                color: Colors.redAccent,
+              ),
               const SizedBox(width: 12),
               Text(
                 "Remove Server",
@@ -251,9 +260,7 @@ class _ServerCardState extends State<ServerCard> {
       ],
       child: Container(
         padding: const EdgeInsets.all(8),
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(10),
-        ),
+        decoration: BoxDecoration(borderRadius: BorderRadius.circular(10)),
         child: const Icon(Icons.more_horiz_rounded, size: 22),
       ),
     );

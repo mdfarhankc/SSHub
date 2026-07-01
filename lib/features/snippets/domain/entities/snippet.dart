@@ -7,11 +7,8 @@ class Snippet extends Equatable {
 
   const Snippet({required this.id, required this.label, required this.value});
 
-  Snippet copyWith({String? label, String? value}) => Snippet(
-    id: id,
-    label: label ?? this.label,
-    value: value ?? this.value,
-  );
+  Snippet copyWith({String? label, String? value}) =>
+      Snippet(id: id, label: label ?? this.label, value: value ?? this.value);
 
   @override
   List<Object?> get props => [id, label, value];

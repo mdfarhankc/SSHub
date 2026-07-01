@@ -55,7 +55,10 @@ class SnippetPickerSheet extends StatelessWidget {
                         color: scheme.onSurfaceVariant,
                       ),
                       const SizedBox(height: 12),
-                      Text("No snippets yet", style: theme.textTheme.titleSmall),
+                      Text(
+                        "No snippets yet",
+                        style: theme.textTheme.titleSmall,
+                      ),
                       const SizedBox(height: 4),
                       Text(
                         "Add tokens or commands to paste them here.",

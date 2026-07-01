@@ -135,7 +135,11 @@ class _SnippetTile extends StatelessWidget {
                   color: scheme.primaryContainer.withValues(alpha: 0.3),
                   borderRadius: BorderRadius.circular(12),
                 ),
-                child: Icon(Icons.bolt_rounded, size: 20, color: scheme.primary),
+                child: Icon(
+                  Icons.bolt_rounded,
+                  size: 20,
+                  color: scheme.primary,
+                ),
               ),
               const SizedBox(width: 14),
               Expanded(

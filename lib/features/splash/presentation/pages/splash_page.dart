@@ -36,8 +36,11 @@ class _SplashPageState extends State<SplashPage> {
     if (_navigated || !mounted || !_minDelayPassed) return;
     if (!_loaded(context.read<ServerListBloc>().state)) return;
     _navigated = true;
-    final onboarded =
-        context.read<SettingsCubit>().state.settings.onboardingComplete;
+    final onboarded = context
+        .read<SettingsCubit>()
+        .state
+        .settings
+        .onboardingComplete;
     Navigator.pushReplacementNamed(
       context,
       onboarded ? HomePage.route : OnboardingPage.route,

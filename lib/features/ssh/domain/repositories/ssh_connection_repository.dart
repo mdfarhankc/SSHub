@@ -17,6 +17,8 @@ abstract interface class SshSessionHandle {
 abstract interface class SshConnectionRepository {
   Future<SshSessionHandle> connect(
     SshServer server, {
-    required String password,
+    String? password,
+    String? privateKey,
+    String? keyPassphrase,
   });
 }

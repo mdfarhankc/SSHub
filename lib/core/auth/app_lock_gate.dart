@@ -6,6 +6,7 @@ import 'package:sshub/features/settings/presentation/cubit/settings_cubit.dart';
 
 class AppLockGate extends StatefulWidget {
   final Widget child;
+
   const AppLockGate({super.key, required this.child});
 
   @override
@@ -96,6 +97,7 @@ class _AppLockGateState extends State<AppLockGate> with WidgetsBindingObserver {
 class _LockScreen extends StatelessWidget {
   final bool authenticating;
   final VoidCallback onUnlock;
+
   const _LockScreen({required this.authenticating, required this.onUnlock});
 
   @override
@@ -109,10 +111,7 @@ class _LockScreen extends StatelessWidget {
           gradient: LinearGradient(
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
-            colors: [
-              scheme.surface,
-              scheme.surfaceContainer,
-            ],
+            colors: [scheme.surface, scheme.surfaceContainer],
           ),
         ),
         child: Center(

@@ -1,10 +1,10 @@
-import 'package:sshub/features/snippets/data/datasources/snippet_local_datasource.dart';
+import 'package:sshub/features/snippets/data/datasources/snippet_datasource.dart';
 import 'package:sshub/features/snippets/data/models/snippet_model.dart';
 import 'package:sshub/features/snippets/domain/entities/snippet.dart';
 import 'package:sshub/features/snippets/domain/repositories/snippet_repository.dart';
 
 class SnippetRepositoryImpl implements SnippetRepository {
-  final SnippetLocalDatasource _localDatasource;
+  final SnippetDatasource _localDatasource;
   const SnippetRepositoryImpl(this._localDatasource);
 
   @override

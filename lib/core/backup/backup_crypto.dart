@@ -10,7 +10,9 @@ class BackupException implements Exception {
 }
 
 abstract final class BackupCrypto {
-  static const _iterations = 120000;
+  // OWASP guidance for PBKDF2-HMAC-SHA256. Older backups decrypt with whatever
+  // iteration count they stored, so raising this stays backward compatible.
+  static const _iterations = 600000;
   static final _cipher = AesGcm.with256bits();
 
   static Uint8List _randomBytes(int length) {

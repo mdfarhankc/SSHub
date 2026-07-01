@@ -1,6 +1,7 @@
 import 'package:equatable/equatable.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
+import 'package:sshub/core/logging/app_log.dart';
 import 'package:sshub/features/settings/domain/entities/app_settings.dart';
 import 'package:sshub/features/settings/domain/repositories/settings_repository.dart';
 
@@ -14,7 +15,9 @@ class SettingsCubit extends Cubit<SettingsState> {
   Future<void> reload() async {
     try {
       emit(SettingsState(settings: await _repository.load()));
-    } catch (_) {}
+    } catch (e, s) {
+      appLog("Failed to reload settings", e, s);
+    }
   }
 
   void updateThemeMode(AppThemeMode mode) =>
@@ -50,6 +53,8 @@ class SettingsCubit extends Cubit<SettingsState> {
     emit(SettingsState(settings: settings));
     try {
       await _repository.save(settings);
-    } catch (_) {}
+    } catch (e, s) {
+      appLog("Failed to save settings", e, s);
+    }
   }
 }

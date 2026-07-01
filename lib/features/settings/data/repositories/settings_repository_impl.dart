@@ -1,10 +1,10 @@
-import 'package:sshub/features/settings/data/datasources/settings_local_datasource.dart';
+import 'package:sshub/features/settings/data/datasources/settings_datasource.dart';
 import 'package:sshub/features/settings/data/models/app_settings_model.dart';
 import 'package:sshub/features/settings/domain/entities/app_settings.dart';
 import 'package:sshub/features/settings/domain/repositories/settings_repository.dart';
 
 class SettingsRepositoryImpl implements SettingsRepository {
-  final SettingsLocalDatasource _localDatasource;
+  final SettingsDatasource _localDatasource;
   const SettingsRepositoryImpl(this._localDatasource);
 
   @override

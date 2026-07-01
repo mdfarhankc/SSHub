@@ -1,10 +1,10 @@
-import 'package:sshub/features/ssh/data/datasources/server_local_datasource.dart';
+import 'package:sshub/features/ssh/data/datasources/server_datasource.dart';
 import 'package:sshub/features/ssh/data/models/ssh_server_model.dart';
 import 'package:sshub/features/ssh/domain/entities/ssh_server.dart';
 import 'package:sshub/features/ssh/domain/repositories/ssh_repository.dart';
 
 class SshRepositoryImpl implements SshRepository {
-  final ServerLocalDatasource _localDatasource;
+  final ServerDatasource _localDatasource;
   const SshRepositoryImpl(this._localDatasource);
 
   @override

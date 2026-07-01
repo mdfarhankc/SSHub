@@ -1,25 +1,16 @@
-import 'dart:convert';
-import 'dart:io';
-
-import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:url_launcher/url_launcher.dart';
-import 'package:sshub/core/auth/local_auth_service.dart';
-import 'package:sshub/core/backup/backup_crypto.dart';
-import 'package:sshub/core/theme/app_theme.dart';
 
-import 'package:sshub/features/settings/domain/repositories/backup_repository.dart';
+import 'package:sshub/core/auth/local_auth_service.dart';
+import 'package:sshub/core/theme/app_theme.dart';
 import 'package:sshub/features/settings/presentation/cubit/settings_cubit.dart';
-import 'package:sshub/features/settings/presentation/widgets/export_options_dialog.dart';
-import 'package:sshub/features/settings/presentation/widgets/passphrase_dialog.dart';
+import 'package:sshub/features/settings/presentation/widgets/about_card.dart';
+import 'package:sshub/features/settings/presentation/widgets/backup_card.dart';
+import 'package:sshub/features/settings/presentation/widgets/danger_zone.dart';
 import 'package:sshub/features/settings/presentation/widgets/settings_card.dart';
+import 'package:sshub/features/settings/presentation/widgets/settings_divider.dart';
 import 'package:sshub/features/settings/presentation/widgets/settings_row.dart';
 import 'package:sshub/features/settings/presentation/widgets/theme_selector.dart';
-import 'package:sshub/features/settings/presentation/widgets/update_check_tile.dart';
-import 'package:sshub/features/snippets/presentation/bloc/snippet_list_bloc.dart';
-import 'package:sshub/features/ssh/domain/repositories/ssh_repository.dart';
-import 'package:sshub/features/ssh/presentation/bloc/server_list_bloc.dart';
 
 class SettingsPage extends StatelessWidget {
   const SettingsPage({super.key});
@@ -63,6 +54,7 @@ class SettingsPage extends StatelessWidget {
                     SettingsCard(
                       icon: Icons.palette_outlined,
                       title: "Appearance",
+                      description: "Customize how SSHub looks.",
                       children: [
                         SettingsRow(
                           title: "App Theme",
@@ -79,6 +71,7 @@ class SettingsPage extends StatelessWidget {
                     SettingsCard(
                       icon: Icons.terminal_outlined,
                       title: "Terminal",
+                      description: "Tune the terminal typeface and size.",
                       children: [
                         SettingsRow(
                           title: "Font Family",
@@ -101,8 +94,9 @@ class SettingsPage extends StatelessWidget {
                                 ),
                               ),
                               onSelected: (f) {
-                                if (f != null)
+                                if (f != null) {
                                   cubit.updateTerminalFontFamily(f);
+                                }
                               },
                               dropdownMenuEntries: _fontFamilies
                                   .map(
@@ -113,7 +107,7 @@ class SettingsPage extends StatelessWidget {
                             ),
                           ),
                         ),
-                        const Divider(indent: 16, endIndent: 16),
+                        const SettingsDivider(),
                         SettingsRow(
                           title: "Font Size",
                           subtitle: "Adjust the terminal text size.",
@@ -139,6 +133,7 @@ class SettingsPage extends StatelessWidget {
                     SettingsCard(
                       icon: Icons.security_outlined,
                       title: "Security",
+                      description: "Lock the app and gate secret reveals.",
                       children: [
                         SettingsRow(
                           title: "App Lock",
@@ -159,7 +154,7 @@ class SettingsPage extends StatelessWidget {
                           ),
                         ),
                         if (settings.appLockEnabled) ...[
-                          const Divider(indent: 16, endIndent: 16),
+                          const SettingsDivider(),
                           SettingsRow(
                             title: "Lock Password Reveal",
                             subtitle:
@@ -170,7 +165,7 @@ class SettingsPage extends StatelessWidget {
                               onChanged: cubit.updateLockPasswordReveal,
                             ),
                           ),
-                          const Divider(indent: 16, endIndent: 16),
+                          const SettingsDivider(),
                           SettingsRow(
                             title: "Lock Snippet Reveal",
                             subtitle:
@@ -185,208 +180,11 @@ class SettingsPage extends StatelessWidget {
                       ],
                     ),
                     const SizedBox(height: 16),
-                    SettingsCard(
-                      icon: Icons.backup_outlined,
-                      title: "Backup & Restore",
-                      description:
-                          "Export or import your server configurations securely.",
-                      children: [
-                        Padding(
-                          padding: const EdgeInsets.all(16),
-                          child: Row(
-                            children: [
-                              Expanded(
-                                child: OutlinedButton.icon(
-                                  onPressed: () => _exportData(context),
-                                  icon: const Icon(Icons.upload_rounded),
-                                  label: const Text("Export"),
-                                ),
-                              ),
-                              const SizedBox(width: 12),
-                              Expanded(
-                                child: OutlinedButton.icon(
-                                  onPressed: () => _importData(context),
-                                  icon: const Icon(Icons.download_rounded),
-                                  label: const Text("Import"),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ],
-                    ),
+                    const BackupCard(),
                     const SizedBox(height: 16),
-                    SettingsCard(
-                      icon: Icons.info_outline_rounded,
-                      title: "About",
-                      children: [
-                        Padding(
-                          padding: const EdgeInsets.fromLTRB(20, 12, 20, 12),
-                          child: Row(
-                            children: [
-                              ClipRRect(
-                                borderRadius: BorderRadius.circular(12),
-                                child: Image.asset(
-                                  "assets/icon/icon_without_bg.png",
-                                  width: 44,
-                                  height: 44,
-                                ),
-                              ),
-                              const SizedBox(width: 14),
-                              Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    "SSHub",
-                                    style: theme.textTheme.titleMedium
-                                        ?.copyWith(fontWeight: FontWeight.bold),
-                                  ),
-                                  Text(
-                                    "Version 2.0.0",
-                                    style: theme.textTheme.bodySmall?.copyWith(
-                                      color: scheme.onSurfaceVariant,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ],
-                          ),
-                        ),
-                        const Divider(indent: 16, endIndent: 16),
-                        const UpdateCheckTile(),
-                        const Divider(indent: 16, endIndent: 16),
-                        Padding(
-                          padding: const EdgeInsets.fromLTRB(20, 12, 20, 4),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                "Designed and built by",
-                                style: theme.textTheme.bodySmall?.copyWith(
-                                  color: scheme.onSurfaceVariant,
-                                ),
-                              ),
-                              const SizedBox(height: 2),
-                              Text(
-                                "Mohammed Farhan K C",
-                                style: theme.textTheme.titleSmall?.copyWith(
-                                  fontWeight: FontWeight.w600,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                        InkWell(
-                          onTap: () => _openGithub(context),
-                          child: Padding(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 20,
-                              vertical: 12,
-                            ),
-                            child: Row(
-                              children: [
-                                Icon(
-                                  Icons.code_rounded,
-                                  size: 20,
-                                  color: scheme.primary,
-                                ),
-                                const SizedBox(width: 12),
-                                Expanded(
-                                  child: Text(
-                                    "github.com/mdfarhankc",
-                                    style: theme.textTheme.bodyMedium?.copyWith(
-                                      color: scheme.primary,
-                                      fontWeight: FontWeight.w500,
-                                    ),
-                                  ),
-                                ),
-                                Icon(
-                                  Icons.open_in_new_rounded,
-                                  size: 18,
-                                  color: scheme.onSurfaceVariant,
-                                ),
-                              ],
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
+                    const AboutCard(),
                     const SizedBox(height: 24),
-                    Padding(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 8,
-                        vertical: 8,
-                      ),
-                      child: Row(
-                        children: [
-                          Icon(
-                            Icons.warning_amber_rounded,
-                            size: 18,
-                            color: scheme.error,
-                          ),
-                          const SizedBox(width: 10),
-                          Text(
-                            "Danger Zone".toUpperCase(),
-                            style: theme.textTheme.labelLarge?.copyWith(
-                              color: scheme.error,
-                              fontWeight: FontWeight.bold,
-                              letterSpacing: 1.2,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    Card(
-                      color: scheme.errorContainer.withValues(alpha: 0.1),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(20),
-                        side: BorderSide(
-                          color: scheme.error.withValues(alpha: 0.2),
-                        ),
-                      ),
-                      child: InkWell(
-                        onTap: () => _confirmClearAll(context),
-                        borderRadius: BorderRadius.circular(20),
-                        child: Padding(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 20,
-                            vertical: 16,
-                          ),
-                          child: Row(
-                            children: [
-                              Expanded(
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text(
-                                      "Delete All Data",
-                                      style: theme.textTheme.titleSmall
-                                          ?.copyWith(
-                                            fontWeight: FontWeight.w600,
-                                            color: scheme.error,
-                                          ),
-                                    ),
-                                    const SizedBox(height: 2),
-                                    Text(
-                                      "Wipe all servers and passwords permanently.",
-                                      style: theme.textTheme.bodySmall
-                                          ?.copyWith(
-                                            color: scheme.onSurfaceVariant,
-                                          ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                              const SizedBox(width: 16),
-                              Icon(
-                                Icons.delete_forever_rounded,
-                                color: scheme.error,
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
-                    ),
+                    const DangerZone(),
                     const SizedBox(height: 48),
                   ]),
                 ),
@@ -396,136 +194,5 @@ class SettingsPage extends StatelessWidget {
         ),
       ),
     );
-  }
-
-  void _snack(BuildContext context, String message, {bool success = true}) =>
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(message, style: Theme.of(context).textTheme.labelLarge),
-          backgroundColor: success ? Colors.green : Colors.red,
-        ),
-      );
-
-  Future<void> _openGithub(BuildContext context) async {
-    final uri = Uri.parse("https://github.com/mdfarhankc");
-    try {
-      final ok = await launchUrl(uri, mode: LaunchMode.externalApplication);
-      if (!ok && context.mounted) {
-        _snack(context, "Could not open link", success: false);
-      }
-    } catch (_) {
-      if (context.mounted) {
-        _snack(context, "Could not open link", success: false);
-      }
-    }
-  }
-
-  Future<void> _exportData(BuildContext context) async {
-    final options = await showDialog<ExportOptions>(
-      context: context,
-      builder: (_) => const ExportOptionsDialog(),
-    );
-    if (options == null || !context.mounted) return;
-
-    final repo = context.read<BackupRepository>();
-    try {
-      final content = await repo.export(
-        includeServers: options.includeServers,
-        includeSettings: options.includeSettings,
-        includeSnippets: options.includeSnippets,
-        passphrase: options.passphrase,
-      );
-      final path = await FilePicker.platform.saveFile(
-        dialogTitle: "Save SSHub backup",
-        fileName: options.passphrase != null
-            ? "sshub-backup.json"
-            : "sshub-backup-plain.json",
-        type: FileType.custom,
-        allowedExtensions: ["json"],
-        bytes: utf8.encode(content),
-      );
-      if (path == null) return;
-      if (!Platform.isAndroid && !Platform.isIOS) {
-        await File(path).writeAsString(content);
-      }
-      if (context.mounted) _snack(context, "Backup exported");
-    } catch (_) {
-      if (context.mounted) _snack(context, "Export failed", success: false);
-    }
-  }
-
-  Future<void> _importData(BuildContext context) async {
-    final result = await FilePicker.platform.pickFiles(
-      dialogTitle: "Select SSHub backup",
-      type: FileType.custom,
-      allowedExtensions: ["json"],
-      withData: true,
-    );
-    final bytes = result?.files.single.bytes;
-    if (bytes == null || !context.mounted) return;
-    final content = utf8.decode(bytes);
-
-    String? passphrase;
-    try {
-      if (BackupCrypto.isEncrypted(content)) {
-        passphrase = await showDialog<String>(
-          context: context,
-          builder: (_) => const PassphraseDialog(),
-        );
-        if (passphrase == null || !context.mounted) return;
-      }
-    } on BackupException catch (e) {
-      if (context.mounted) _snack(context, e.message, success: false);
-      return;
-    }
-
-    final repo = context.read<BackupRepository>();
-    try {
-      await repo.import(content, passphrase);
-      if (context.mounted) {
-        context.read<SettingsCubit>().reload();
-        context.read<ServerListBloc>().add(ServerListLoaded());
-        context.read<SnippetListBloc>().add(SnippetListLoaded());
-        _snack(context, "Backup restored");
-      }
-    } on BackupException catch (e) {
-      if (context.mounted) _snack(context, e.message, success: false);
-    } catch (_) {
-      if (context.mounted) _snack(context, "Import failed", success: false);
-    }
-  }
-
-  Future<void> _confirmClearAll(BuildContext context) async {
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (dialogContext) => AlertDialog(
-        title: const Text("Clear all data?"),
-        content: const Text(
-          "All servers and their stored passwords will be permanently deleted.",
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(dialogContext, false),
-            child: const Text("Cancel"),
-          ),
-          FilledButton(
-            style: FilledButton.styleFrom(
-              backgroundColor: Theme.of(dialogContext).colorScheme.error,
-            ),
-            onPressed: () => Navigator.pop(dialogContext, true),
-            child: const Text("Delete"),
-          ),
-        ],
-      ),
-    );
-    if (confirmed == true && context.mounted) {
-      await context.read<SshRepository>().clearAll();
-      if (context.mounted) {
-        context.read<ServerListBloc>().add(ServerListLoaded());
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(const SnackBar(content: Text("All data cleared")));
-      }
-    }
   }
 }
