@@ -4,20 +4,25 @@ SSHub is a fast, minimal SSH client for the desktop, built with Flutter. Save yo
 
 ## Features
 
-- Manage your SSH servers as a grid of cards
-- Add, edit and delete servers
-- Color tag each server for quick visual identification
-- Full in-app terminal powered by `dartssh2` + `xterm`
-- Passwords stored securely in the OS keychain (Windows Credential Manager, macOS Keychain, etc.), never in plain text
+- Manage your SSH servers as a grid of cards, with add / edit / delete and color tags
+- Live server status: each card shows whether the host is online, offline, or being checked
+- Password or SSH key authentication (OpenSSH, RSA, or EC keys, with an optional key passphrase)
+- Host key verification: SSHub remembers each server's fingerprint and refuses to connect if it changes
+- Full in-app terminal powered by `dartssh2` + `xterm`, with copy / paste, select all, and find-in-scrollback
+- Auto-reconnect: dropped connections retry on their own before reporting a failure
+- Snippets: save reusable commands or credentials and paste them into any session
+- Keyboard shortcuts for common actions, with an in-app cheat sheet
+- App lock with biometric / system unlock
+- Encrypted backup export and import to move your data between machines
+- In-app update check against the latest GitHub release
+- Credentials stored securely in the OS keychain (Windows Credential Manager, macOS Keychain, etc.), never in plain text; keys stay on your machine and are excluded from backups
 - Server list stored locally as JSON, so your data never leaves your machine
 - Settings: light / dark / system theme, terminal font size and family
 - Friendly connection errors with one-click retry
 
 ### Planned
 
-- SSH key authentication
 - Multiple sessions and tabs
-- Host key verification
 
 ## Platforms
 
@@ -172,10 +177,12 @@ Feature-first clean architecture:
 
 ```
 lib/
-├── core/            # router, theme
+├── core/            # auth, backup, di, logging, router, shortcuts, theme, update, widgets
 └── features/
+    ├── onboarding/
     ├── splash/
     ├── settings/
+    ├── snippets/
     └── ssh/
         ├── data/          # datasources, models, repository impls
         ├── domain/        # entities, repository interfaces, usecases
