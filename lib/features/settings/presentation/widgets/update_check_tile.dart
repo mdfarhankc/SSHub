@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:sshub/core/di/service_locator.dart';
 import 'package:sshub/core/update/update_service.dart';
 import 'package:sshub/core/widgets/app_snack_bar.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -11,7 +12,7 @@ class UpdateCheckTile extends StatefulWidget {
 }
 
 class _UpdateCheckTileState extends State<UpdateCheckTile> {
-  final _service = UpdateService();
+  final _service = sl<UpdateService>();
   bool _checking = false;
 
   Future<void> _check() async {
@@ -72,7 +73,7 @@ class _UpdateCheckTileState extends State<UpdateCheckTile> {
                 ConstrainedBox(
                   constraints: const BoxConstraints(maxHeight: 240),
                   child: SingleChildScrollView(
-                    child: Text(info.notes, style: theme.textTheme.bodySmall),
+                    child: _ReleaseNotesView(notes: info.notes),
                   ),
                 ),
               ],
@@ -134,6 +135,77 @@ class _UpdateCheckTileState extends State<UpdateCheckTile> {
           ],
         ),
       ),
+    );
+  }
+}
+
+class _ReleaseNotesView extends StatelessWidget {
+  const _ReleaseNotesView({required this.notes});
+
+  final String notes;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final lines = notes.split('\n');
+    final children = <Widget>[];
+
+    for (final rawLine in lines) {
+      final line = rawLine.trim();
+      if (line.isEmpty) {
+        if (children.isNotEmpty) children.add(const SizedBox(height: 8));
+        continue;
+      }
+
+      final headingMatch = RegExp(r'^(#{1,6})\s+(.+)$').firstMatch(line);
+      if (headingMatch != null) {
+        children.add(
+          Padding(
+            padding: EdgeInsets.only(top: children.isEmpty ? 0 : 8, bottom: 4),
+            child: Text(
+              headingMatch.group(2)!,
+              style: theme.textTheme.labelLarge?.copyWith(
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ),
+        );
+        continue;
+      }
+
+      final bulletMatch = RegExp(r'^[-*]\s+(.+)$').firstMatch(line);
+      if (bulletMatch != null) {
+        children.add(
+          Padding(
+            padding: const EdgeInsets.only(bottom: 4),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('•  ', style: theme.textTheme.bodySmall),
+                Expanded(
+                  child: Text(
+                    bulletMatch.group(1)!,
+                    style: theme.textTheme.bodySmall,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+        continue;
+      }
+
+      children.add(
+        Padding(
+          padding: const EdgeInsets.only(bottom: 4),
+          child: Text(line, style: theme.textTheme.bodySmall),
+        ),
+      );
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: children,
     );
   }
 }

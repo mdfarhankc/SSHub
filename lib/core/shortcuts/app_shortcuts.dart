@@ -8,8 +8,7 @@ bool get _isApple => Platform.isMacOS || Platform.isIOS;
 /// Label for the primary shortcut modifier on this platform.
 String get shortcutModifierLabel => _isApple ? "Cmd" : "Ctrl";
 
-/// Binds [key] to [callback] using the platform's primary modifier (Command on
-/// Apple platforms, Control elsewhere) so a single map works across desktops.
+/// Binds [key] to [callback] using the platform's primary modifier.
 Map<ShortcutActivator, VoidCallback> shortcutBinding(
   LogicalKeyboardKey key,
   VoidCallback callback, {

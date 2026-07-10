@@ -51,43 +51,40 @@ class _Swatch extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
     return InkWell(
       onTap: onTap,
-      borderRadius: BorderRadius.circular(12),
+      customBorder: const CircleBorder(),
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 200),
         width: 36,
         height: 36,
+        padding: const EdgeInsets.all(3),
         decoration: BoxDecoration(
-          color: color.withValues(alpha: 0.2),
-          borderRadius: BorderRadius.circular(12),
+          shape: BoxShape.circle,
           border: Border.all(
-            color: selected ? color : Colors.transparent,
+            color: selected ? scheme.onSurface : Colors.transparent,
             width: 2,
           ),
         ),
-        child: Center(
-          child: Container(
-            width: 20,
-            height: 20,
-            decoration: BoxDecoration(
-              color: color,
-              borderRadius: BorderRadius.circular(6),
-              boxShadow: [
-                if (selected)
-                  BoxShadow(
-                    color: color.withValues(alpha: 0.4),
-                    blurRadius: 8,
-                    offset: const Offset(0, 2),
-                  ),
-              ],
-            ),
-            child: icon != null
-                ? Icon(icon, size: 12, color: Colors.white)
-                : selected
-                ? const Icon(Icons.check, size: 12, color: Colors.white)
-                : null,
+        child: Container(
+          decoration: BoxDecoration(
+            color: color,
+            shape: BoxShape.circle,
+            boxShadow: [
+              if (selected)
+                BoxShadow(
+                  color: color.withValues(alpha: 0.4),
+                  blurRadius: 8,
+                  offset: const Offset(0, 2),
+                ),
+            ],
           ),
+          child: icon != null
+              ? Icon(icon, size: 14, color: Colors.white)
+              : selected
+              ? const Icon(Icons.check, size: 14, color: Colors.white)
+              : null,
         ),
       ),
     );

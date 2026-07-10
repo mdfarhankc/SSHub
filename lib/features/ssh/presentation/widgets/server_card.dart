@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
+import 'package:sshub/core/theme/app_colors.dart';
 import 'package:sshub/core/theme/app_theme.dart';
 import 'package:sshub/core/theme/server_colors.dart';
 import 'package:sshub/features/ssh/domain/entities/ssh_server.dart';
@@ -12,7 +13,12 @@ enum _CardAction { edit, delete }
 
 class ServerCard extends StatefulWidget {
   final SshServer server;
-  const ServerCard({super.key, required this.server});
+  final Reachability reachability;
+  const ServerCard({
+    super.key,
+    required this.server,
+    this.reachability = Reachability.unknown,
+  });
 
   @override
   State<ServerCard> createState() => _ServerCardState();
@@ -59,8 +65,7 @@ class _ServerCardState extends State<ServerCard> {
   }
 
   void _connect() {
-    // "Last seen" is stamped by the terminal once the session actually
-    // connects, so a failed attempt does not mark the server as reached.
+    // "Last seen" is stamped only on a real connection, not a failed attempt.
     Navigator.pushNamed(context, TerminalPage.route, arguments: server);
   }
 
@@ -93,7 +98,7 @@ class _ServerCardState extends State<ServerCard> {
         curve: Curves.easeInOut,
         decoration: BoxDecoration(
           color: scheme.surface,
-          borderRadius: BorderRadius.circular(20),
+          borderRadius: BorderRadius.circular(AppTheme.radiusXl),
           border: Border.all(
             color: _hovering
                 ? accent.withValues(alpha: 0.5)
@@ -111,7 +116,7 @@ class _ServerCardState extends State<ServerCard> {
               : AppTheme.cardShadow(theme.brightness),
         ),
         child: ClipRRect(
-          borderRadius: BorderRadius.circular(20),
+          borderRadius: BorderRadius.circular(AppTheme.radiusXl),
           child: Material(
             color: Colors.transparent,
             child: InkWell(
@@ -123,17 +128,30 @@ class _ServerCardState extends State<ServerCard> {
                   children: [
                     Row(
                       children: [
-                        Container(
-                          padding: const EdgeInsets.all(10),
-                          decoration: BoxDecoration(
-                            color: accent.withValues(alpha: 0.1),
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          child: Icon(
-                            Icons.terminal_rounded,
-                            size: 20,
-                            color: accent,
-                          ),
+                        Stack(
+                          clipBehavior: Clip.none,
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.all(10),
+                              decoration: BoxDecoration(
+                                color: accent.withValues(alpha: 0.1),
+                                borderRadius: BorderRadius.circular(
+                                  AppTheme.radiusMd,
+                                ),
+                              ),
+                              child: Icon(
+                                Icons.terminal_rounded,
+                                size: 20,
+                                color: accent,
+                              ),
+                            ),
+                            if (widget.reachability != Reachability.unknown)
+                              Positioned(
+                                right: -3,
+                                bottom: -3,
+                                child: _StatusDot(widget.reachability),
+                              ),
+                          ],
                         ),
                         const SizedBox(width: 12),
                         Expanded(
@@ -184,7 +202,9 @@ class _ServerCardState extends State<ServerCard> {
                           ),
                           decoration: BoxDecoration(
                             color: scheme.surfaceContainerHighest,
-                            borderRadius: BorderRadius.circular(6),
+                            borderRadius: BorderRadius.circular(
+                              AppTheme.radiusXs,
+                            ),
                           ),
                           child: Text(
                             _lastSeen(),
@@ -215,7 +235,9 @@ class _ServerCardState extends State<ServerCard> {
     return PopupMenuButton<_CardAction>(
       tooltip: "Server options",
       offset: const Offset(0, 40),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(AppTheme.radiusLg),
+      ),
       elevation: 3,
       onSelected: (action) {
         switch (action) {
@@ -241,16 +263,12 @@ class _ServerCardState extends State<ServerCard> {
           value: .delete,
           child: Row(
             children: [
-              Icon(
-                Icons.delete_forever_rounded,
-                size: 18,
-                color: Colors.redAccent,
-              ),
+              Icon(Icons.delete_forever_rounded, size: 18, color: scheme.error),
               const SizedBox(width: 12),
               Text(
                 "Remove Server",
                 style: TextStyle(
-                  color: Colors.redAccent,
+                  color: scheme.error,
                   fontWeight: FontWeight.w500,
                 ),
               ),
@@ -262,6 +280,35 @@ class _ServerCardState extends State<ServerCard> {
         padding: const EdgeInsets.all(8),
         decoration: BoxDecoration(borderRadius: BorderRadius.circular(10)),
         child: const Icon(Icons.more_horiz_rounded, size: 22),
+      ),
+    );
+  }
+}
+
+class _StatusDot extends StatelessWidget {
+  final Reachability reachability;
+  const _StatusDot(this.reachability);
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final colors = AppColors.of(context);
+    final (color, label) = switch (reachability) {
+      Reachability.online => (scheme.primary, "Online"),
+      Reachability.offline => (scheme.onSurfaceVariant, "Offline"),
+      Reachability.checking => (colors.warning, "Checking..."),
+      Reachability.unknown => (Colors.transparent, ""),
+    };
+    return Tooltip(
+      message: label,
+      child: Container(
+        width: 14,
+        height: 14,
+        decoration: BoxDecoration(
+          color: color,
+          shape: BoxShape.circle,
+          border: Border.all(color: scheme.surface, width: 2.5),
+        ),
       ),
     );
   }

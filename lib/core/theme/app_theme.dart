@@ -1,12 +1,19 @@
-import 'dart:ui' show FontFeature;
-
 import 'package:flutter/cupertino.dart' show CupertinoPageTransitionsBuilder;
 import 'package:flutter/material.dart';
+import 'package:sshub/core/theme/app_colors.dart';
 
 abstract final class AppTheme {
-  static const double radius = 16;
   static const String mono = "JetBrains Mono";
   static const double maxContentWidth = 1200;
+
+  // Corner radius scale, smallest to largest.
+  static const double radiusXs = 6;
+  static const double radiusSm = 8;
+  static const double radiusMd = 12;
+  static const double radiusLg = 16;
+  static const double radiusXl = 20;
+  static const double radius2xl = 24;
+  static const double radius3xl = 28;
 
   static final ThemeData light = _build(Brightness.light);
   static final ThemeData dark = _build(Brightness.dark);
@@ -28,32 +35,13 @@ abstract final class AppTheme {
   }
 
   static ThemeData _build(Brightness brightness) {
-    final dark = brightness == Brightness.dark;
-    final scheme =
-        ColorScheme.fromSeed(
-          seedColor: const Color(0xFF2563EB),
-          brightness: brightness,
-        ).copyWith(
-          surface: dark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
-          surfaceContainerLowest: dark
-              ? const Color(0xFF0B1120)
-              : const Color(0xFFFFFFFF),
-          surfaceContainerLow: dark
-              ? const Color(0xFF172033)
-              : const Color(0xFFF8FAFC),
-          surfaceContainer: dark
-              ? const Color(0xFF1E293B)
-              : const Color(0xFFF1F5F9),
-          surfaceContainerHigh: dark
-              ? const Color(0xFF263449)
-              : const Color(0xFFE9EEF4),
-          surfaceContainerHighest: dark
-              ? const Color(0xFF2E3D55)
-              : const Color(0xFFE2E8F0),
-        );
+    final scheme = ColorScheme.fromSeed(
+      seedColor: const Color(0xFF00E599),
+      brightness: brightness,
+    ).copyWith(error: const Color(0xFFE5484D), onError: Colors.white);
 
     final buttonShape = WidgetStatePropertyAll(
-      RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      RoundedRectangleBorder(borderRadius: BorderRadius.circular(radiusMd)),
     );
 
     final base = ThemeData(
@@ -64,6 +52,9 @@ abstract final class AppTheme {
 
     return base.copyWith(
       scaffoldBackgroundColor: scheme.surface,
+      extensions: [
+        brightness == Brightness.dark ? AppColors.dark : AppColors.light,
+      ],
       textTheme: _textTheme(base.textTheme),
       pageTransitionsTheme: const PageTransitionsTheme(
         builders: {
@@ -82,15 +73,15 @@ abstract final class AppTheme {
         filled: true,
         fillColor: scheme.surfaceContainer,
         border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
+          borderRadius: BorderRadius.circular(radiusMd),
           borderSide: BorderSide.none,
         ),
         enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
+          borderRadius: BorderRadius.circular(radiusMd),
           borderSide: BorderSide.none,
         ),
         focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
+          borderRadius: BorderRadius.circular(radiusMd),
           borderSide: BorderSide(color: scheme.primary, width: 1.5),
         ),
         contentPadding: const EdgeInsets.symmetric(
@@ -126,32 +117,38 @@ abstract final class AppTheme {
         color: scheme.surfaceContainer,
         elevation: 0,
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(20),
+          borderRadius: BorderRadius.circular(radiusXl),
           side: BorderSide(color: scheme.outlineVariant, width: 1),
         ),
         margin: EdgeInsets.zero,
       ),
       dialogTheme: DialogThemeData(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(28)),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(radius3xl),
+        ),
         backgroundColor: scheme.surface,
         elevation: 0,
       ),
       popupMenuTheme: PopupMenuThemeData(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(radiusLg),
+        ),
         elevation: 8,
       ),
       bottomSheetTheme: BottomSheetThemeData(
         backgroundColor: scheme.surface,
         elevation: 0,
         shape: const RoundedRectangleBorder(
-          borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+          borderRadius: BorderRadius.vertical(top: Radius.circular(radius2xl)),
         ),
       ),
       snackBarTheme: SnackBarThemeData(
         behavior: SnackBarBehavior.floating,
         elevation: 4,
         insetPadding: const EdgeInsets.all(16),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(radiusMd),
+        ),
       ),
       dividerTheme: DividerThemeData(
         thickness: 1,

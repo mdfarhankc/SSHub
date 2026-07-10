@@ -23,6 +23,12 @@ class SettingsCubit extends Cubit<SettingsState> {
   void updateThemeMode(AppThemeMode mode) =>
       _update(state.settings.copyWith(themeMode: mode));
 
+  void toggleThemeMode() => updateThemeMode(
+    state.settings.themeMode == AppThemeMode.dark
+        ? AppThemeMode.light
+        : AppThemeMode.dark,
+  );
+
   void updateTerminalFontSize(double size) =>
       _update(state.settings.copyWith(terminalFontSize: size));
 
@@ -46,7 +52,7 @@ class SettingsCubit extends Cubit<SettingsState> {
   void updateLockSnippetReveal(bool enabled) =>
       _update(state.settings.copyWith(lockSnippetReveal: enabled));
 
-  void completeOnboarding() =>
+  Future<void> completeOnboarding() =>
       _update(state.settings.copyWith(onboardingComplete: true));
 
   Future<void> _update(AppSettings settings) async {

@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:sshub/core/theme/app_colors.dart';
+import 'package:sshub/core/theme/app_theme.dart';
 import 'package:sshub/features/ssh/presentation/cubit/terminal_cubit.dart';
 
 class StatusDot extends StatelessWidget {
@@ -8,9 +10,11 @@ class StatusDot extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final colors = AppColors.of(context);
     final (color, label) = switch (state) {
-      TerminalConnecting() => (Colors.amber, "Connecting"),
-      TerminalConnected() => (const Color(0xFF22C55E), "Connected"),
+      TerminalConnecting() => (colors.warning, "Connecting"),
+      TerminalReconnecting() => (colors.warning, "Reconnecting"),
+      TerminalConnected() => (colors.success, "Connected"),
       TerminalDisconnected() => (theme.colorScheme.error, "Disconnected"),
       TerminalFailure() => (theme.colorScheme.error, "Failed"),
     };
@@ -18,7 +22,7 @@ class StatusDot extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
       decoration: BoxDecoration(
         color: color.withValues(alpha: 0.1),
-        borderRadius: BorderRadius.circular(20),
+        borderRadius: BorderRadius.circular(AppTheme.radiusXl),
         border: Border.all(color: color.withValues(alpha: 0.2)),
       ),
       child: Row(

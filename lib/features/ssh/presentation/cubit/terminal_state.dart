@@ -19,6 +19,18 @@ final class TerminalConnected extends TerminalState {
   List<Object> get props => [handle];
 }
 
+final class TerminalReconnecting extends TerminalState {
+  final int attempt;
+  final int maxAttempts;
+  const TerminalReconnecting({
+    required this.attempt,
+    required this.maxAttempts,
+  });
+
+  @override
+  List<Object> get props => [attempt, maxAttempts];
+}
+
 final class TerminalDisconnected extends TerminalState {
   const TerminalDisconnected();
 }

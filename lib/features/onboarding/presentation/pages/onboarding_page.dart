@@ -82,8 +82,9 @@ class _OnboardingPageState extends State<OnboardingPage> {
     );
   }
 
-  void _finish() {
-    context.read<SettingsCubit>().completeOnboarding();
+  Future<void> _finish() async {
+    await context.read<SettingsCubit>().completeOnboarding();
+    if (!mounted) return;
     Navigator.pushReplacementNamed(context, HomePage.route);
   }
 

@@ -9,6 +9,10 @@ abstract interface class SshSessionHandle {
   Stream<String> get output;
   Future<void> get done;
 
+  // True when the remote shell exited on its own (carries an exit code); false
+  // when [done] completed because the link dropped. Only valid after [done].
+  bool get endedCleanly;
+
   void write(String data);
   void resize(int width, int height, int pixelWidth, int pixelHeight);
   Future<void> close();

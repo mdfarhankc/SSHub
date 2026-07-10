@@ -45,9 +45,7 @@ class ServerLocalDatasource implements ServerDatasource {
   @override
   Future<void> clear() => _storage.delete(key: _key);
 
-  // One-time import from the previous split storage: a plaintext servers.json
-  // file plus per-id passwords in secure storage. Merges them into the single
-  // store, then removes the old artifacts.
+  // One-time migration from the old split storage into the single store.
   Future<List<SshServerModel>> _migrateLegacy() async {
     File file;
     try {

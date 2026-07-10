@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:sshub/core/responsive/responsive.dart';
+import 'package:sshub/core/widgets/page_title.dart';
 
 class SettingsHeader extends StatelessWidget {
   const SettingsHeader({super.key});
@@ -16,13 +17,11 @@ class SettingsHeader extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           mainAxisSize: MainAxisSize.min,
           children: [
-            Text(
+            PageTitle(
               "Settings",
-              style:
-                  (narrow
-                          ? theme.textTheme.titleLarge
-                          : theme.textTheme.headlineSmall)
-                      ?.copyWith(fontWeight: FontWeight.bold),
+              base: narrow
+                  ? theme.textTheme.titleLarge
+                  : theme.textTheme.headlineSmall,
             ),
             const SizedBox(height: 2),
             Text(

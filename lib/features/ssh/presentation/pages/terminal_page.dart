@@ -107,8 +107,7 @@ class _TerminalPageState extends State<TerminalPage> {
     );
   }
 
-  // Intercept a few chords before the terminal consumes the keys. Ctrl+C only
-  // copies when there is a selection, otherwise it falls through as SIGINT.
+  // Ctrl+C copies when there's a selection, otherwise falls through as SIGINT.
   KeyEventResult _handleTerminalKey(BuildContext context, KeyEvent event) {
     if (event is! KeyDownEvent) return KeyEventResult.ignored;
     final keyboard = HardwareKeyboard.instance;
@@ -277,8 +276,7 @@ class _TerminalPageState extends State<TerminalPage> {
     }
   }
 
-  // The scroll extent maps 1:1 to buffer lines, so the cell height can be
-  // derived from it without reaching into terminal internals.
+  // Scroll extent maps 1:1 to buffer lines, so cell height derives from it.
   void _scrollToLine(int line) {
     if (!_scrollController.hasClients) return;
     final position = _scrollController.position;
@@ -312,7 +310,9 @@ class _TerminalPageState extends State<TerminalPage> {
               widget.server.copyWith(lastConnectedAt: DateTime.now()),
             ),
           );
-        } else if (state is TerminalDisconnected || state is TerminalFailure) {
+        } else if (state is TerminalDisconnected ||
+            state is TerminalFailure ||
+            state is TerminalReconnecting) {
           _detach();
         }
       },
@@ -342,7 +342,7 @@ class _TerminalPageState extends State<TerminalPage> {
               if (state is TerminalConnected) ...[
                 IconButton(
                   tooltip: "Find (Ctrl+F)",
-                  icon: const Icon(Icons.search),
+                  icon: const Icon(Icons.search_rounded),
                   onPressed: _openSearch,
                 ),
                 IconButton(
@@ -358,98 +358,50 @@ class _TerminalPageState extends State<TerminalPage> {
             ],
           ),
           body: switch (state) {
-            TerminalConnecting() => Center(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  const CircularProgressIndicator(),
-                  const SizedBox(height: 24),
-                  Text(
-                    "Connecting to ${widget.server.host}...",
-                    style: theme.textTheme.titleMedium,
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    "Establishing secure SSH channel",
-                    style: theme.textTheme.bodySmall?.copyWith(
-                      color: theme.colorScheme.onSurfaceVariant,
-                    ),
-                  ),
-                ],
+            TerminalConnecting() => _StatusView(
+              indicator: const SizedBox(
+                width: 44,
+                height: 44,
+                child: CircularProgressIndicator(strokeWidth: 4),
               ),
+              title: "Connecting",
+              message:
+                  "Establishing a secure SSH channel to ${widget.server.host}",
             ),
-            TerminalFailure(:final message) => Center(
-              child: Container(
-                margin: const EdgeInsets.all(24),
-                padding: const EdgeInsets.all(32),
-                decoration: BoxDecoration(
-                  color: theme.colorScheme.errorContainer.withValues(
-                    alpha: 0.1,
-                  ),
-                  borderRadius: BorderRadius.circular(24),
-                  border: Border.all(color: theme.colorScheme.errorContainer),
+            TerminalReconnecting(:final attempt, :final maxAttempts) =>
+              _StatusView(
+                indicator: const SizedBox(
+                  width: 44,
+                  height: 44,
+                  child: CircularProgressIndicator(strokeWidth: 4),
                 ),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(
-                      Icons.error_outline_rounded,
-                      size: 64,
-                      color: theme.colorScheme.error,
-                    ),
-                    const SizedBox(height: 24),
-                    Text(
-                      "Connection Failed",
-                      style: theme.textTheme.titleLarge?.copyWith(
-                        fontWeight: FontWeight.bold,
-                        color: theme.colorScheme.error,
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      message,
-                      textAlign: TextAlign.center,
-                      style: theme.textTheme.bodyMedium,
-                    ),
-                    const SizedBox(height: 32),
-                    SizedBox(
-                      width: double.infinity,
-                      child: FilledButton.icon(
-                        onPressed: cubit.reconnect,
-                        icon: const Icon(Icons.refresh_rounded),
-                        label: const Text("Try Again"),
-                        style: FilledButton.styleFrom(
-                          backgroundColor: theme.colorScheme.error,
-                          foregroundColor: theme.colorScheme.onError,
-                        ),
-                      ),
-                    ),
-                    TextButton(
-                      onPressed: () => Navigator.pop(context),
-                      child: const Text("Back to Servers"),
-                    ),
-                  ],
-                ),
+                title: "Reconnecting",
+                message:
+                    "Connection lost. Reconnecting to ${widget.server.host} "
+                    "(attempt $attempt of $maxAttempts)...",
               ),
+            TerminalFailure(:final message) => _StatusView(
+              indicator: Icon(
+                Icons.error_outline_rounded,
+                size: 56,
+                color: theme.colorScheme.error,
+              ),
+              title: "Connection Failed",
+              titleColor: theme.colorScheme.error,
+              message: message,
+              primaryLabel: "Try Again",
+              onPrimary: cubit.reconnect,
             ),
-            TerminalDisconnected() => Center(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(
-                    Icons.cloud_off_rounded,
-                    size: 64,
-                    color: theme.colorScheme.onSurfaceVariant,
-                  ),
-                  const SizedBox(height: 16),
-                  Text("Disconnected", style: theme.textTheme.titleLarge),
-                  const SizedBox(height: 24),
-                  FilledButton(
-                    onPressed: cubit.reconnect,
-                    child: const Text("Reconnect"),
-                  ),
-                ],
+            TerminalDisconnected() => _StatusView(
+              indicator: Icon(
+                Icons.cloud_off_rounded,
+                size: 56,
+                color: theme.colorScheme.onSurfaceVariant,
               ),
+              title: "Disconnected",
+              message: "The SSH session has ended.",
+              primaryLabel: "Reconnect",
+              onPrimary: cubit.reconnect,
             ),
             TerminalConnected() => Column(
               children: [
@@ -475,10 +427,7 @@ class _TerminalPageState extends State<TerminalPage> {
                   ),
                 ),
                 if (Platform.isAndroid || Platform.isIOS)
-                  TerminalKeyBar(
-                    terminal: terminal,
-                    onSnippets: () => _showSnippets(context),
-                  ),
+                  TerminalKeyBar(terminal: terminal),
               ],
             ),
           },
@@ -499,7 +448,11 @@ class _TerminalPageState extends State<TerminalPage> {
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
         child: Row(
           children: [
-            Icon(Icons.search, size: 18, color: scheme.onSurfaceVariant),
+            Icon(
+              Icons.search_rounded,
+              size: 18,
+              color: scheme.onSurfaceVariant,
+            ),
             const SizedBox(width: 8),
             Expanded(
               child: CallbackShortcuts(
@@ -533,19 +486,19 @@ class _TerminalPageState extends State<TerminalPage> {
             IconButton(
               tooltip: "Previous (Shift+Enter)",
               visualDensity: VisualDensity.compact,
-              icon: const Icon(Icons.keyboard_arrow_up, size: 20),
+              icon: const Icon(Icons.keyboard_arrow_up_rounded, size: 20),
               onPressed: hasMatches ? _prevMatch : null,
             ),
             IconButton(
               tooltip: "Next (Enter)",
               visualDensity: VisualDensity.compact,
-              icon: const Icon(Icons.keyboard_arrow_down, size: 20),
+              icon: const Icon(Icons.keyboard_arrow_down_rounded, size: 20),
               onPressed: hasMatches ? _nextMatch : null,
             ),
             IconButton(
               tooltip: "Close (Esc)",
               visualDensity: VisualDensity.compact,
-              icon: const Icon(Icons.close, size: 20),
+              icon: const Icon(Icons.close_rounded, size: 20),
               onPressed: _closeSearch,
             ),
           ],
@@ -578,6 +531,80 @@ class _MenuRow extends StatelessWidget {
           ),
         ),
       ],
+    );
+  }
+}
+
+// Shared layout for the connecting/failed/disconnected states so they keep the
+// same width, sizing, and spacing.
+class _StatusView extends StatelessWidget {
+  final Widget indicator;
+  final String title;
+  final Color? titleColor;
+  final String? message;
+  final String? primaryLabel;
+  final VoidCallback? onPrimary;
+
+  const _StatusView({
+    required this.indicator,
+    required this.title,
+    this.titleColor,
+    this.message,
+    this.primaryLabel,
+    this.onPrimary,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Center(
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 360),
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              SizedBox(height: 64, child: Center(child: indicator)),
+              const SizedBox(height: 20),
+              Text(
+                title,
+                textAlign: TextAlign.center,
+                style: theme.textTheme.titleLarge?.copyWith(
+                  fontWeight: FontWeight.bold,
+                  color: titleColor,
+                ),
+              ),
+              if (message != null) ...[
+                const SizedBox(height: 8),
+                Text(
+                  message!,
+                  textAlign: TextAlign.center,
+                  style: theme.textTheme.bodyMedium?.copyWith(
+                    color: theme.colorScheme.onSurfaceVariant,
+                  ),
+                ),
+              ],
+              if (onPrimary != null) ...[
+                const SizedBox(height: 28),
+                SizedBox(
+                  width: 220,
+                  child: FilledButton.icon(
+                    onPressed: onPrimary,
+                    icon: const Icon(Icons.refresh_rounded),
+                    label: Text(primaryLabel!),
+                  ),
+                ),
+                const SizedBox(height: 4),
+                TextButton(
+                  onPressed: () => Navigator.pop(context),
+                  child: const Text("Back to Servers"),
+                ),
+              ],
+            ],
+          ),
+        ),
+      ),
     );
   }
 }

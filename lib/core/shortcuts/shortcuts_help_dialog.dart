@@ -19,6 +19,8 @@ class ShortcutsHelpDialog extends StatelessWidget {
       ("$mod F", "Search your servers"),
       ("$mod E", "Open snippets"),
       ("$mod ,", "Open settings"),
+      ("$mod R", "Refresh server status"),
+      ("$mod Shift D", "Toggle light and dark theme"),
       ("$mod Shift S", "Paste a snippet while in a terminal"),
       ("F1", "Show this help"),
     ];
@@ -161,7 +163,7 @@ class _Keys extends StatelessWidget {
               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
               decoration: BoxDecoration(
                 color: scheme.surfaceContainerHighest.withValues(alpha: 0.6),
-                borderRadius: BorderRadius.circular(6),
+                borderRadius: BorderRadius.circular(AppTheme.radiusXs),
                 border: Border.all(color: scheme.outlineVariant),
               ),
               child: Text(

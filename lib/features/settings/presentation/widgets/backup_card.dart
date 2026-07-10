@@ -14,8 +14,10 @@ class BackupCard extends StatelessWidget {
   const BackupCard({super.key});
 
   Future<void> _export(BuildContext context) async {
-    final options = await showDialog<ExportOptions>(
+    final options = await showModalBottomSheet<ExportOptions>(
       context: context,
+      isScrollControlled: true,
+      useSafeArea: true,
       builder: (_) => const ExportOptionsDialog(),
     );
     if (options == null || !context.mounted) return;
@@ -24,9 +26,14 @@ class BackupCard extends StatelessWidget {
 
   Future<void> _onState(BuildContext context, BackupState state) async {
     switch (state.status) {
+      case BackupStatus.working:
+        showAppLoadingSnackBar(context, state.message ?? "Working...");
       case BackupStatus.needsPassphrase:
-        final passphrase = await showDialog<String>(
+        ScaffoldMessenger.of(context).hideCurrentSnackBar();
+        final passphrase = await showModalBottomSheet<String>(
           context: context,
+          isScrollControlled: true,
+          useSafeArea: true,
           builder: (_) => const PassphraseDialog(),
         );
         if (!context.mounted) return;
@@ -50,8 +57,7 @@ class BackupCard extends StatelessWidget {
           success: false,
         );
       case BackupStatus.idle:
-      case BackupStatus.working:
-        break;
+        ScaffoldMessenger.of(context).hideCurrentSnackBar();
     }
   }
 

@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -5,6 +7,9 @@ import 'package:sshub/core/responsive/responsive.dart';
 import 'package:sshub/core/shortcuts/app_shortcuts.dart';
 import 'package:sshub/core/shortcuts/shortcuts_help_dialog.dart';
 import 'package:sshub/core/theme/app_theme.dart';
+import 'package:sshub/core/widgets/app_snack_bar.dart';
+import 'package:sshub/core/widgets/page_title.dart';
+import 'package:sshub/features/settings/presentation/cubit/settings_cubit.dart';
 import 'package:sshub/features/settings/presentation/pages/settings_page.dart';
 import 'package:sshub/features/snippets/presentation/pages/snippets_page.dart';
 import 'package:sshub/features/ssh/domain/entities/ssh_server.dart';
@@ -31,6 +36,13 @@ class HomePage extends StatefulWidget {
 class _HomePageState extends State<HomePage> {
   String _query = "";
   final _searchFocus = FocusNode();
+
+  @override
+  void initState() {
+    super.initState();
+    // Servers are loaded before Home mounts, so probe them once on launch.
+    _checkReachability(context);
+  }
 
   @override
   void dispose() {
@@ -65,6 +77,20 @@ class _HomePageState extends State<HomePage> {
     }
   }
 
+  Future<void> _refresh(BuildContext context) async {
+    final bloc = context.read<ServerListBloc>();
+    if (bloc.state.servers.isEmpty) return;
+    bloc.add(ServerReachabilityRequested());
+    await bloc.stream.firstWhere(
+      (s) =>
+          s.reachability.length >= s.servers.length &&
+          !s.reachability.values.contains(Reachability.checking),
+    );
+  }
+
+  void _checkReachability(BuildContext context) =>
+      context.read<ServerListBloc>().add(ServerReachabilityRequested());
+
   void _focusSearch() => _searchFocus.requestFocus();
 
   Map<ShortcutActivator, VoidCallback> _shortcutBindings(
@@ -77,8 +103,19 @@ class _HomePageState extends State<HomePage> {
       () => Navigator.pushNamed(context, SnippetsPage.route),
     ),
     ...shortcutBinding(LogicalKeyboardKey.comma, () => _openSettings(context)),
+    ...shortcutBinding(
+      LogicalKeyboardKey.keyR,
+      () => _checkReachability(context),
+    ),
+    ...shortcutBinding(
+      LogicalKeyboardKey.keyD,
+      () => context.read<SettingsCubit>().toggleThemeMode(),
+      shift: true,
+    ),
     const SingleActivator(LogicalKeyboardKey.f1): () =>
         ShortcutsHelpDialog.show(context),
+    const SingleActivator(LogicalKeyboardKey.f5): () =>
+        _checkReachability(context),
   };
 
   @override
@@ -100,9 +137,7 @@ class _HomePageState extends State<HomePage> {
               child: BlocConsumer<ServerListBloc, ServerListState>(
                 listenWhen: (previous, current) => current.errorMessage != null,
                 listener: (context, state) {
-                  ScaffoldMessenger.of(
-                    context,
-                  ).showSnackBar(SnackBar(content: Text(state.errorMessage!)));
+                  showAppSnackBar(context, state.errorMessage!, success: false);
                 },
                 builder: (context, state) {
                   final servers = _filter(state.servers);
@@ -114,138 +149,164 @@ class _HomePageState extends State<HomePage> {
                   final isMobile = context.isMobile;
                   final showStats =
                       !isLoading && state.servers.isNotEmpty && _query.isEmpty;
+                  final isChecking = state.reachability.values.contains(
+                    Reachability.checking,
+                  );
 
-                  return CustomScrollView(
-                    slivers: [
-                      SliverAppBar(
-                        pinned: true,
-                        expandedHeight: 132,
-                        toolbarHeight: 64,
-                        backgroundColor: scheme.surface,
-                        surfaceTintColor: Colors.transparent,
-                        actions: [
-                          IconButton(
-                            onPressed: () => ShortcutsHelpDialog.show(context),
-                            icon: const Icon(Icons.help_outline_rounded),
-                            color: scheme.onSurfaceVariant,
-                            tooltip: "Help (F1)",
-                          ),
-                          IconButton(
-                            onPressed: () => Navigator.pushNamed(
-                              context,
-                              SnippetsPage.route,
-                            ),
-                            icon: const Icon(Icons.bolt_outlined),
-                            color: scheme.onSurfaceVariant,
-                            tooltip: "Snippets ($mod+E)",
-                          ),
-                          IconButton(
-                            onPressed: () => _openSettings(context),
-                            icon: const Icon(Icons.settings_outlined),
-                            color: scheme.onSurfaceVariant,
-                            tooltip: "Settings ($mod+,)",
-                          ),
-                          const SizedBox(width: 8),
-                        ],
-                        flexibleSpace: FlexibleSpaceBar(
-                          titlePadding: const EdgeInsetsDirectional.only(
-                            start: hPad,
-                            bottom: 16,
-                          ),
-                          expandedTitleScale: 1.6,
-                          title: Text(
-                            "SSHub",
-                            style: theme.textTheme.titleLarge?.copyWith(
-                              fontWeight: FontWeight.w800,
-                              letterSpacing: -0.5,
-                              color: scheme.primary,
-                            ),
-                          ),
-                          background: showStats
-                              ? Align(
-                                  alignment: Alignment.bottomRight,
-                                  child: Padding(
-                                    padding: const EdgeInsets.only(
-                                      right: hPad,
-                                      bottom: 24,
-                                    ),
-                                    child: Row(
-                                      mainAxisSize: MainAxisSize.min,
-                                      children: [
-                                        _HeaderStat(
-                                          icon: Icons.dns_rounded,
-                                          value: state.servers.length
-                                              .toString(),
-                                          label: "Servers",
-                                          compact: isMobile,
+                  return RefreshIndicator(
+                    onRefresh: () => _refresh(context),
+                    child: CustomScrollView(
+                      physics: const AlwaysScrollableScrollPhysics(),
+                      slivers: [
+                        SliverAppBar(
+                          pinned: true,
+                          expandedHeight: 132,
+                          toolbarHeight: 64,
+                          backgroundColor: scheme.surface,
+                          surfaceTintColor: Colors.transparent,
+                          actions: [
+                            if (!Platform.isAndroid && !Platform.isIOS)
+                              IconButton(
+                                onPressed: isChecking
+                                    ? null
+                                    : () => _checkReachability(context),
+                                icon: isChecking
+                                    ? SizedBox(
+                                        width: 20,
+                                        height: 20,
+                                        child: CircularProgressIndicator(
+                                          strokeWidth: 2,
+                                          color: scheme.onSurfaceVariant,
                                         ),
-                                        SizedBox(width: isMobile ? 14 : 20),
-                                        _HeaderStat(
-                                          icon: Icons.history_rounded,
-                                          value: state.servers
-                                              .where(
-                                                (s) =>
-                                                    s.lastConnectedAt != null,
-                                              )
-                                              .length
-                                              .toString(),
-                                          label: "Connected",
-                                          compact: isMobile,
-                                        ),
-                                      ],
+                                      )
+                                    : const Icon(Icons.refresh_rounded),
+                                color: scheme.onSurfaceVariant,
+                                tooltip: "Refresh status ($mod+R)",
+                              ),
+                            if (!Platform.isAndroid && !Platform.isIOS)
+                              IconButton(
+                                onPressed: () =>
+                                    ShortcutsHelpDialog.show(context),
+                                icon: const Icon(Icons.help_outline_rounded),
+                                color: scheme.onSurfaceVariant,
+                                tooltip: "Help (F1)",
+                              ),
+                            IconButton(
+                              onPressed: () => Navigator.pushNamed(
+                                context,
+                                SnippetsPage.route,
+                              ),
+                              icon: const Icon(Icons.bolt_outlined),
+                              color: scheme.onSurfaceVariant,
+                              tooltip: "Snippets ($mod+E)",
+                            ),
+                            IconButton(
+                              onPressed: () => _openSettings(context),
+                              icon: const Icon(Icons.settings_outlined),
+                              color: scheme.onSurfaceVariant,
+                              tooltip: "Settings ($mod+,)",
+                            ),
+                            const SizedBox(width: 8),
+                          ],
+                          flexibleSpace: FlexibleSpaceBar(
+                            titlePadding: const EdgeInsetsDirectional.only(
+                              start: hPad,
+                              bottom: 16,
+                            ),
+                            expandedTitleScale: 1.6,
+                            title: const PageTitle("SSHub"),
+                            background: showStats
+                                ? Align(
+                                    alignment: Alignment.bottomRight,
+                                    child: Padding(
+                                      padding: const EdgeInsets.only(
+                                        right: hPad,
+                                        bottom: 24,
+                                      ),
+                                      child: Row(
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          _HeaderStat(
+                                            icon: Icons.dns_rounded,
+                                            value: state.servers.length
+                                                .toString(),
+                                            label: "Servers",
+                                            compact: isMobile,
+                                          ),
+                                          SizedBox(width: isMobile ? 14 : 20),
+                                          _HeaderStat(
+                                            icon: Icons.history_rounded,
+                                            value: state.servers
+                                                .where(
+                                                  (s) =>
+                                                      s.lastConnectedAt != null,
+                                                )
+                                                .length
+                                                .toString(),
+                                            label: "Connected",
+                                            compact: isMobile,
+                                          ),
+                                        ],
+                                      ),
                                     ),
-                                  ),
-                                )
-                              : null,
-                        ),
-                      ),
-                      SliverPersistentHeader(
-                        pinned: true,
-                        delegate: _ToolbarHeaderDelegate(
-                          hPad: hPad,
-                          child: HomeHeader(
-                            searchFocusNode: _searchFocus,
-                            onSearchChanged: (value) =>
-                                setState(() => _query = value),
+                                  )
+                                : null,
                           ),
                         ),
-                      ),
-                      if (isLoading)
-                        SliverPadding(
-                          padding: EdgeInsets.fromLTRB(hPad, 16, hPad, 16),
-                          sliver: SliverGrid(
-                            gridDelegate: _gridDelegate,
-                            delegate: SliverChildBuilderDelegate(
-                              (context, index) => const _SkeletonCard(),
-                              childCount: 6,
-                            ),
-                          ),
-                        )
-                      else if (state.status == ServerListStatus.failure)
-                        const SliverFillRemaining(
-                          child: Center(child: Text("Failed to load servers")),
-                        )
-                      else if (servers.isEmpty)
-                        SliverFillRemaining(
-                          hasScrollBody: false,
-                          child: _EmptyState(
-                            searching: _query.trim().isNotEmpty,
-                          ),
-                        )
-                      else
-                        SliverPadding(
-                          padding: EdgeInsets.fromLTRB(hPad, 16, hPad, 16),
-                          sliver: SliverGrid(
-                            gridDelegate: _gridDelegate,
-                            delegate: SliverChildBuilderDelegate(
-                              (context, index) =>
-                                  ServerCard(server: servers[index]),
-                              childCount: servers.length,
+                        SliverPersistentHeader(
+                          pinned: true,
+                          delegate: _ToolbarHeaderDelegate(
+                            hPad: hPad,
+                            child: HomeHeader(
+                              searchFocusNode: _searchFocus,
+                              onSearchChanged: (value) =>
+                                  setState(() => _query = value),
                             ),
                           ),
                         ),
-                      const SliverToBoxAdapter(child: SizedBox(height: 32)),
-                    ],
+                        if (isLoading)
+                          SliverPadding(
+                            padding: EdgeInsets.fromLTRB(hPad, 16, hPad, 16),
+                            sliver: SliverGrid(
+                              gridDelegate: _gridDelegate,
+                              delegate: SliverChildBuilderDelegate(
+                                (context, index) => const _SkeletonCard(),
+                                childCount: 6,
+                              ),
+                            ),
+                          )
+                        else if (state.status == ServerListStatus.failure)
+                          const SliverFillRemaining(
+                            child: Center(
+                              child: Text("Failed to load servers"),
+                            ),
+                          )
+                        else if (servers.isEmpty)
+                          SliverFillRemaining(
+                            hasScrollBody: false,
+                            child: _EmptyState(
+                              searching: _query.trim().isNotEmpty,
+                            ),
+                          )
+                        else
+                          SliverPadding(
+                            padding: EdgeInsets.fromLTRB(hPad, 16, hPad, 16),
+                            sliver: SliverGrid(
+                              gridDelegate: _gridDelegate,
+                              delegate: SliverChildBuilderDelegate(
+                                (context, index) => ServerCard(
+                                  server: servers[index],
+                                  reachability:
+                                      state.reachability[servers[index].id] ??
+                                      Reachability.unknown,
+                                ),
+                                childCount: servers.length,
+                              ),
+                            ),
+                          ),
+                        const SliverToBoxAdapter(child: SizedBox(height: 32)),
+                      ],
+                    ),
                   );
                 },
               ),
@@ -308,27 +369,30 @@ class _HeaderStat extends StatelessWidget {
     final theme = Theme.of(context);
     final scheme = theme.colorScheme;
 
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Icon(icon, size: 16, color: scheme.primary),
-        const SizedBox(width: 6),
-        Text(
-          value,
-          style: theme.textTheme.titleMedium?.copyWith(
-            fontWeight: FontWeight.bold,
-          ),
-        ),
-        if (!compact) ...[
-          const SizedBox(width: 5),
+    return Tooltip(
+      message: label,
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 16, color: scheme.primary),
+          const SizedBox(width: 6),
           Text(
-            label,
-            style: theme.textTheme.bodySmall?.copyWith(
-              color: scheme.onSurfaceVariant,
+            value,
+            style: theme.textTheme.titleMedium?.copyWith(
+              fontWeight: FontWeight.bold,
             ),
           ),
+          if (!compact) ...[
+            const SizedBox(width: 5),
+            Text(
+              label,
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: scheme.onSurfaceVariant,
+              ),
+            ),
+          ],
         ],
-      ],
+      ),
     );
   }
 }
@@ -427,14 +491,14 @@ class _SkeletonCardState extends State<_SkeletonCard>
       height: height,
       decoration: BoxDecoration(
         color: scheme.onSurface,
-        borderRadius: BorderRadius.circular(6),
+        borderRadius: BorderRadius.circular(AppTheme.radiusXs),
       ),
     );
 
     return Container(
       decoration: BoxDecoration(
         color: scheme.surface,
-        borderRadius: BorderRadius.circular(20),
+        borderRadius: BorderRadius.circular(AppTheme.radiusXl),
         border: Border.all(color: scheme.outlineVariant),
       ),
       padding: const EdgeInsets.all(16),

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import 'package:sshub/core/auth/local_auth_service.dart';
+import 'package:sshub/core/di/service_locator.dart';
 import 'package:sshub/features/settings/presentation/cubit/settings_cubit.dart';
 
 class AppLockGate extends StatefulWidget {
@@ -48,7 +49,7 @@ class _AppLockGateState extends State<AppLockGate> with WidgetsBindingObserver {
         }
       case AppLifecycleState.paused:
       case AppLifecycleState.hidden:
-        if (!context.read<LocalAuthService>().isAuthenticating) {
+        if (!sl<LocalAuthService>().isAuthenticating) {
           _promptOnResume = true;
           setState(() => _locked = true);
         }
@@ -60,9 +61,7 @@ class _AppLockGateState extends State<AppLockGate> with WidgetsBindingObserver {
   Future<void> _authenticate() async {
     if (_authenticating) return;
     setState(() => _authenticating = true);
-    final ok = await context.read<LocalAuthService>().authenticate(
-      "Unlock SSHub",
-    );
+    final ok = await sl<LocalAuthService>().authenticate("Unlock SSHub");
     if (!mounted) return;
     setState(() {
       _authenticating = false;
@@ -136,6 +135,7 @@ class _LockScreen extends StatelessWidget {
                 style: theme.textTheme.headlineSmall?.copyWith(
                   fontWeight: FontWeight.w900,
                   letterSpacing: -0.5,
+                  color: scheme.primary,
                 ),
               ),
               const SizedBox(height: 8),

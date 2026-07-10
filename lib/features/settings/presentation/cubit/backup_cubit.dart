@@ -16,7 +16,9 @@ class BackupCubit extends Cubit<BackupState> {
   BackupCubit(this._repository) : super(const BackupState());
 
   Future<void> export(ExportOptions options) async {
-    emit(const BackupState(status: BackupStatus.working));
+    emit(
+      const BackupState(status: BackupStatus.working, message: "Exporting..."),
+    );
     try {
       final content = await _repository.export(
         includeServers: options.includeServers,
@@ -63,7 +65,6 @@ class BackupCubit extends Cubit<BackupState> {
     if (bytes == null) return;
     final content = utf8.decode(bytes);
 
-    emit(const BackupState(status: BackupStatus.working));
     try {
       if (BackupCrypto.isEncrypted(content)) {
         emit(
@@ -90,7 +91,9 @@ class BackupCubit extends Cubit<BackupState> {
   void cancelImport() => emit(const BackupState());
 
   Future<void> _import(String content, String? passphrase) async {
-    emit(const BackupState(status: BackupStatus.working));
+    emit(
+      const BackupState(status: BackupStatus.working, message: "Importing..."),
+    );
     try {
       await _repository.import(content, passphrase);
       emit(const BackupState(status: BackupStatus.imported));

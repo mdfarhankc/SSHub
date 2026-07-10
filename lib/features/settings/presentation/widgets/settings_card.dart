@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:sshub/core/widgets/section_header.dart';
 
 class SettingsCard extends StatelessWidget {
   final IconData icon;
@@ -23,20 +24,7 @@ class SettingsCard extends StatelessWidget {
       children: [
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
-          child: Row(
-            children: [
-              Icon(icon, size: 18, color: scheme.primary),
-              const SizedBox(width: 10),
-              Text(
-                title.toUpperCase(),
-                style: theme.textTheme.labelLarge?.copyWith(
-                  color: scheme.primary,
-                  fontWeight: FontWeight.bold,
-                  letterSpacing: 1.2,
-                ),
-              ),
-            ],
-          ),
+          child: SectionHeader(icon: icon, title: title),
         ),
         Card(
           child: Column(

@@ -30,6 +30,10 @@ class SettingsLocalDatasource implements SettingsDatasource {
   @override
   Future<void> save(AppSettingsModel settings) async {
     final file = await _file();
-    await file.writeAsString(jsonEncode(settings.toJson()));
+    // Write to a temp file then rename so a crash mid-write can't corrupt
+    // the settings file (rename is atomic on the same volume).
+    final tmp = File("${file.path}.tmp");
+    await tmp.writeAsString(jsonEncode(settings.toJson()), flush: true);
+    await tmp.rename(file.path);
   }
 }

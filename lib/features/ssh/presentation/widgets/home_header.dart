@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:sshub/core/responsive/responsive.dart';
+import 'package:sshub/core/theme/app_theme.dart';
 import 'package:sshub/features/ssh/presentation/bloc/server_list_bloc.dart';
 import 'package:sshub/features/ssh/presentation/widgets/server_dialog.dart';
 
@@ -32,24 +33,10 @@ class HomeHeader extends StatelessWidget {
       onTapOutside: (_) => FocusScope.of(context).unfocus(),
       onSubmitted: (_) => FocusScope.of(context).unfocus(),
       decoration: InputDecoration(
-        isDense: true,
-        filled: true,
         fillColor: scheme.surfaceContainerHighest.withValues(alpha: 0.5),
         hintText: "Search your infrastructure...",
         prefixIcon: const Icon(Icons.search_rounded, size: 20),
         contentPadding: const EdgeInsets.symmetric(vertical: 12),
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide.none,
-        ),
-        enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide.none,
-        ),
-        focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide(color: scheme.primary, width: 1.5),
-        ),
       ),
     );
 
@@ -63,7 +50,7 @@ class HomeHeader extends StatelessWidget {
             icon: const Icon(Icons.add_rounded),
             style: IconButton.styleFrom(
               shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
+                borderRadius: BorderRadius.circular(AppTheme.radiusMd),
               ),
               padding: const EdgeInsets.all(12),
             ),
@@ -83,7 +70,7 @@ class HomeHeader extends StatelessWidget {
           style: FilledButton.styleFrom(
             padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
             shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(12),
+              borderRadius: BorderRadius.circular(AppTheme.radiusMd),
             ),
           ),
         ),

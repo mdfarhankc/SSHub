@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:sshub/core/theme/app_theme.dart';
+import 'package:sshub/core/widgets/page_title.dart';
 import 'package:sshub/features/snippets/domain/entities/snippet.dart';
 import 'package:sshub/features/snippets/presentation/bloc/snippet_list_bloc.dart';
 import 'package:sshub/features/snippets/presentation/widgets/snippet_dialog.dart';
@@ -65,16 +66,7 @@ class SnippetsPage extends StatelessWidget {
             builder: (context, state) {
               return CustomScrollView(
                 slivers: [
-                  SliverAppBar.large(
-                    pinned: true,
-                    title: const Text(
-                      "Snippets",
-                      style: TextStyle(
-                        fontWeight: FontWeight.w800,
-                        letterSpacing: -0.5,
-                      ),
-                    ),
-                  ),
+                  const LargeHeaderSliver("Snippets"),
                   if (state.snippets.isEmpty)
                     const SliverFillRemaining(
                       hasScrollBody: false,
@@ -124,7 +116,7 @@ class _SnippetTile extends StatelessWidget {
       margin: EdgeInsets.zero,
       child: InkWell(
         onTap: onEdit,
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(AppTheme.radiusLg),
         child: Padding(
           padding: const EdgeInsets.fromLTRB(16, 10, 8, 10),
           child: Row(
@@ -133,7 +125,7 @@ class _SnippetTile extends StatelessWidget {
                 padding: const EdgeInsets.all(10),
                 decoration: BoxDecoration(
                   color: scheme.primaryContainer.withValues(alpha: 0.3),
-                  borderRadius: BorderRadius.circular(12),
+                  borderRadius: BorderRadius.circular(AppTheme.radiusMd),
                 ),
                 child: Icon(
                   Icons.bolt_rounded,

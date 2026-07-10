@@ -28,7 +28,15 @@ class BackupRepositoryImpl implements BackupRepository {
 
     if (includeServers) {
       final servers = await _serverDs.load();
-      payload['servers'] = [for (final s in servers) s.toJson()];
+      // Private keys stay out of backups: the key file already lives on disk,
+      // so copying a reusable credential into a portable file is the risk we
+      // avoid. Passwords remain, since SSHub is often their only store.
+      payload['servers'] = [
+        for (final s in servers)
+          s.toJson()
+            ..['privateKey'] = ''
+            ..['passphrase'] = '',
+      ];
     }
 
     if (includeSnippets) {

@@ -27,51 +27,46 @@ Desktop (Windows) is the primary target. Web is not supported because browsers c
 
 ## Installation
 
-Grab the latest build for your platform from the [Releases page](https://github.com/mdfarhankc/SSHub/releases/latest).
+Download the build for your platform from the [Releases page](https://github.com/mdfarhankc/SSHub/releases/latest), then follow the short steps below.
 
-The desktop builds are not code-signed or notarized yet, so each OS shows a one-time security prompt the first time you open a downloaded build. The steps below clear it; this is expected for an unsigned app, not a sign that anything is wrong.
+> The builds aren't code-signed yet, so your OS shows a one-time "unknown developer" warning the first time you open the app. That's expected, and the steps below get past it.
 
 ### Windows
 
-- **Installer (recommended):** download `sshub-windows-setup.exe` and run it. SmartScreen may show "Windows protected your PC" -> click **More info** -> **Run anyway**. The installer adds SSHub to the Start Menu and registers an uninstaller.
-- **Portable:** download `sshub-windows-x64-portable.zip` and extract it anywhere, then run `sshub.exe`. Keep the extracted folder intact, the executable needs the DLLs and the `data/` folder beside it.
+1. Download **`sshub-windows-setup.exe`** and run it.
+2. If SmartScreen pops up: click **More info** -> **Run anyway**.
+
+Prefer no installer? Download **`sshub-windows-x64-portable.zip`**, extract the whole folder, and run `sshub.exe` inside it.
 
 ### macOS
 
-The `.dmg` is unsigned and not notarized, so Gatekeeper blocks it by default (you may see "SSHub is damaged and can't be opened").
-
-1. Open `sshub-macos.dmg` and drag **SSHub** into **Applications**.
-2. Clear the quarantine flag once, then launch:
+1. Open **`sshub-macos.dmg`** and drag **SSHub** into **Applications**.
+2. If macOS says the app is "damaged", run this once in Terminal, then open it normally:
    ```bash
    xattr -dr com.apple.quarantine /Applications/SSHub.app
-   open /Applications/SSHub.app
    ```
-   Alternatively, try to open it once, then allow it under **System Settings -> Privacy & Security -> Open Anyway**.
 
 ### Linux
 
-- **AppImage (recommended):**
-  ```bash
-  chmod +x sshub-linux-x86_64.AppImage
-  ./sshub-linux-x86_64.AppImage
-  ```
-  If it fails with a FUSE error, install `libfuse2` (`sudo apt install libfuse2`) or run it with `--appimage-extract-and-run`.
-- **Portable tarball:**
-  ```bash
-  tar -xzf sshub-linux-x64.tar.gz
-  ./sshub
-  ```
-  Needs GTK 3 and libsecret (`sudo apt install libgtk-3-0 libsecret-1-0`), which most desktops already ship. libsecret backs the encrypted credential store.
+**AppImage** (easiest):
+
+```bash
+chmod +x sshub-linux-x86_64.AppImage
+./sshub-linux-x86_64.AppImage
+```
+
+FUSE error? Run `sudo apt install libfuse2`.
+
+**Tarball:** extract **`sshub-linux-x64.tar.gz`** and run `./sshub` (needs GTK 3 and libsecret, which most desktops already have).
 
 ### Android
 
-1. Download `sshub-android.apk`.
-2. Open it, then allow your browser or file manager to **install unknown apps** when prompted.
-3. Play Protect may warn about an unknown developer, choose **Install anyway**. The build is signed with the project's release key.
+1. Download and open **`sshub-android.apk`**.
+2. Allow **install from unknown apps** if asked; if Play Protect warns, tap **Install anyway**.
 
 ### iOS
 
-No prebuilt download. Build it from source with Xcode using your own signing identity (see below).
+No prebuilt download. Build from source with Xcode using your own signing identity (see below).
 
 ## Tech Stack
 
@@ -93,6 +88,83 @@ cd SSHub
 flutter pub get
 flutter run -d windows   # or linux / macos / your device
 ```
+
+## Building Release Artifacts Locally
+
+The GitHub Actions workflow (`.github/workflows/release.yml`) builds every
+platform's artifact on a version tag push. You can reproduce any of them
+locally. Each platform must be built on its own OS.
+
+### Windows (installer + portable zip)
+
+Requires [Inno Setup 6](https://jrsoftware.org/isdl.php): `winget install JRSoftware.InnoSetup`.
+
+```powershell
+flutter build windows --release
+# Installer -> dist/sshub-windows-setup.exe
+& "$env:LOCALAPPDATA\Programs\Inno Setup 6\ISCC.exe" windows\packaging\sshub.iss
+# Portable  -> dist/sshub-windows-x64-portable.zip
+Compress-Archive -Path build/windows/x64/runner/Release/* -DestinationPath dist/sshub-windows-x64-portable.zip
+```
+
+> A machine-wide Inno Setup install lives at `C:\Program Files (x86)\Inno Setup 6\ISCC.exe` instead.
+
+### Linux (AppImage + tarball)
+
+```bash
+sudo apt-get install -y clang cmake ninja-build pkg-config libgtk-3-dev liblzma-dev libsecret-1-dev libjsoncpp-dev
+flutter build linux --release
+
+# Tarball -> dist/sshub-linux-x64.tar.gz
+mkdir -p dist
+tar -czf dist/sshub-linux-x64.tar.gz -C build/linux/x64/release/bundle .
+
+# AppImage -> dist/sshub-linux-x86_64.AppImage
+mkdir -p AppDir/usr/bin
+cp -r build/linux/x64/release/bundle/* AppDir/usr/bin/
+cp assets/icon/icon.png AppDir/sshub.png
+printf '%s\n' '[Desktop Entry]' 'Name=SSHub' 'Exec=sshub' 'Icon=sshub' 'Type=Application' 'Categories=Utility;' > AppDir/sshub.desktop
+printf '%s\n' '#!/bin/bash' 'HERE="$(dirname "$(readlink -f "${0}")")"' 'exec "${HERE}/usr/bin/sshub" "$@"' > AppDir/AppRun
+chmod +x AppDir/AppRun
+wget -q https://github.com/AppImage/AppImageKit/releases/download/continuous/appimagetool-x86_64.AppImage
+chmod +x appimagetool-x86_64.AppImage
+APPIMAGE_EXTRACT_AND_RUN=1 ./appimagetool-x86_64.AppImage AppDir dist/sshub-linux-x86_64.AppImage
+```
+
+### macOS (dmg)
+
+```bash
+flutter build macos --release
+APP=$(ls -d build/macos/Build/Products/Release/*.app | head -1)
+mkdir -p dmg dist
+cp -R "$APP" dmg/
+ln -s /Applications dmg/Applications
+hdiutil create -volname "SSHub" -srcfolder dmg -ov -format UDZO dist/sshub-macos.dmg
+```
+
+### Android (apk)
+
+```bash
+flutter build apk --release   # -> build/app/outputs/flutter-apk/app-release.apk
+```
+
+> Release signing needs `android/key.properties` and the keystore, which are
+> gitignored and never committed. Without them the build is unsigned. In CI
+> these are restored from repository secrets.
+
+## Cutting a Release
+
+1. Bump the version in `pubspec.yaml`, `lib/core/app_info.dart`, and `windows/packaging/sshub.iss`.
+2. Update `RELEASE_NOTES.md` (its contents become the GitHub release body).
+3. Commit, then tag and push:
+
+   ```bash
+   git tag vX.Y.Z
+   git push origin main --tags
+   ```
+
+The tag push triggers the workflow, which builds all platforms and attaches
+the artifacts above to a GitHub release named after the tag.
 
 ## Project Structure
 

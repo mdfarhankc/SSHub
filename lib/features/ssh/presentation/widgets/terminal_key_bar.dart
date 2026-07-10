@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:sshub/core/theme/app_theme.dart';
 import 'package:xterm/xterm.dart' hide TerminalState;
 
 class TerminalKeyBar extends StatelessWidget {
   final Terminal terminal;
-  final VoidCallback? onSnippets;
-  const TerminalKeyBar({super.key, required this.terminal, this.onSnippets});
+  const TerminalKeyBar({super.key, required this.terminal});
 
   void _send(TerminalKey key, {bool ctrl = false}) =>
       terminal.keyInput(key, ctrl: ctrl);
@@ -25,17 +25,13 @@ class TerminalKeyBar extends StatelessWidget {
           scrollDirection: Axis.horizontal,
           padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
           children: [
-            if (onSnippets != null) ...[
-              _KeyButton(icon: Icons.bolt, onTap: onSnippets!),
-              const VerticalDivider(width: 16, indent: 8, endIndent: 8),
-            ],
             _KeyButton(label: "ESC", onTap: () => _send(TerminalKey.escape)),
             _KeyButton(label: "TAB", onTap: () => _send(TerminalKey.tab)),
             _KeyButton(
               label: "CTRL+C",
               onTap: () => _send(TerminalKey.keyC, ctrl: true),
             ),
-            const VerticalDivider(width: 16, indent: 8, endIndent: 8),
+            const VerticalDivider(width: 12, indent: 8, endIndent: 8),
             _KeyButton(
               icon: Icons.keyboard_arrow_up,
               onTap: () => _send(TerminalKey.arrowUp),
@@ -70,19 +66,19 @@ class _KeyButton extends StatelessWidget {
     final theme = Theme.of(context);
     final scheme = theme.colorScheme;
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 4),
+      padding: const EdgeInsets.symmetric(horizontal: 3),
       child: Material(
         color: scheme.surface,
-        borderRadius: BorderRadius.circular(8),
+        borderRadius: BorderRadius.circular(AppTheme.radiusSm),
         child: InkWell(
           onTap: onTap,
-          borderRadius: BorderRadius.circular(8),
+          borderRadius: BorderRadius.circular(AppTheme.radiusSm),
           child: Container(
-            constraints: const BoxConstraints(minWidth: 44),
-            padding: const EdgeInsets.symmetric(horizontal: 12),
+            constraints: const BoxConstraints(minWidth: 40),
+            padding: const EdgeInsets.symmetric(horizontal: 10),
             alignment: Alignment.center,
             decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(8),
+              borderRadius: BorderRadius.circular(AppTheme.radiusSm),
               border: Border.all(color: scheme.outlineVariant),
             ),
             child: icon != null

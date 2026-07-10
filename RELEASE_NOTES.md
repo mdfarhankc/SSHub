@@ -1,18 +1,16 @@
-## SSHub 2.1.0
+## SSHub 3.0.0
 
 New
 
-- SSH key authentication: connect with a private key (OpenSSH, RSA, or EC), with an optional key passphrase and file import
-- Host key verification: SSHub remembers each server's fingerprint and refuses to connect if it changes
-- Terminal copy and paste: Ctrl+C copies when text is selected, plus paste, select all, and a right-click menu
-- Terminal search: find in the scrollback with Ctrl+F and jump between matches
-- Backups are now encrypted by default, with stronger key derivation
-
-Fixes
-
-- App lock no longer turns off when you cancel the authentication prompt
-- macOS: backup import and export now work (sandboxed file access)
+- Auto-reconnect: if a connection drops unexpectedly, SSHub retries on its own and only reports a failure once the retries are exhausted
+- Live server status: each server card shows whether the host is online, offline, or being checked
+- Private keys stay out of backups: your key never leaves your machine, so a shared backup file can't leak a reusable credential (passwords are still included)
 
 Improvements
 
-- Refreshed page transitions and a tidier settings layout
+- Tighter, more consistent UI across the home, terminal, and settings screens
+- Clearer connection status while reconnecting
+
+Docs
+
+- README now covers building the release artifacts locally and cutting a release, with a simpler install guide

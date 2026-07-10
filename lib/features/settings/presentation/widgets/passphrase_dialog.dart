@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:sshub/core/widgets/app_form_sheet.dart';
+import 'package:sshub/features/ssh/presentation/widgets/dialog_field.dart';
 
 class PassphraseDialog extends StatefulWidget {
   const PassphraseDialog({super.key});
@@ -8,8 +10,8 @@ class PassphraseDialog extends StatefulWidget {
 }
 
 class _PassphraseDialogState extends State<PassphraseDialog> {
+  final _formKey = GlobalKey<FormState>();
   final _pass = TextEditingController();
-  bool _obscured = true;
 
   @override
   void dispose() {
@@ -18,37 +20,30 @@ class _PassphraseDialogState extends State<PassphraseDialog> {
   }
 
   void _submit() {
-    if (_pass.text.isNotEmpty) Navigator.pop(context, _pass.text);
+    if (!_formKey.currentState!.validate()) return;
+    Navigator.pop(context, _pass.text);
   }
 
   @override
   Widget build(BuildContext context) {
-    return AlertDialog(
-      title: const Text("Enter passphrase"),
-      content: TextField(
-        controller: _pass,
-        autofocus: true,
-        obscureText: _obscured,
-        onSubmitted: (_) => _submit(),
-        decoration: InputDecoration(
-          labelText: "Passphrase",
-          suffixIcon: IconButton(
-            icon: Icon(
-              _obscured
-                  ? Icons.visibility_outlined
-                  : Icons.visibility_off_outlined,
-            ),
-            onPressed: () => setState(() => _obscured = !_obscured),
-          ),
+    return AppFormSheet(
+      icon: Icons.lock_outline,
+      title: "Enter passphrase",
+      subtitle: "This backup is encrypted",
+      confirmLabel: "Unlock",
+      onConfirm: _submit,
+      body: Form(
+        key: _formKey,
+        child: DialogField(
+          controller: _pass,
+          name: "Passphrase",
+          icon: Icons.password_outlined,
+          obscureText: true,
+          autofocus: true,
+          textInputAction: TextInputAction.done,
+          onSubmitted: (_) => _submit(),
         ),
       ),
-      actions: [
-        TextButton(
-          onPressed: () => Navigator.pop(context),
-          child: const Text("Cancel"),
-        ),
-        FilledButton(onPressed: _submit, child: const Text("Unlock")),
-      ],
     );
   }
 }

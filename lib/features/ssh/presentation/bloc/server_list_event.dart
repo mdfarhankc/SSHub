@@ -4,6 +4,8 @@ sealed class ServerListEvent {}
 
 final class ServerListLoaded extends ServerListEvent {}
 
+final class ServerReachabilityRequested extends ServerListEvent {}
+
 final class ServerAdded extends ServerListEvent {
   final SshServer server;
   ServerAdded(this.server);

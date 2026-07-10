@@ -74,8 +74,7 @@ class SshConnectionRepositoryImpl implements SshConnectionRepository {
     }
   }
 
-  // Trust on first use: remember the fingerprint the first time, then refuse
-  // if it ever differs (a changed host key can mean a man-in-the-middle).
+  // Trust on first use: store the fingerprint, then refuse if it ever changes.
   Future<bool> _verifyHostKey(SshServer server, Uint8List fingerprint) async {
     final current = _hex(fingerprint);
     final known = await _knownHosts.fingerprintFor(server.host, server.port);
@@ -96,8 +95,7 @@ class _DartSshSessionHandle implements SshSessionHandle {
   final _output = StreamController<String>();
 
   _DartSshSessionHandle(this._client, this._session) {
-    // Stream errors carry no extra information for the UI (session.done
-    // already drives the disconnect state), so end the output quietly.
+    // session.done already drives the disconnect state, so end output quietly.
     _session.stdout
         .cast<List<int>>()
         .transform(const Utf8Decoder())
@@ -117,6 +115,9 @@ class _DartSshSessionHandle implements SshSessionHandle {
 
   @override
   Future<void> get done => _session.done;
+
+  @override
+  bool get endedCleanly => _session.exitCode != null;
 
   @override
   void write(String data) => _session.write(utf8.encode(data));
