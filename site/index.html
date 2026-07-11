@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="/SSHub/favicon.svg" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>SSHub - A fast, minimal SSH client for the desktop</title>
+    <meta
+      name="description"
+      content="SSHub is a fast, minimal SSH client for the desktop. Password or key auth, host key verification, a full terminal, and encrypted credentials stored on your machine."
+    />
+    <meta property="og:title" content="SSHub" />
+    <meta
+      property="og:description"
+      content="A fast, minimal SSH client for the desktop. Your servers, one click away."
+    />
+    <meta property="og:type" content="website" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600;700&display=swap"
+      rel="stylesheet"
+    />
+    <script>
+      // Set theme before paint to avoid a flash. Dark is the brand default.
+      (function () {
+        var stored = localStorage.getItem("theme");
+        var prefersLight = window.matchMedia(
+          "(prefers-color-scheme: light)"
+        ).matches;
+        var theme = stored || (prefersLight ? "light" : "dark");
+        document.documentElement.classList.toggle("dark", theme !== "light");
+      })();
+    </script>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>
