@@ -6,6 +6,7 @@ import 'package:sshub/core/theme/app_theme.dart';
 import 'package:sshub/core/theme/server_colors.dart';
 import 'package:sshub/features/ssh/domain/entities/ssh_server.dart';
 import 'package:sshub/features/ssh/presentation/bloc/server_list_bloc.dart';
+import 'package:sshub/features/ssh/presentation/cubit/terminal_sessions_cubit.dart';
 import 'package:sshub/features/ssh/presentation/pages/terminal_page.dart';
 import 'package:sshub/features/ssh/presentation/widgets/server_dialog.dart';
 
@@ -66,7 +67,10 @@ class _ServerCardState extends State<ServerCard> {
 
   void _connect() {
     // "Last seen" is stamped only on a real connection, not a failed attempt.
-    Navigator.pushNamed(context, TerminalPage.route, arguments: server);
+    // Tapping a server that is already open focuses its tab instead of
+    // stacking a second connection to the same host.
+    context.read<TerminalSessionsCubit>().openOrFocus(server);
+    Navigator.pushNamed(context, TerminalPage.route);
   }
 
   String _lastSeen() {

@@ -11,7 +11,9 @@ import 'package:sshub/features/snippets/domain/repositories/snippet_repository.d
 import 'package:sshub/features/snippets/presentation/bloc/snippet_list_bloc.dart';
 import 'package:sshub/features/ssh/data/datasources/reachability_checker.dart';
 import 'package:sshub/features/ssh/domain/repositories/ssh_repository.dart';
+import 'package:sshub/features/ssh/domain/usecases/connect_to_server.dart';
 import 'package:sshub/features/ssh/presentation/bloc/server_list_bloc.dart';
+import 'package:sshub/features/ssh/presentation/cubit/terminal_sessions_cubit.dart';
 
 class AppBlocProviders extends StatelessWidget {
   final Widget child;
@@ -42,6 +44,9 @@ class AppBlocProviders extends StatelessWidget {
                 ..add(SnippetListLoaded()),
         ),
         BlocProvider(create: (_) => BackupCubit(sl<BackupRepository>())),
+        BlocProvider(
+          create: (_) => TerminalSessionsCubit(sl<ConnectToServer>()),
+        ),
       ],
       child: child,
     );

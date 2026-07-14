@@ -22,6 +22,10 @@ class ShortcutsHelpDialog extends StatelessWidget {
       ("$mod R", "Refresh server status"),
       ("$mod Shift D", "Toggle light and dark theme"),
       ("$mod Shift S", "Paste a snippet while in a terminal"),
+      ("$mod Shift T", "Open another session in a new tab"),
+      ("$mod Shift W", "Close the current tab"),
+      ("$mod Tab", "Switch to the next tab"),
+      ("Alt 1-9", "Jump to a tab by number"),
       ("F1", "Show this help"),
     ];
 
@@ -30,6 +34,11 @@ class ShortcutsHelpDialog extends StatelessWidget {
         Icons.dns_rounded,
         "Servers",
         "Add SSH connections, tag them with a colour, then tap a card to open a live terminal.",
+      ),
+      (
+        Icons.tab_rounded,
+        "Tabs",
+        "Keep several sessions open at once. Use + in the terminal to add one, and they stay connected while you browse your servers.",
       ),
       (
         Icons.bolt_rounded,

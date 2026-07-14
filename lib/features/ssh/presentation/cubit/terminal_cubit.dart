@@ -1,16 +1,27 @@
+import 'dart:async';
+
 import 'package:equatable/equatable.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import 'package:sshub/features/ssh/domain/entities/ssh_server.dart';
 import 'package:sshub/features/ssh/domain/repositories/ssh_connection_repository.dart';
 import 'package:sshub/features/ssh/domain/usecases/connect_to_server.dart';
+import 'package:xterm/xterm.dart' hide TerminalState;
 
 part 'terminal_state.dart';
 
 class TerminalCubit extends Cubit<TerminalState> {
   final ConnectToServer _connectToServer;
   final SshServer server;
+
+  // The terminal and its selection controller belong to the session, not the
+  // widget, so a tab keeps its scrollback while it sits in the background or
+  // the terminal page is popped back to Home.
+  final terminal = Terminal(maxLines: 10000);
+  final terminalController = TerminalController();
+
   SshSessionHandle? _handle;
+  StreamSubscription<String>? _outputSub;
   String _lastError = "Connection failed.";
 
   static const _maxReconnectAttempts = 3;
@@ -31,8 +42,10 @@ class TerminalCubit extends Cubit<TerminalState> {
     try {
       final handle = await _connectToServer(server);
       _handle = handle;
+      _attach(handle);
       handle.done.whenComplete(() {
         if (isClosed || _handle != handle) return;
+        _detach();
         // A clean logout carries an exit code; a dropped link does not, so
         // only the latter triggers an automatic reconnect.
         if (handle.endedCleanly) {
@@ -52,6 +65,19 @@ class TerminalCubit extends Cubit<TerminalState> {
     }
   }
 
+  void _attach(SshSessionHandle handle) {
+    _outputSub = handle.output.listen(terminal.write);
+    terminal.onOutput = handle.write;
+    terminal.onResize = handle.resize;
+  }
+
+  void _detach() {
+    _outputSub?.cancel();
+    _outputSub = null;
+    terminal.onOutput = null;
+    terminal.onResize = null;
+  }
+
   Future<void> _autoReconnect() async {
     for (var attempt = 1; attempt <= _maxReconnectAttempts; attempt++) {
       if (isClosed) return;
@@ -69,6 +95,7 @@ class TerminalCubit extends Cubit<TerminalState> {
   }
 
   Future<void> reconnect() async {
+    _detach();
     await _handle?.close();
     _handle = null;
     emit(const TerminalConnecting());
@@ -77,6 +104,8 @@ class TerminalCubit extends Cubit<TerminalState> {
 
   @override
   Future<void> close() async {
+    _detach();
+    terminalController.dispose();
     await _handle?.close();
     return super.close();
   }
