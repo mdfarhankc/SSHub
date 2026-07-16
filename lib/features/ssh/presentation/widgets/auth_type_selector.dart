@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:sshub/core/widgets/segmented_selector.dart';
 import 'package:sshub/features/ssh/domain/entities/ssh_server.dart';
 
@@ -16,8 +17,8 @@ class AuthTypeSelector extends StatelessWidget {
     value: value,
     onChanged: onChanged,
     options: const [
-      (AuthType.password, Icons.vpn_key_outlined, "Password"),
-      (AuthType.key, Icons.key_outlined, "SSH Key"),
+      (AuthType.password, LucideIcons.keyRound, "Password"),
+      (AuthType.key, LucideIcons.key, "SSH Key"),
     ],
   );
 }

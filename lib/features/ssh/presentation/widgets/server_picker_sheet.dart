@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import 'package:sshub/core/theme/app_theme.dart';
 import 'package:sshub/core/theme/server_colors.dart';
@@ -44,7 +45,7 @@ class ServerPickerSheet extends StatelessWidget {
                 padding: const EdgeInsets.fromLTRB(20, 4, 20, 12),
                 child: Row(
                   children: [
-                    Icon(Icons.dns_rounded, size: 20, color: scheme.primary),
+                    Icon(LucideIcons.server, size: 20, color: scheme.primary),
                     const SizedBox(width: 10),
                     Text(
                       "Open a session",
@@ -62,7 +63,7 @@ class ServerPickerSheet extends StatelessWidget {
                   child: Column(
                     children: [
                       Icon(
-                        Icons.dns_outlined,
+                        LucideIcons.server,
                         size: 48,
                         color: scheme.onSurfaceVariant,
                       ),
@@ -101,7 +102,7 @@ class ServerPickerSheet extends StatelessWidget {
                             ),
                           ),
                           child: Icon(
-                            Icons.terminal_rounded,
+                            LucideIcons.terminal,
                             size: 18,
                             color: accent,
                           ),

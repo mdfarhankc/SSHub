@@ -9,6 +9,9 @@ class AppSettingsModel extends AppSettings {
     super.lockPasswordReveal,
     super.lockSnippetReveal,
     super.onboardingComplete,
+    super.sftpShowHidden,
+    super.sftpGridView,
+    super.sftpReadOnly,
   });
 
   factory AppSettingsModel.fromJson(Map<String, dynamic> json) =>
@@ -23,6 +26,9 @@ class AppSettingsModel extends AppSettings {
         lockPasswordReveal: json['lockPasswordReveal'] as bool? ?? false,
         lockSnippetReveal: json['lockSnippetReveal'] as bool? ?? false,
         onboardingComplete: json['onboardingComplete'] as bool? ?? false,
+        sftpShowHidden: json['sftpShowHidden'] as bool? ?? false,
+        sftpGridView: json['sftpGridView'] as bool? ?? false,
+        sftpReadOnly: json['sftpReadOnly'] as bool? ?? true,
       );
 
   Map<String, dynamic> toJson() => {
@@ -33,6 +39,9 @@ class AppSettingsModel extends AppSettings {
     'lockPasswordReveal': lockPasswordReveal,
     'lockSnippetReveal': lockSnippetReveal,
     'onboardingComplete': onboardingComplete,
+    'sftpShowHidden': sftpShowHidden,
+    'sftpGridView': sftpGridView,
+    'sftpReadOnly': sftpReadOnly,
   };
 
   factory AppSettingsModel.fromEntity(AppSettings e) => AppSettingsModel(
@@ -43,5 +52,8 @@ class AppSettingsModel extends AppSettings {
     lockPasswordReveal: e.lockPasswordReveal,
     lockSnippetReveal: e.lockSnippetReveal,
     onboardingComplete: e.onboardingComplete,
+    sftpShowHidden: e.sftpShowHidden,
+    sftpGridView: e.sftpGridView,
+    sftpReadOnly: e.sftpReadOnly,
   );
 }

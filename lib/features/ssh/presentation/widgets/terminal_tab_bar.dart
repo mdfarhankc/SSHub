@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import 'package:sshub/core/theme/app_theme.dart';
 import 'package:sshub/core/theme/server_colors.dart';
@@ -36,10 +37,11 @@ class TerminalTabBar extends StatelessWidget {
                   scrollDirection: Axis.horizontal,
                   padding: const EdgeInsets.symmetric(horizontal: 8),
                   itemCount: state.sessions.length,
-                  separatorBuilder: (_, __) => const SizedBox(width: 6),
+                  separatorBuilder: (_, _) => const SizedBox(width: 6),
                   itemBuilder: (context, index) => _Tab(
                     session: state.sessions[index],
                     selected: index == state.activeIndex,
+
                     onTap: () => sessions.setActive(index),
                     onClose: () => sessions.closeSession(index),
                   ),
@@ -49,7 +51,7 @@ class TerminalTabBar extends StatelessWidget {
                 tooltip: sessions.isFull
                     ? "Tab limit reached"
                     : "New session (Ctrl+Shift+T)",
-                icon: const Icon(Icons.add_rounded, size: 20),
+                icon: const Icon(LucideIcons.plus, size: 20),
                 onPressed: sessions.isFull ? null : onNewTab,
               ),
               const SizedBox(width: 4),
@@ -86,7 +88,9 @@ class _Tab extends StatelessWidget {
         final (statusColor, statusLabel) = terminalStatusOf(context, state);
         return Center(
           child: Material(
-            color: selected ? scheme.surfaceContainerHighest : Colors.transparent,
+            color: selected
+                ? scheme.surfaceContainerHighest
+                : Colors.transparent,
             borderRadius: BorderRadius.circular(AppTheme.radiusSm),
             child: InkWell(
               onTap: onTap,
@@ -97,7 +101,9 @@ class _Tab extends StatelessWidget {
                 decoration: BoxDecoration(
                   borderRadius: BorderRadius.circular(AppTheme.radiusSm),
                   border: Border.all(
-                    color: selected ? accent.withValues(alpha: 0.5) : Colors.transparent,
+                    color: selected
+                        ? accent.withValues(alpha: 0.5)
+                        : Colors.transparent,
                   ),
                 ),
                 child: Row(
@@ -134,7 +140,7 @@ class _Tab extends StatelessWidget {
                     const SizedBox(width: 2),
                     IconButton(
                       tooltip: "Close (Ctrl+Shift+W)",
-                      icon: const Icon(Icons.close_rounded, size: 14),
+                      icon: const Icon(LucideIcons.x, size: 14),
                       visualDensity: VisualDensity.compact,
                       padding: EdgeInsets.zero,
                       constraints: const BoxConstraints(

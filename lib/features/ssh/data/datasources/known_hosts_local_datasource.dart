@@ -25,15 +25,39 @@ class KnownHostsLocalDatasource implements KnownHostsDatasource {
   }
 
   @override
-  Future<String?> fingerprintFor(String host, int port) async {
+  Future<String?> fingerprintFor(String host, int port, String type) async {
     final map = await _load();
-    return map["$host:$port"];
+    final known = map[_entryFor(host, port, type)];
+    if (known != null) return known;
+    // Keys remembered before the type was recorded. Still honoured, or an
+    // update would silently trust every server again.
+    return map[_legacyEntryFor(host, port)];
   }
 
   @override
-  Future<void> remember(String host, int port, String fingerprint) async {
+  Future<void> remember(
+    String host,
+    int port,
+    String type,
+    String fingerprint,
+  ) async {
     final map = await _load();
-    map["$host:$port"] = fingerprint;
+    map[_entryFor(host, port, type)] = fingerprint;
     await _storage.write(key: _key, value: jsonEncode(map));
   }
+
+  @override
+  Future<void> forget(String host, int port) async {
+    final map = await _load();
+    final prefix = "$host:$port:";
+    map.removeWhere(
+      (key, _) => key == _legacyEntryFor(host, port) || key.startsWith(prefix),
+    );
+    await _storage.write(key: _key, value: jsonEncode(map));
+  }
+
+  static String _entryFor(String host, int port, String type) =>
+      "$host:$port:$type";
+
+  static String _legacyEntryFor(String host, int port) => "$host:$port";
 }

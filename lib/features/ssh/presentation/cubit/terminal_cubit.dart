@@ -24,6 +24,10 @@ class TerminalCubit extends Cubit<TerminalState> {
   StreamSubscription<String>? _outputSub;
   String _lastError = "Connection failed.";
 
+  // isClosed only flips once close() has finished awaiting, so a connection
+  // landing mid-dispose would still look live.
+  bool _disposing = false;
+
   static const _maxReconnectAttempts = 3;
 
   TerminalCubit(this._connectToServer, this.server)
@@ -41,6 +45,12 @@ class TerminalCubit extends Cubit<TerminalState> {
   Future<bool> _establish() async {
     try {
       final handle = await _connectToServer(server);
+      // Nothing else holds this handle, so a tab closed mid-connect would
+      // leave the session open for the life of the app.
+      if (_disposing || isClosed) {
+        await handle.close();
+        return false;
+      }
       _handle = handle;
       _attach(handle);
       handle.done.whenComplete(() {
@@ -79,6 +89,10 @@ class TerminalCubit extends Cubit<TerminalState> {
   }
 
   Future<void> _autoReconnect() async {
+    // The shell has ended, but its client and keepalive timer live on until
+    // the handle is closed.
+    await _handle?.close();
+    _handle = null;
     for (var attempt = 1; attempt <= _maxReconnectAttempts; attempt++) {
       if (isClosed) return;
       emit(
@@ -104,6 +118,7 @@ class TerminalCubit extends Cubit<TerminalState> {
 
   @override
   Future<void> close() async {
+    _disposing = true;
     _detach();
     terminalController.dispose();
     await _handle?.close();

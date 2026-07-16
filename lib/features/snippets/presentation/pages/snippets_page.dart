@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:sshub/core/theme/app_theme.dart';
 import 'package:sshub/core/widgets/page_title.dart';
 import 'package:sshub/features/snippets/domain/entities/snippet.dart';
@@ -56,7 +57,7 @@ class SnippetsPage extends StatelessWidget {
     return Scaffold(
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () => _add(context),
-        icon: const Icon(Icons.add_rounded),
+        icon: const Icon(LucideIcons.plus),
         label: const Text("New Snippet"),
       ),
       body: Center(
@@ -127,11 +128,7 @@ class _SnippetTile extends StatelessWidget {
                   color: scheme.primaryContainer.withValues(alpha: 0.3),
                   borderRadius: BorderRadius.circular(AppTheme.radiusMd),
                 ),
-                child: Icon(
-                  Icons.bolt_rounded,
-                  size: 20,
-                  color: scheme.primary,
-                ),
+                child: Icon(LucideIcons.zap, size: 20, color: scheme.primary),
               ),
               const SizedBox(width: 14),
               Expanded(
@@ -158,16 +155,12 @@ class _SnippetTile extends StatelessWidget {
               ),
               IconButton(
                 tooltip: "Edit",
-                icon: const Icon(Icons.edit_outlined, size: 20),
+                icon: const Icon(LucideIcons.pencil, size: 20),
                 onPressed: onEdit,
               ),
               IconButton(
                 tooltip: "Delete",
-                icon: Icon(
-                  Icons.delete_outline_rounded,
-                  size: 20,
-                  color: scheme.error,
-                ),
+                icon: Icon(LucideIcons.trash2, size: 20, color: scheme.error),
                 onPressed: onDelete,
               ),
             ],
@@ -197,7 +190,7 @@ class _EmptyState extends StatelessWidget {
                 color: scheme.primaryContainer.withValues(alpha: 0.2),
                 shape: BoxShape.circle,
               ),
-              child: Icon(Icons.bolt_rounded, size: 64, color: scheme.primary),
+              child: Icon(LucideIcons.zap, size: 64, color: scheme.primary),
             ),
             const SizedBox(height: 24),
             Text(

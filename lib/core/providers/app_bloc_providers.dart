@@ -43,7 +43,12 @@ class AppBlocProviders extends StatelessWidget {
               SnippetListBloc(sl<SnippetRepository>())
                 ..add(SnippetListLoaded()),
         ),
-        BlocProvider(create: (_) => BackupCubit(sl<BackupRepository>())),
+        BlocProvider(
+          create: (context) => BackupCubit(
+            sl<BackupRepository>(),
+            context.read<SettingsCubit>(),
+          ),
+        ),
         BlocProvider(
           create: (_) => TerminalSessionsCubit(sl<ConnectToServer>()),
         ),

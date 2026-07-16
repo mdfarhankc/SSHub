@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:sshub/core/responsive/responsive.dart';
 import 'package:sshub/core/theme/app_theme.dart';
 import 'package:sshub/features/ssh/presentation/bloc/server_list_bloc.dart';
@@ -35,7 +36,7 @@ class HomeHeader extends StatelessWidget {
       decoration: InputDecoration(
         fillColor: scheme.surfaceContainerHighest.withValues(alpha: 0.5),
         hintText: "Search your infrastructure...",
-        prefixIcon: const Icon(Icons.search_rounded, size: 20),
+        prefixIcon: const Icon(LucideIcons.search, size: 20),
         contentPadding: const EdgeInsets.symmetric(vertical: 12),
       ),
     );
@@ -47,7 +48,7 @@ class HomeHeader extends StatelessWidget {
           const SizedBox(width: 12),
           IconButton.filled(
             onPressed: () => _addServer(context),
-            icon: const Icon(Icons.add_rounded),
+            icon: const Icon(LucideIcons.plus),
             style: IconButton.styleFrom(
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(AppTheme.radiusMd),
@@ -65,7 +66,7 @@ class HomeHeader extends StatelessWidget {
         const SizedBox(width: 16),
         FilledButton.icon(
           onPressed: () => _addServer(context),
-          icon: const Icon(Icons.add_rounded, size: 20),
+          icon: const Icon(LucideIcons.plus, size: 20),
           label: const Text("Add Server"),
           style: FilledButton.styleFrom(
             padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),

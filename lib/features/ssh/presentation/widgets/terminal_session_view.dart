@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import 'package:sshub/core/theme/app_terminal_theme.dart';
 import 'package:sshub/core/widgets/app_snack_bar.dart';
@@ -47,16 +48,37 @@ class TerminalSessionViewState extends State<TerminalSessionView> {
   int _matchIndex = 0;
 
   Terminal get _terminal => widget.session.terminal;
-  TerminalController get _terminalController => widget.session.terminalController;
+  TerminalController get _terminalController =>
+      widget.session.terminalController;
+
+  @override
+  void initState() {
+    super.initState();
+    // A tab opened from the tab bar is born active, so it never sees a change
+    // of isActive to focus on.
+    if (widget.isActive) _focusTerminal();
+  }
 
   // Every tab stays mounted, so focus has to follow the visible one or typing
   // would land in whichever terminal was focused last.
   @override
   void didUpdateWidget(TerminalSessionView oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (!oldWidget.isActive && widget.isActive && !_searchOpen) {
-      _terminalFocus.requestFocus();
+    if (oldWidget.isActive == widget.isActive) return;
+    if (widget.isActive) {
+      _focusTerminal();
+    } else {
+      _terminalFocus.unfocus();
     }
+  }
+
+  // The terminal only exists once the session connects, so the request has to
+  // outlive the frame that asked for it, and the tab may have moved on by then.
+  void _focusTerminal() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted || !widget.isActive || _searchOpen) return;
+      _terminalFocus.requestFocus();
+    });
   }
 
   @override
@@ -198,7 +220,7 @@ class TerminalSessionViewState extends State<TerminalSessionView> {
         PopupMenuItem(
           value: 'copy',
           child: _MenuRow(
-            icon: Icons.copy_rounded,
+            icon: LucideIcons.copy,
             label: "Copy",
             hint: "Ctrl+Shift+C",
           ),
@@ -206,7 +228,7 @@ class TerminalSessionViewState extends State<TerminalSessionView> {
         PopupMenuItem(
           value: 'paste',
           child: _MenuRow(
-            icon: Icons.content_paste_rounded,
+            icon: LucideIcons.clipboardPaste,
             label: "Paste",
             hint: "Ctrl+V",
           ),
@@ -214,7 +236,7 @@ class TerminalSessionViewState extends State<TerminalSessionView> {
         PopupMenuItem(
           value: 'selectAll',
           child: _MenuRow(
-            icon: Icons.select_all_rounded,
+            icon: LucideIcons.textSelect,
             label: "Select all",
             hint: "Ctrl+A",
           ),
@@ -223,7 +245,7 @@ class TerminalSessionViewState extends State<TerminalSessionView> {
         PopupMenuItem(
           value: 'find',
           child: _MenuRow(
-            icon: Icons.search_rounded,
+            icon: LucideIcons.search,
             label: "Find",
             hint: "Ctrl+F",
           ),
@@ -231,7 +253,7 @@ class TerminalSessionViewState extends State<TerminalSessionView> {
         PopupMenuItem(
           value: 'clear',
           child: _MenuRow(
-            icon: Icons.cleaning_services_outlined,
+            icon: LucideIcons.brushCleaning,
             label: "Clear screen",
             hint: "Ctrl+L",
           ),
@@ -346,91 +368,97 @@ class TerminalSessionViewState extends State<TerminalSessionView> {
     final server = widget.session.server;
     final isDark = theme.brightness == Brightness.dark;
 
-    return BlocConsumer<TerminalCubit, TerminalState>(
-      bloc: widget.session,
-      listener: (context, state) {
-        if (state is TerminalConnected) {
-          context.read<ServerListBloc>().add(
-            ServerUpdated(server.copyWith(lastConnectedAt: DateTime.now())),
-          );
-        }
-      },
-      builder: (context, state) {
-        return switch (state) {
-          TerminalConnecting() => _StatusView(
-            indicator: const SizedBox(
-              width: 44,
-              height: 44,
-              child: CircularProgressIndicator(strokeWidth: 4),
-            ),
-            title: "Connecting",
-            message: "Establishing a secure SSH channel to ${server.host}",
-          ),
-          TerminalReconnecting(:final attempt, :final maxAttempts) =>
-            _StatusView(
+    return ExcludeFocus(
+      // A background tab is still mounted, so nothing in it may hold focus or
+      // it would receive the keystrokes meant for the visible session.
+      excluding: !widget.isActive,
+      child: BlocConsumer<TerminalCubit, TerminalState>(
+        bloc: widget.session,
+        listener: (context, state) {
+          if (state is TerminalConnected) {
+            _focusTerminal();
+            context.read<ServerListBloc>().add(
+              ServerUpdated(server.copyWith(lastConnectedAt: DateTime.now())),
+            );
+          }
+        },
+        builder: (context, state) {
+          return switch (state) {
+            TerminalConnecting() => _StatusView(
               indicator: const SizedBox(
                 width: 44,
                 height: 44,
                 child: CircularProgressIndicator(strokeWidth: 4),
               ),
-              title: "Reconnecting",
-              message:
-                  "Connection lost. Reconnecting to ${server.host} "
-                  "(attempt $attempt of $maxAttempts)...",
+              title: "Connecting",
+              message: "Establishing a secure SSH channel to ${server.host}",
             ),
-          TerminalFailure(:final message) => _StatusView(
-            indicator: Icon(
-              Icons.error_outline_rounded,
-              size: 56,
-              color: theme.colorScheme.error,
+            TerminalReconnecting(:final attempt, :final maxAttempts) =>
+              _StatusView(
+                indicator: const SizedBox(
+                  width: 44,
+                  height: 44,
+                  child: CircularProgressIndicator(strokeWidth: 4),
+                ),
+                title: "Reconnecting",
+                message:
+                    "Connection lost. Reconnecting to ${server.host} "
+                    "(attempt $attempt of $maxAttempts)...",
+              ),
+            TerminalFailure(:final message) => _StatusView(
+              indicator: Icon(
+                LucideIcons.circleAlert,
+                size: 56,
+                color: theme.colorScheme.error,
+              ),
+              title: "Connection Failed",
+              titleColor: theme.colorScheme.error,
+              message: message,
+              primaryLabel: "Try Again",
+              onPrimary: widget.session.reconnect,
             ),
-            title: "Connection Failed",
-            titleColor: theme.colorScheme.error,
-            message: message,
-            primaryLabel: "Try Again",
-            onPrimary: widget.session.reconnect,
-          ),
-          TerminalDisconnected() => _StatusView(
-            indicator: Icon(
-              Icons.cloud_off_rounded,
-              size: 56,
-              color: theme.colorScheme.onSurfaceVariant,
+            TerminalDisconnected() => _StatusView(
+              indicator: Icon(
+                LucideIcons.cloudOff,
+                size: 56,
+                color: theme.colorScheme.onSurfaceVariant,
+              ),
+              title: "Disconnected",
+              message: "The SSH session has ended.",
+              primaryLabel: "Reconnect",
+              onPrimary: widget.session.reconnect,
             ),
-            title: "Disconnected",
-            message: "The SSH session has ended.",
-            primaryLabel: "Reconnect",
-            onPrimary: widget.session.reconnect,
-          ),
-          TerminalConnected() => Column(
-            children: [
-              if (_searchOpen) _buildSearchBar(context),
-              Expanded(
-                child: TerminalView(
-                  _terminal,
-                  controller: _terminalController,
-                  scrollController: _scrollController,
-                  focusNode: _terminalFocus,
-                  theme: isDark
-                      ? AppTerminalTheme.dark
-                      : AppTerminalTheme.light,
-                  padding: const EdgeInsets.all(12),
-                  autofocus: widget.isActive,
-                  onSecondaryTapDown: (details, _) =>
-                      _showContextMenu(context, details.globalPosition),
-                  onKeyEvent: (node, event) =>
-                      _handleTerminalKey(context, event),
-                  textStyle: TerminalStyle(
-                    fontSize: settings.terminalFontSize,
-                    fontFamily: settings.terminalFontFamily,
+            TerminalConnected() => Column(
+              children: [
+                if (_searchOpen) _buildSearchBar(context),
+                Expanded(
+                  child: TerminalView(
+                    _terminal,
+                    controller: _terminalController,
+                    scrollController: _scrollController,
+                    focusNode: _terminalFocus,
+                    theme: isDark
+                        ? AppTerminalTheme.dark
+                        : AppTerminalTheme.light,
+                    padding: const EdgeInsets.all(12),
+                    autofocus: widget.isActive,
+                    onSecondaryTapDown: (details, _) =>
+                        _showContextMenu(context, details.globalPosition),
+                    onKeyEvent: (node, event) =>
+                        _handleTerminalKey(context, event),
+                    textStyle: TerminalStyle(
+                      fontSize: settings.terminalFontSize,
+                      fontFamily: settings.terminalFontFamily,
+                    ),
                   ),
                 ),
-              ),
-              if (Platform.isAndroid || Platform.isIOS)
-                TerminalKeyBar(terminal: _terminal),
-            ],
-          ),
-        };
-      },
+                if (Platform.isAndroid || Platform.isIOS)
+                  TerminalKeyBar(terminal: _terminal),
+              ],
+            ),
+          };
+        },
+      ),
     );
   }
 
@@ -446,12 +474,13 @@ class TerminalSessionViewState extends State<TerminalSessionView> {
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
         child: Row(
           children: [
-            Icon(Icons.search_rounded, size: 18, color: scheme.onSurfaceVariant),
+            Icon(LucideIcons.search, size: 18, color: scheme.onSurfaceVariant),
             const SizedBox(width: 8),
             Expanded(
               child: CallbackShortcuts(
                 bindings: {
-                  const SingleActivator(LogicalKeyboardKey.escape): _closeSearch,
+                  const SingleActivator(LogicalKeyboardKey.escape):
+                      _closeSearch,
                   const SingleActivator(LogicalKeyboardKey.enter, shift: true):
                       _prevMatch,
                 },
@@ -479,19 +508,19 @@ class TerminalSessionViewState extends State<TerminalSessionView> {
             IconButton(
               tooltip: "Previous (Shift+Enter)",
               visualDensity: VisualDensity.compact,
-              icon: const Icon(Icons.keyboard_arrow_up_rounded, size: 20),
+              icon: const Icon(LucideIcons.chevronUp, size: 20),
               onPressed: hasMatches ? _prevMatch : null,
             ),
             IconButton(
               tooltip: "Next (Enter)",
               visualDensity: VisualDensity.compact,
-              icon: const Icon(Icons.keyboard_arrow_down_rounded, size: 20),
+              icon: const Icon(LucideIcons.chevronDown, size: 20),
               onPressed: hasMatches ? _nextMatch : null,
             ),
             IconButton(
               tooltip: "Close (Esc)",
               visualDensity: VisualDensity.compact,
-              icon: const Icon(Icons.close_rounded, size: 20),
+              icon: const Icon(LucideIcons.x, size: 20),
               onPressed: _closeSearch,
             ),
           ],
@@ -584,7 +613,7 @@ class _StatusView extends StatelessWidget {
                   width: 220,
                   child: FilledButton.icon(
                     onPressed: onPrimary,
-                    icon: const Icon(Icons.refresh_rounded),
+                    icon: const Icon(LucideIcons.refreshCw),
                     label: Text(primaryLabel!),
                   ),
                 ),

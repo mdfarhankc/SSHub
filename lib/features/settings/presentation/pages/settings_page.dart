@@ -2,6 +2,7 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import 'package:sshub/core/auth/local_auth_service.dart';
 import 'package:sshub/core/di/service_locator.dart';
@@ -47,7 +48,7 @@ class SettingsPage extends StatelessWidget {
                 sliver: SliverList(
                   delegate: SliverChildListDelegate([
                     SettingsCard(
-                      icon: Icons.palette_outlined,
+                      icon: LucideIcons.palette,
                       title: "Appearance",
                       description: "Customize how SSHub looks.",
                       children: [
@@ -64,7 +65,7 @@ class SettingsPage extends StatelessWidget {
                     ),
                     const SizedBox(height: 16),
                     SettingsCard(
-                      icon: Icons.terminal_outlined,
+                      icon: LucideIcons.terminal,
                       title: "Terminal",
                       description: "Tune the terminal typeface and size.",
                       children: [
@@ -127,7 +128,7 @@ class SettingsPage extends StatelessWidget {
                     if (!Platform.isLinux) ...[
                       const SizedBox(height: 16),
                       SettingsCard(
-                        icon: Icons.security_outlined,
+                        icon: LucideIcons.shieldCheck,
                         title: "Security",
                         description: "Lock the app and gate secret reveals.",
                         children: [

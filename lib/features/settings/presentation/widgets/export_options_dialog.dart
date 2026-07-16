@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:sshub/core/theme/app_theme.dart';
 import 'package:sshub/core/widgets/app_form_sheet.dart';
 import 'package:sshub/core/widgets/section_header.dart';
@@ -57,7 +58,7 @@ class _ExportOptionsDialogState extends State<ExportOptionsDialog> {
   Widget build(BuildContext context) {
     final canExport = _servers || _settings || _snippets;
     return AppFormSheet(
-      icon: Icons.upload_rounded,
+      icon: LucideIcons.upload,
       title: "Export data",
       subtitle: "Choose what to include in your backup",
       confirmLabel: "Export",
@@ -68,29 +69,26 @@ class _ExportOptionsDialogState extends State<ExportOptionsDialog> {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const SectionHeader(
-              icon: Icons.checklist_rounded,
-              title: "Include",
-            ),
+            const SectionHeader(icon: LucideIcons.listChecks, title: "Include"),
             const SizedBox(height: 12),
             _Group(
               children: [
                 _toggle(
-                  icon: Icons.dns_outlined,
+                  icon: LucideIcons.server,
                   title: "Servers",
                   subtitle: "Servers and their passwords",
                   value: _servers,
                   onChanged: (v) => setState(() => _servers = v),
                 ),
                 _toggle(
-                  icon: Icons.bolt_outlined,
+                  icon: LucideIcons.zap,
                   title: "Snippets",
                   subtitle: "Saved tokens and commands",
                   value: _snippets,
                   onChanged: (v) => setState(() => _snippets = v),
                 ),
                 _toggle(
-                  icon: Icons.tune_rounded,
+                  icon: LucideIcons.settings2,
                   title: "Settings",
                   subtitle: "App preferences",
                   value: _settings,
@@ -99,12 +97,12 @@ class _ExportOptionsDialogState extends State<ExportOptionsDialog> {
               ],
             ),
             const SizedBox(height: 20),
-            const SectionHeader(icon: Icons.lock_outline, title: "Encryption"),
+            const SectionHeader(icon: LucideIcons.lock, title: "Encryption"),
             const SizedBox(height: 12),
             _Group(
               children: [
                 _toggle(
-                  icon: Icons.enhanced_encryption_outlined,
+                  icon: LucideIcons.lockKeyhole,
                   title: "Encrypt backup",
                   subtitle: _encrypt
                       ? "Protected with a passphrase"
@@ -120,7 +118,7 @@ class _ExportOptionsDialogState extends State<ExportOptionsDialog> {
                         DialogField(
                           controller: _pass,
                           name: "Passphrase",
-                          icon: Icons.password_outlined,
+                          icon: LucideIcons.asterisk,
                           hint: "At least 12 characters",
                           obscureText: true,
                           validator: (v) {
@@ -135,7 +133,7 @@ class _ExportOptionsDialogState extends State<ExportOptionsDialog> {
                         DialogField(
                           controller: _verify,
                           name: "Confirm passphrase",
-                          icon: Icons.password_outlined,
+                          icon: LucideIcons.asterisk,
                           obscureText: true,
                           textInputAction: TextInputAction.done,
                           validator: (v) =>

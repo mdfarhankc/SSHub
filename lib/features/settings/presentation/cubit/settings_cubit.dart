@@ -52,6 +52,15 @@ class SettingsCubit extends Cubit<SettingsState> {
   void updateLockSnippetReveal(bool enabled) =>
       _update(state.settings.copyWith(lockSnippetReveal: enabled));
 
+  void updateSftpShowHidden(bool enabled) =>
+      _update(state.settings.copyWith(sftpShowHidden: enabled));
+
+  void updateSftpGridView(bool enabled) =>
+      _update(state.settings.copyWith(sftpGridView: enabled));
+
+  void updateSftpReadOnly(bool enabled) =>
+      _update(state.settings.copyWith(sftpReadOnly: enabled));
+
   Future<void> completeOnboarding() =>
       _update(state.settings.copyWith(onboardingComplete: true));
 

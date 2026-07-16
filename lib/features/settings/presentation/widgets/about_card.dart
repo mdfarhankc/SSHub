@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:sshub/core/app_info.dart';
 import 'package:sshub/core/theme/app_theme.dart';
 import 'package:sshub/core/widgets/app_snack_bar.dart';
@@ -29,7 +30,7 @@ class AboutCard extends StatelessWidget {
     final theme = Theme.of(context);
     final scheme = theme.colorScheme;
     return SettingsCard(
-      icon: Icons.info_outline_rounded,
+      icon: LucideIcons.info,
       title: "About",
       description: "App details and updates.",
       children: [
@@ -40,7 +41,7 @@ class AboutCard extends StatelessWidget {
               ClipRRect(
                 borderRadius: BorderRadius.circular(AppTheme.radiusMd),
                 child: Image.asset(
-                  "assets/icon/icon_without_bg.png",
+                  "assets/icon/icon_green_fg.png",
                   width: 44,
                   height: 44,
                 ),
@@ -96,7 +97,7 @@ class AboutCard extends StatelessWidget {
             padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
             child: Row(
               children: [
-                Icon(Icons.code_rounded, size: 20, color: scheme.primary),
+                Icon(LucideIcons.code, size: 20, color: scheme.primary),
                 const SizedBox(width: 12),
                 Expanded(
                   child: Text(
@@ -108,7 +109,7 @@ class AboutCard extends StatelessWidget {
                   ),
                 ),
                 Icon(
-                  Icons.open_in_new_rounded,
+                  LucideIcons.externalLink,
                   size: 18,
                   color: scheme.onSurfaceVariant,
                 ),

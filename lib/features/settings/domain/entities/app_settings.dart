@@ -10,6 +10,9 @@ class AppSettings extends Equatable {
   final bool lockPasswordReveal;
   final bool lockSnippetReveal;
   final bool onboardingComplete;
+  final bool sftpShowHidden;
+  final bool sftpGridView;
+  final bool sftpReadOnly;
 
   const AppSettings({
     this.themeMode = .system,
@@ -19,6 +22,9 @@ class AppSettings extends Equatable {
     this.lockPasswordReveal = false,
     this.lockSnippetReveal = false,
     this.onboardingComplete = false,
+    this.sftpShowHidden = false,
+    this.sftpGridView = false,
+    this.sftpReadOnly = true,
   });
 
   AppSettings copyWith({
@@ -29,6 +35,9 @@ class AppSettings extends Equatable {
     bool? lockPasswordReveal,
     bool? lockSnippetReveal,
     bool? onboardingComplete,
+    bool? sftpShowHidden,
+    bool? sftpGridView,
+    bool? sftpReadOnly,
   }) => AppSettings(
     themeMode: themeMode ?? this.themeMode,
     terminalFontSize: terminalFontSize ?? this.terminalFontSize,
@@ -37,6 +46,9 @@ class AppSettings extends Equatable {
     lockPasswordReveal: lockPasswordReveal ?? this.lockPasswordReveal,
     lockSnippetReveal: lockSnippetReveal ?? this.lockSnippetReveal,
     onboardingComplete: onboardingComplete ?? this.onboardingComplete,
+    sftpShowHidden: sftpShowHidden ?? this.sftpShowHidden,
+    sftpGridView: sftpGridView ?? this.sftpGridView,
+    sftpReadOnly: sftpReadOnly ?? this.sftpReadOnly,
   );
 
   @override
@@ -48,5 +60,8 @@ class AppSettings extends Equatable {
     lockPasswordReveal,
     lockSnippetReveal,
     onboardingComplete,
+    sftpShowHidden,
+    sftpGridView,
+    sftpReadOnly,
   ];
 }

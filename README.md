@@ -7,8 +7,12 @@ SSHub is a fast, minimal SSH client for the desktop, built with Flutter. Save yo
 - Manage your SSH servers as a grid of cards, with add / edit / delete and color tags
 - Live server status: each card shows whether the host is online, offline, or being checked
 - Password or SSH key authentication (OpenSSH, RSA, or EC keys, with an optional key passphrase)
-- Host key verification: SSHub remembers each server's fingerprint and refuses to connect if it changes
+- Host key verification: SSHub remembers each server's fingerprint per key type and refuses to connect if it changes, with a deliberate "forget host key" action for servers you rebuilt
 - Full in-app terminal powered by `dartssh2` + `xterm`, with copy / paste, select all, and find-in-scrollback
+- Tabbed sessions: up to ten servers open at once, each keeping its own scrollback, with keyboard switching
+- SFTP file browser: browse in a list or a grid, upload, download, rename, delete and create folders, over its own connection
+- Read-only mode, on by default, so the file browser cannot change anything on the server until you unlock it
+- Built-in file viewer for text files, with binary detection and a size cap
 - Auto-reconnect: dropped connections retry on their own before reporting a failure
 - Snippets: save reusable commands or credentials and paste them into any session
 - Keyboard shortcuts for common actions, with an in-app cheat sheet
@@ -22,7 +26,13 @@ SSHub is a fast, minimal SSH client for the desktop, built with Flutter. Save yo
 
 ### Planned
 
-- Multiple sessions and tabs
+- Downloading and uploading whole folders
+- Editing a remote file in place
+- Selecting multiple files for batch actions
+- A transfer queue, so more than one transfer can run at a time
+- Resuming an interrupted transfer instead of starting over
+- Viewing and changing file permissions
+- Searching within a folder
 
 ## Platforms
 
@@ -159,12 +169,20 @@ flutter build apk --release   # -> build/app/outputs/flutter-apk/app-release.apk
 
 ## Cutting a Release
 
-1. Bump the version in `pubspec.yaml`, `lib/core/app_info.dart`, and `windows/packaging/sshub.iss`.
-2. Update `RELEASE_NOTES.md` (its contents become the GitHub release body).
-3. Commit, then tag and push:
+1. Bump the version in all four places: `pubspec.yaml`, `lib/core/app_info.dart`,
+   `windows/packaging/sshub.iss`, and `site/src/lib/site.ts`.
+2. Update `RELEASE_NOTES.md` (its contents become the GitHub release body, and
+   its heading carries the version too).
+3. Check that nothing drifted:
 
    ```bash
-   git tag vX.Y.Z
+   make version
+   ```
+
+4. Commit, then tag and push:
+
+   ```bash
+   make tag                     # refuses to tag unless every file agrees
    git push origin main --tags
    ```
 
@@ -182,6 +200,7 @@ lib/
     ├── onboarding/
     ├── splash/
     ├── settings/
+    ├── sftp/
     ├── snippets/
     └── ssh/
         ├── data/          # datasources, models, repository impls

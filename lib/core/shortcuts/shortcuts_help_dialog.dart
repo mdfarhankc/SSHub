@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:sshub/core/shortcuts/app_shortcuts.dart';
 import 'package:sshub/core/theme/app_theme.dart';
 
@@ -31,27 +32,27 @@ class ShortcutsHelpDialog extends StatelessWidget {
 
     final tips = <(IconData, String, String)>[
       (
-        Icons.dns_rounded,
+        LucideIcons.server,
         "Servers",
         "Add SSH connections, tag them with a colour, then tap a card to open a live terminal.",
       ),
       (
-        Icons.tab_rounded,
+        LucideIcons.appWindow,
         "Tabs",
         "Keep several sessions open at once. Use + in the terminal to add one, and they stay connected while you browse your servers.",
       ),
       (
-        Icons.bolt_rounded,
+        LucideIcons.zap,
         "Snippets",
         "Save reusable tokens or commands once, then paste them into any terminal with a tap or $mod Shift S.",
       ),
       (
-        Icons.lock_rounded,
+        LucideIcons.lock,
         "App lock",
         "Protect SSHub with biometrics or your device lock, and require auth before revealing saved passwords or snippet values.",
       ),
       (
-        Icons.backup_rounded,
+        LucideIcons.databaseBackup,
         "Backup",
         "Export your servers, snippets and settings to an encrypted file, then import them on another device.",
       ),
@@ -60,7 +61,7 @@ class ShortcutsHelpDialog extends StatelessWidget {
     return AlertDialog(
       title: Row(
         children: [
-          Icon(Icons.help_outline_rounded, color: scheme.primary),
+          Icon(LucideIcons.circleHelp, color: scheme.primary),
           const SizedBox(width: 12),
           const Text("Help"),
         ],

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:sshub/core/widgets/app_form_sheet.dart';
 import 'package:sshub/features/ssh/presentation/widgets/dialog_field.dart';
 
@@ -27,7 +28,7 @@ class _PassphraseDialogState extends State<PassphraseDialog> {
   @override
   Widget build(BuildContext context) {
     return AppFormSheet(
-      icon: Icons.lock_outline,
+      icon: LucideIcons.lock,
       title: "Enter passphrase",
       subtitle: "This backup is encrypted",
       confirmLabel: "Unlock",
@@ -37,7 +38,7 @@ class _PassphraseDialogState extends State<PassphraseDialog> {
         child: DialogField(
           controller: _pass,
           name: "Passphrase",
-          icon: Icons.password_outlined,
+          icon: LucideIcons.asterisk,
           obscureText: true,
           autofocus: true,
           textInputAction: TextInputAction.done,

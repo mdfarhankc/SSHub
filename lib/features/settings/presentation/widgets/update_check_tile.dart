@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:sshub/core/di/service_locator.dart';
 import 'package:sshub/core/update/update_service.dart';
 import 'package:sshub/core/widgets/app_snack_bar.dart';
@@ -48,6 +49,8 @@ class _UpdateCheckTileState extends State<UpdateCheckTile> {
     showDialog<void>(
       context: context,
       builder: (dialogContext) => AlertDialog(
+        // A short window would otherwise clip the notes and the buttons away.
+        scrollable: true,
         title: const Text("Update available"),
         content: SizedBox(
           width: 400,
@@ -70,12 +73,7 @@ class _UpdateCheckTileState extends State<UpdateCheckTile> {
                   ),
                 ),
                 const SizedBox(height: 8),
-                ConstrainedBox(
-                  constraints: const BoxConstraints(maxHeight: 240),
-                  child: SingleChildScrollView(
-                    child: _ReleaseNotesView(notes: info.notes),
-                  ),
-                ),
+                _ReleaseNotesView(notes: info.notes),
               ],
             ],
           ),
@@ -111,7 +109,7 @@ class _UpdateCheckTileState extends State<UpdateCheckTile> {
         child: Row(
           children: [
             Icon(
-              Icons.system_update_alt_rounded,
+              LucideIcons.hardDriveDownload,
               size: 20,
               color: scheme.primary,
             ),
@@ -131,7 +129,7 @@ class _UpdateCheckTileState extends State<UpdateCheckTile> {
                 child: CircularProgressIndicator(strokeWidth: 2),
               )
             else
-              Icon(Icons.chevron_right_rounded, color: scheme.onSurfaceVariant),
+              Icon(LucideIcons.chevronRight, color: scheme.onSurfaceVariant),
           ],
         ),
       ),

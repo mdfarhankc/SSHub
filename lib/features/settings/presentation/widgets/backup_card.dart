@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import 'package:sshub/core/widgets/app_snack_bar.dart';
 import 'package:sshub/features/settings/presentation/cubit/backup_cubit.dart';
-import 'package:sshub/features/settings/presentation/cubit/settings_cubit.dart';
 import 'package:sshub/features/settings/presentation/widgets/export_options_dialog.dart';
 import 'package:sshub/features/settings/presentation/widgets/passphrase_dialog.dart';
 import 'package:sshub/features/settings/presentation/widgets/settings_card.dart';
@@ -46,7 +46,6 @@ class BackupCard extends StatelessWidget {
       case BackupStatus.exported:
         showAppSnackBar(context, "Backup exported");
       case BackupStatus.imported:
-        context.read<SettingsCubit>().reload();
         context.read<ServerListBloc>().add(ServerListLoaded());
         context.read<SnippetListBloc>().add(SnippetListLoaded());
         showAppSnackBar(context, "Backup restored");
@@ -66,7 +65,7 @@ class BackupCard extends StatelessWidget {
     return BlocListener<BackupCubit, BackupState>(
       listener: _onState,
       child: SettingsCard(
-        icon: Icons.backup_outlined,
+        icon: LucideIcons.databaseBackup,
         title: "Backup & Restore",
         description: "Export or import your server configurations securely.",
         children: [
@@ -77,7 +76,7 @@ class BackupCard extends StatelessWidget {
                 Expanded(
                   child: OutlinedButton.icon(
                     onPressed: () => _export(context),
-                    icon: const Icon(Icons.upload_rounded),
+                    icon: const Icon(LucideIcons.upload),
                     label: const Text("Export"),
                   ),
                 ),
@@ -86,7 +85,7 @@ class BackupCard extends StatelessWidget {
                   child: OutlinedButton.icon(
                     onPressed: () =>
                         context.read<BackupCubit>().pickAndImport(),
-                    icon: const Icon(Icons.download_rounded),
+                    icon: const Icon(LucideIcons.download),
                     label: const Text("Import"),
                   ),
                 ),

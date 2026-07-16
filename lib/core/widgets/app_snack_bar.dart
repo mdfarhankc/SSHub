@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:sshub/core/theme/app_theme.dart';
 
 void showAppSnackBar(
@@ -14,9 +15,7 @@ void showAppSnackBar(
     background: success ? scheme.inverseSurface : scheme.error,
     foreground: foreground,
     leading: Icon(
-      success
-          ? Icons.check_circle_outline_rounded
-          : Icons.error_outline_rounded,
+      success ? LucideIcons.circleCheck : LucideIcons.circleAlert,
       color: foreground,
       size: 20,
     ),

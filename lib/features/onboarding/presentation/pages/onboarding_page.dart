@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import 'package:sshub/core/theme/app_theme.dart';
 import 'package:sshub/features/settings/presentation/cubit/settings_cubit.dart';
@@ -20,28 +21,28 @@ class _Slide {
 
 const _slides = <_Slide>[
   _Slide(
-    icon: Icons.dns_rounded,
+    icon: LucideIcons.server,
     title: "Welcome to SSHub",
     body:
         "A fast, minimal SSH client for your machine. Keep all your servers "
         "in one place.",
   ),
   _Slide(
-    icon: Icons.bolt_rounded,
+    icon: LucideIcons.zap,
     title: "Connect in one tap",
     body:
         "Save servers with labels, colors, and notes, then open a session "
         "with a single click.",
   ),
   _Slide(
-    icon: Icons.terminal_rounded,
+    icon: LucideIcons.terminal,
     title: "Built-in terminal",
     body:
         "Work in a full terminal right inside the app. No external windows, "
         "no extra tools.",
   ),
   _Slide(
-    icon: Icons.lock_rounded,
+    icon: LucideIcons.lock,
     hero: "100%",
     title: "Local and secure",
     body:
@@ -202,14 +203,18 @@ class _SlideView extends StatelessWidget {
               const SizedBox(height: 40),
               if (slide.hero != null)
                 Row(
+                  mainAxisSize: MainAxisSize.min,
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
                     Icon(slide.icon, size: 20, color: scheme.primary),
                     const SizedBox(width: 8),
-                    Text(
-                      slide.title,
-                      style: theme.textTheme.headlineSmall?.copyWith(
-                        fontWeight: FontWeight.w900,
+                    Flexible(
+                      child: Text(
+                        slide.title,
+                        textAlign: TextAlign.center,
+                        style: theme.textTheme.headlineSmall?.copyWith(
+                          fontWeight: FontWeight.w900,
+                        ),
                       ),
                     ),
                   ],

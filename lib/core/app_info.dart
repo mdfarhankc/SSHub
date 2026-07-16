@@ -1,2 +1,1 @@
-// Keep in sync with the version in pubspec.yaml on each release.
-const String appVersion = "3.0.0";
+const String appVersion = "4.0.0";

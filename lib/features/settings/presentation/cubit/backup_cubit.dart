@@ -7,13 +7,15 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 
 import 'package:sshub/core/backup/backup_crypto.dart';
 import 'package:sshub/features/settings/domain/repositories/backup_repository.dart';
+import 'package:sshub/features/settings/presentation/cubit/settings_cubit.dart';
 import 'package:sshub/features/settings/presentation/widgets/export_options_dialog.dart';
 
 part 'backup_state.dart';
 
 class BackupCubit extends Cubit<BackupState> {
   final BackupRepository _repository;
-  BackupCubit(this._repository) : super(const BackupState());
+  final SettingsCubit _settings;
+  BackupCubit(this._repository, this._settings) : super(const BackupState());
 
   Future<void> export(ExportOptions options) async {
     emit(
@@ -96,6 +98,9 @@ class BackupCubit extends Cubit<BackupState> {
     );
     try {
       await _repository.import(content, passphrase);
+      // The import writes settings straight to disk, and SettingsCubit's next
+      // write would serialise its whole stale blob back over them.
+      await _settings.reload();
       emit(const BackupState(status: BackupStatus.imported));
     } on BackupException catch (e) {
       emit(BackupState(status: BackupStatus.failure, message: e.message));

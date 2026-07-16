@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:sshub/core/theme/app_theme.dart';
 
 class DialogField extends StatefulWidget {
@@ -115,9 +116,7 @@ class _DialogFieldState extends State<DialogField> {
             : IconButton(
                 tooltip: _obscured ? "Show password" : "Hide password",
                 icon: Icon(
-                  _obscured
-                      ? Icons.visibility_outlined
-                      : Icons.visibility_off_outlined,
+                  _obscured ? LucideIcons.eye : LucideIcons.eyeOff,
                   size: 20,
                 ),
                 onPressed: _toggleObscured,

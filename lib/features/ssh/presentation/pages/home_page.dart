@@ -1,8 +1,10 @@
 import 'dart:io';
+import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:sshub/core/responsive/responsive.dart';
 import 'package:sshub/core/shortcuts/app_shortcuts.dart';
 import 'package:sshub/core/shortcuts/shortcuts_help_dialog.dart';
@@ -18,11 +20,18 @@ import 'package:sshub/features/ssh/presentation/widgets/home_header.dart';
 import 'package:sshub/features/ssh/presentation/widgets/server_card.dart';
 import 'package:sshub/features/ssh/presentation/widgets/server_dialog.dart';
 
-const _gridDelegate = SliverGridDelegateWithMaxCrossAxisExtent(
+// 180 carries deliberate slack, so the card only needs to grow once its text
+// would outgrow it, which is well above the usual scales.
+SliverGridDelegateWithMaxCrossAxisExtent _gridDelegateFor(
+  BuildContext context,
+) => SliverGridDelegateWithMaxCrossAxisExtent(
   maxCrossAxisExtent: 450,
   mainAxisSpacing: 16,
   crossAxisSpacing: 16,
-  mainAxisExtent: 180,
+  mainAxisExtent: math.max(
+    180,
+    52 + MediaQuery.textScalerOf(context).scale(66),
+  ),
 );
 
 class HomePage extends StatefulWidget {
@@ -179,7 +188,7 @@ class _HomePageState extends State<HomePage> {
                                           color: scheme.onSurfaceVariant,
                                         ),
                                       )
-                                    : const Icon(Icons.refresh_rounded),
+                                    : const Icon(LucideIcons.refreshCw),
                                 color: scheme.onSurfaceVariant,
                                 tooltip: "Refresh status ($mod+R)",
                               ),
@@ -187,7 +196,7 @@ class _HomePageState extends State<HomePage> {
                               IconButton(
                                 onPressed: () =>
                                     ShortcutsHelpDialog.show(context),
-                                icon: const Icon(Icons.help_outline_rounded),
+                                icon: const Icon(LucideIcons.circleHelp),
                                 color: scheme.onSurfaceVariant,
                                 tooltip: "Help (F1)",
                               ),
@@ -196,13 +205,13 @@ class _HomePageState extends State<HomePage> {
                                 context,
                                 SnippetsPage.route,
                               ),
-                              icon: const Icon(Icons.bolt_outlined),
+                              icon: const Icon(LucideIcons.zap),
                               color: scheme.onSurfaceVariant,
                               tooltip: "Snippets ($mod+E)",
                             ),
                             IconButton(
                               onPressed: () => _openSettings(context),
-                              icon: const Icon(Icons.settings_outlined),
+                              icon: const Icon(LucideIcons.settings),
                               color: scheme.onSurfaceVariant,
                               tooltip: "Settings ($mod+,)",
                             ),
@@ -227,7 +236,7 @@ class _HomePageState extends State<HomePage> {
                                         mainAxisSize: MainAxisSize.min,
                                         children: [
                                           _HeaderStat(
-                                            icon: Icons.dns_rounded,
+                                            icon: LucideIcons.server,
                                             value: state.servers.length
                                                 .toString(),
                                             label: "Servers",
@@ -235,7 +244,7 @@ class _HomePageState extends State<HomePage> {
                                           ),
                                           SizedBox(width: isMobile ? 14 : 20),
                                           _HeaderStat(
-                                            icon: Icons.history_rounded,
+                                            icon: LucideIcons.history,
                                             value: state.servers
                                                 .where(
                                                   (s) =>
@@ -257,6 +266,7 @@ class _HomePageState extends State<HomePage> {
                           pinned: true,
                           delegate: _ToolbarHeaderDelegate(
                             hPad: hPad,
+                            height: _ToolbarHeaderDelegate.heightFor(context),
                             child: HomeHeader(
                               searchFocusNode: _searchFocus,
                               onSearchChanged: (value) =>
@@ -268,7 +278,7 @@ class _HomePageState extends State<HomePage> {
                           SliverPadding(
                             padding: EdgeInsets.fromLTRB(hPad, 16, hPad, 16),
                             sliver: SliverGrid(
-                              gridDelegate: _gridDelegate,
+                              gridDelegate: _gridDelegateFor(context),
                               delegate: SliverChildBuilderDelegate(
                                 (context, index) => const _SkeletonCard(),
                                 childCount: 6,
@@ -292,7 +302,7 @@ class _HomePageState extends State<HomePage> {
                           SliverPadding(
                             padding: EdgeInsets.fromLTRB(hPad, 16, hPad, 16),
                             sliver: SliverGrid(
-                              gridDelegate: _gridDelegate,
+                              gridDelegate: _gridDelegateFor(context),
                               delegate: SliverChildBuilderDelegate(
                                 (context, index) => ServerCard(
                                   server: servers[index],
@@ -320,16 +330,24 @@ class _HomePageState extends State<HomePage> {
 
 class _ToolbarHeaderDelegate extends SliverPersistentHeaderDelegate {
   final double hPad;
+  final double height;
   final Widget child;
-  const _ToolbarHeaderDelegate({required this.hPad, required this.child});
+  const _ToolbarHeaderDelegate({
+    required this.hPad,
+    required this.height,
+    required this.child,
+  });
 
-  static const double _height = 72;
+  // The search field and the button are sized by their text, so a pinned
+  // header of a fixed height would clip them as the text scale rises.
+  static double heightFor(BuildContext context) =>
+      16 + MediaQuery.textScalerOf(context).scale(56);
 
   @override
-  double get minExtent => _height;
+  double get minExtent => height;
 
   @override
-  double get maxExtent => _height;
+  double get maxExtent => height;
 
   @override
   Widget build(
@@ -348,7 +366,9 @@ class _ToolbarHeaderDelegate extends SliverPersistentHeaderDelegate {
 
   @override
   bool shouldRebuild(covariant _ToolbarHeaderDelegate oldDelegate) =>
-      oldDelegate.child != child || oldDelegate.hPad != hPad;
+      oldDelegate.child != child ||
+      oldDelegate.hPad != hPad ||
+      oldDelegate.height != height;
 }
 
 class _HeaderStat extends StatelessWidget {
@@ -418,7 +438,7 @@ class _EmptyState extends StatelessWidget {
                 shape: BoxShape.circle,
               ),
               child: Icon(
-                searching ? Icons.search_off_rounded : Icons.dns_rounded,
+                searching ? LucideIcons.searchX : LucideIcons.server,
                 size: 64,
                 color: scheme.primary,
               ),
@@ -451,7 +471,7 @@ class _EmptyState extends StatelessWidget {
                     }
                   });
                 },
-                icon: const Icon(Icons.add_rounded),
+                icon: const Icon(LucideIcons.plus),
                 label: const Text("Add your first server"),
               ),
             ],

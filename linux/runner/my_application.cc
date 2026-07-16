@@ -54,6 +54,12 @@ static void my_application_activate(GApplication* application) {
 
   gtk_window_set_default_size(window, 1280, 720);
 
+  // Smallest window the UI is designed for.
+  GdkGeometry geometry;
+  geometry.min_width = 720;
+  geometry.min_height = 560;
+  gtk_window_set_geometry_hints(window, nullptr, &geometry, GDK_HINT_MIN_SIZE);
+
   // Load the window icon from the bundled Flutter assets.
   g_autofree gchar* exe_path = g_file_read_link("/proc/self/exe", nullptr);
   if (exe_path != nullptr) {

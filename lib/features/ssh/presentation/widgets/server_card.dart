@@ -1,16 +1,21 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 
+import 'package:sshub/core/di/service_locator.dart';
 import 'package:sshub/core/theme/app_colors.dart';
 import 'package:sshub/core/theme/app_theme.dart';
 import 'package:sshub/core/theme/server_colors.dart';
+import 'package:sshub/core/widgets/app_snack_bar.dart';
+import 'package:sshub/features/sftp/presentation/pages/sftp_page.dart';
+import 'package:sshub/features/ssh/data/datasources/known_hosts_datasource.dart';
 import 'package:sshub/features/ssh/domain/entities/ssh_server.dart';
 import 'package:sshub/features/ssh/presentation/bloc/server_list_bloc.dart';
 import 'package:sshub/features/ssh/presentation/cubit/terminal_sessions_cubit.dart';
 import 'package:sshub/features/ssh/presentation/pages/terminal_page.dart';
 import 'package:sshub/features/ssh/presentation/widgets/server_dialog.dart';
 
-enum _CardAction { edit, delete }
+enum _CardAction { browse, edit, forgetHostKey, delete }
 
 class ServerCard extends StatefulWidget {
   final SshServer server;
@@ -62,6 +67,44 @@ class _ServerCardState extends State<ServerCard> {
     );
     if (confirmed == true && mounted) {
       context.read<ServerListBloc>().add(ServerDeleted(server.id));
+    }
+  }
+
+  void _browseFiles() =>
+      Navigator.pushNamed(context, SftpPage.route, arguments: server);
+
+  // A rebuilt server legitimately presents a new host key, which verification
+  // would otherwise refuse forever.
+  Future<void> _forgetHostKey() async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text("Forget host key?"),
+        content: Text(
+          "SSHub will trust whatever key ${server.host} presents next time, "
+          "the way it did on the first connection.\n\nOnly do this if you know "
+          "the server changed, such as after a rebuild. If it changed on its "
+          "own, the warning may be real and someone could be impersonating it.",
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: const Text("Cancel"),
+          ),
+          FilledButton(
+            style: FilledButton.styleFrom(
+              backgroundColor: Theme.of(dialogContext).colorScheme.error,
+            ),
+            onPressed: () => Navigator.pop(dialogContext, true),
+            child: const Text("Forget"),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true) return;
+    await sl<KnownHostsDatasource>().forget(server.host, server.port);
+    if (mounted) {
+      showAppSnackBar(context, "Host key forgotten for ${server.host}");
     }
   }
 
@@ -144,7 +187,7 @@ class _ServerCardState extends State<ServerCard> {
                                 ),
                               ),
                               child: Icon(
-                                Icons.terminal_rounded,
+                                LucideIcons.terminal,
                                 size: 20,
                                 color: accent,
                               ),
@@ -219,7 +262,7 @@ class _ServerCardState extends State<ServerCard> {
                           ),
                         ),
                         Icon(
-                          Icons.arrow_forward_rounded,
+                          LucideIcons.arrowRight,
                           size: 18,
                           color: _hovering ? accent : scheme.onSurfaceVariant,
                         ),
@@ -245,20 +288,44 @@ class _ServerCardState extends State<ServerCard> {
       elevation: 3,
       onSelected: (action) {
         switch (action) {
+          case .browse:
+            _browseFiles();
           case .edit:
             _edit();
+          case .forgetHostKey:
+            _forgetHostKey();
           case .delete:
             _confirmDelete();
         }
       },
       itemBuilder: (_) => [
         const PopupMenuItem(
+          value: .browse,
+          child: Row(
+            children: [
+              Icon(LucideIcons.folderOpen, size: 18),
+              SizedBox(width: 12),
+              Text("Browse Files"),
+            ],
+          ),
+        ),
+        const PopupMenuItem(
           value: .edit,
           child: Row(
             children: [
-              Icon(Icons.edit_rounded, size: 18),
+              Icon(LucideIcons.pencil, size: 18),
               SizedBox(width: 12),
               Text("Edit Settings"),
+            ],
+          ),
+        ),
+        const PopupMenuItem(
+          value: .forgetHostKey,
+          child: Row(
+            children: [
+              Icon(LucideIcons.rotateCcwKey, size: 18),
+              SizedBox(width: 12),
+              Text("Forget Host Key"),
             ],
           ),
         ),
@@ -267,7 +334,7 @@ class _ServerCardState extends State<ServerCard> {
           value: .delete,
           child: Row(
             children: [
-              Icon(Icons.delete_forever_rounded, size: 18, color: scheme.error),
+              Icon(LucideIcons.trash2, size: 18, color: scheme.error),
               const SizedBox(width: 12),
               Text(
                 "Remove Server",
@@ -283,7 +350,7 @@ class _ServerCardState extends State<ServerCard> {
       child: Container(
         padding: const EdgeInsets.all(8),
         decoration: BoxDecoration(borderRadius: BorderRadius.circular(10)),
-        child: const Icon(Icons.more_horiz_rounded, size: 22),
+        child: const Icon(LucideIcons.ellipsis, size: 22),
       ),
     );
   }

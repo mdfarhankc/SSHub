@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import 'package:sshub/core/theme/app_theme.dart';
 import 'package:sshub/features/ssh/presentation/cubit/terminal_cubit.dart';
@@ -75,15 +76,13 @@ class _TerminalPageState extends State<TerminalPage> {
                     if (terminalState is TerminalConnected) ...[
                       IconButton(
                         tooltip: "Find (Ctrl+F)",
-                        icon: const Icon(Icons.search_rounded),
-                        onPressed: () =>
-                            activeKey.currentState?.openSearch(),
+                        icon: const Icon(LucideIcons.search),
+                        onPressed: () => activeKey.currentState?.openSearch(),
                       ),
                       IconButton(
                         tooltip: "Snippets (Ctrl+Shift+S)",
-                        icon: const Icon(Icons.bolt_outlined),
-                        onPressed: () =>
-                            activeKey.currentState?.showSnippets(),
+                        icon: const Icon(LucideIcons.zap),
+                        onPressed: () => activeKey.currentState?.showSnippets(),
                       ),
                     ],
                     Container(

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:sshub/features/snippets/domain/entities/snippet.dart';
 import 'package:sshub/features/snippets/presentation/bloc/snippet_list_bloc.dart';
 import 'package:sshub/features/snippets/presentation/pages/snippets_page.dart';
@@ -22,7 +23,7 @@ class SnippetPickerSheet extends StatelessWidget {
                 padding: const EdgeInsets.fromLTRB(20, 4, 12, 4),
                 child: Row(
                   children: [
-                    Icon(Icons.bolt_rounded, size: 20, color: scheme.primary),
+                    Icon(LucideIcons.zap, size: 20, color: scheme.primary),
                     const SizedBox(width: 10),
                     Text(
                       "Snippets",
@@ -37,7 +38,7 @@ class SnippetPickerSheet extends StatelessWidget {
                         navigator.pop();
                         navigator.pushNamed(SnippetsPage.route);
                       },
-                      icon: const Icon(Icons.tune_rounded, size: 18),
+                      icon: const Icon(LucideIcons.settings2, size: 18),
                       label: const Text("Manage"),
                     ),
                   ],
@@ -50,7 +51,7 @@ class SnippetPickerSheet extends StatelessWidget {
                   child: Column(
                     children: [
                       Icon(
-                        Icons.bolt_outlined,
+                        LucideIcons.zap,
                         size: 48,
                         color: scheme.onSurfaceVariant,
                       ),
@@ -80,7 +81,7 @@ class SnippetPickerSheet extends StatelessWidget {
                       final snippet = state.snippets[index];
                       return ListTile(
                         leading: Icon(
-                          Icons.content_paste_rounded,
+                          LucideIcons.clipboardPaste,
                           color: scheme.primary,
                         ),
                         title: Text(snippet.label),

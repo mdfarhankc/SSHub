@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:sshub/core/auth/reveal_guard.dart';
 import 'package:sshub/core/widgets/app_form_sheet.dart';
 import 'package:sshub/features/settings/presentation/cubit/settings_cubit.dart';
@@ -71,7 +72,7 @@ class _SnippetDialogState extends State<SnippetDialog> {
 
   @override
   Widget build(BuildContext context) => AppFormSheet(
-    icon: _isEditing ? Icons.edit_note_rounded : Icons.bolt_rounded,
+    icon: _isEditing ? LucideIcons.notebookPen : LucideIcons.zap,
     title: _isEditing ? "Edit snippet" : "New snippet",
     subtitle: _isEditing
         ? "Update your saved value"
@@ -87,14 +88,14 @@ class _SnippetDialogState extends State<SnippetDialog> {
             controller: _label,
             name: "Label",
             hint: "e.g. GitLab token",
-            icon: Icons.label_important_outlined,
+            icon: LucideIcons.tag,
             autofocus: !_isEditing,
           ),
           const SizedBox(height: 12),
           DialogField(
             controller: _value,
             name: "Value",
-            icon: Icons.vpn_key_outlined,
+            icon: LucideIcons.keyRound,
             obscureText: true,
             textInputAction: TextInputAction.done,
             onSubmitted: (_) => _submit(),

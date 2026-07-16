@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:sshub/core/theme/server_colors.dart';
 
 class ColorPicker extends StatelessWidget {
@@ -22,7 +23,7 @@ class ColorPicker extends StatelessWidget {
           _Swatch(
             color: theme.colorScheme.onSurfaceVariant,
             selected: selected == null,
-            icon: Icons.format_color_reset_outlined,
+            icon: LucideIcons.dropletOff,
             onTap: () => onSelected(null),
           ),
           for (final value in ServerColors.palette)
@@ -83,7 +84,7 @@ class _Swatch extends StatelessWidget {
           child: icon != null
               ? Icon(icon, size: 14, color: Colors.white)
               : selected
-              ? const Icon(Icons.check, size: 14, color: Colors.white)
+              ? const Icon(LucideIcons.check, size: 14, color: Colors.white)
               : null,
         ),
       ),

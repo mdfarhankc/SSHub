@@ -8,6 +8,9 @@ import 'package:sshub/features/settings/data/repositories/backup_repository_impl
 import 'package:sshub/features/settings/data/repositories/settings_repository_impl.dart';
 import 'package:sshub/features/settings/domain/repositories/backup_repository.dart';
 import 'package:sshub/features/settings/domain/repositories/settings_repository.dart';
+import 'package:sshub/features/sftp/data/repositories/sftp_repository_impl.dart';
+import 'package:sshub/features/sftp/domain/repositories/sftp_repository.dart';
+import 'package:sshub/features/sftp/domain/usecases/open_sftp_session.dart';
 import 'package:sshub/features/snippets/data/datasources/snippet_datasource.dart';
 import 'package:sshub/features/snippets/data/datasources/snippet_local_datasource.dart';
 import 'package:sshub/features/snippets/data/repositories/snippet_repository_impl.dart';
@@ -17,6 +20,7 @@ import 'package:sshub/features/ssh/data/datasources/known_hosts_local_datasource
 import 'package:sshub/features/ssh/data/datasources/reachability_checker.dart';
 import 'package:sshub/features/ssh/data/datasources/server_datasource.dart';
 import 'package:sshub/features/ssh/data/datasources/server_local_datasource.dart';
+import 'package:sshub/features/ssh/data/datasources/ssh_client_factory.dart';
 import 'package:sshub/features/ssh/data/repositories/ssh_connection_repository_impl.dart';
 import 'package:sshub/features/ssh/data/repositories/ssh_repository_impl.dart';
 import 'package:sshub/features/ssh/domain/repositories/ssh_connection_repository.dart';
@@ -42,6 +46,7 @@ void setupLocator() {
   sl.registerLazySingleton<ReachabilityChecker>(
     () => const ReachabilityChecker(),
   );
+  sl.registerLazySingleton<SshClientFactory>(() => SshClientFactory(sl()));
 
   // Repositories
   sl.registerLazySingleton<SshRepository>(() => SshRepositoryImpl(sl()));
@@ -57,6 +62,7 @@ void setupLocator() {
   sl.registerLazySingleton<BackupRepository>(
     () => BackupRepositoryImpl(sl(), sl(), sl()),
   );
+  sl.registerLazySingleton<SftpRepository>(() => SftpRepositoryImpl(sl()));
 
   // Services
   sl.registerLazySingleton<LocalAuthService>(() => LocalAuthService());
@@ -64,4 +70,5 @@ void setupLocator() {
 
   // Usecases
   sl.registerLazySingleton<ConnectToServer>(() => ConnectToServer(sl()));
+  sl.registerLazySingleton<OpenSftpSession>(() => OpenSftpSession(sl()));
 }

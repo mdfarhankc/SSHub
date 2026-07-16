@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import 'package:sshub/core/auth/local_auth_service.dart';
 import 'package:sshub/core/di/service_locator.dart';
@@ -55,7 +56,7 @@ class DangerZone extends StatelessWidget {
           padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
           child: Row(
             children: [
-              Icon(Icons.warning_amber_rounded, size: 18, color: scheme.error),
+              Icon(LucideIcons.triangleAlert, size: 18, color: scheme.error),
               const SizedBox(width: 10),
               Text(
                 "Danger Zone".toUpperCase(),

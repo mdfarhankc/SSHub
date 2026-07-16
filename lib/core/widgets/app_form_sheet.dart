@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:sshub/core/theme/app_theme.dart';
 
 // Shared bottom-sheet scaffold for the add/edit forms.
@@ -79,7 +80,7 @@ class AppFormSheet extends StatelessWidget {
                   ),
                 ),
                 IconButton.filledTonal(
-                  icon: const Icon(Icons.close, size: 20),
+                  icon: const Icon(LucideIcons.x, size: 20),
                   onPressed: () => Navigator.pop(context),
                 ),
               ],

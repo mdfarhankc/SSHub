@@ -4,6 +4,7 @@ import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:sshub/core/auth/reveal_guard.dart';
 import 'package:sshub/core/widgets/app_form_sheet.dart';
 import 'package:sshub/core/widgets/section_header.dart';
@@ -153,7 +154,7 @@ class _ServerDialogState extends State<ServerDialog> {
             ),
             TextButton.icon(
               onPressed: _importKeyFile,
-              icon: const Icon(Icons.upload_file_outlined, size: 18),
+              icon: const Icon(LucideIcons.fileUp, size: 18),
               label: const Text("Import"),
             ),
           ],
@@ -181,7 +182,7 @@ class _ServerDialogState extends State<ServerDialog> {
         DialogField(
           controller: _keyPassphrase,
           name: "Key Passphrase",
-          icon: Icons.password_outlined,
+          icon: LucideIcons.asterisk,
           obscureText: true,
           required: false,
           textInputAction: .done,
@@ -201,7 +202,7 @@ class _ServerDialogState extends State<ServerDialog> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         const SectionHeader(
-          icon: Icons.info_outlined,
+          icon: LucideIcons.info,
           title: "General Information",
         ),
         const SizedBox(height: 16),
@@ -209,7 +210,7 @@ class _ServerDialogState extends State<ServerDialog> {
           controller: _label,
           name: "Server Label",
           hint: "e.g. Production API Server",
-          icon: Icons.label_important_outlined,
+          icon: LucideIcons.tag,
           autofocus: !_isEditing,
         ),
         const SizedBox(height: 12),
@@ -217,12 +218,12 @@ class _ServerDialogState extends State<ServerDialog> {
           controller: _description,
           name: "Description",
           hint: "Optional notes about this server",
-          icon: Icons.description_outlined,
+          icon: LucideIcons.fileText,
           required: false,
         ),
         const SizedBox(height: 24),
         const SectionHeader(
-          icon: Icons.lan_outlined,
+          icon: LucideIcons.network,
           title: "Connection Details",
         ),
         const SizedBox(height: 16),
@@ -235,7 +236,7 @@ class _ServerDialogState extends State<ServerDialog> {
                 controller: _host,
                 name: "Host / IP",
                 hint: "192.168.1.100",
-                icon: Icons.dns_outlined,
+                icon: LucideIcons.server,
               ),
             ),
             const SizedBox(width: 12),
@@ -262,7 +263,7 @@ class _ServerDialogState extends State<ServerDialog> {
           controller: _username,
           name: "SSH Username",
           hint: "root",
-          icon: Icons.account_circle_outlined,
+          icon: LucideIcons.circleUser,
         ),
         const SizedBox(height: 16),
         AuthTypeSelector(
@@ -274,7 +275,7 @@ class _ServerDialogState extends State<ServerDialog> {
           DialogField(
             controller: _password,
             name: "SSH Password",
-            icon: Icons.vpn_key_outlined,
+            icon: LucideIcons.keyRound,
             obscureText: true,
             textInputAction: .done,
             onSubmitted: (_) => _onSave(),
@@ -285,7 +286,7 @@ class _ServerDialogState extends State<ServerDialog> {
         else
           _keyFields(scheme),
         const SizedBox(height: 24),
-        const SectionHeader(icon: Icons.palette_outlined, title: "Appearance"),
+        const SectionHeader(icon: LucideIcons.palette, title: "Appearance"),
         const SizedBox(height: 8),
         ColorPicker(
           selected: _color,
@@ -297,7 +298,7 @@ class _ServerDialogState extends State<ServerDialog> {
 
   @override
   Widget build(BuildContext context) => AppFormSheet(
-    icon: _isEditing ? Icons.edit_note_rounded : Icons.add_to_photos_rounded,
+    icon: _isEditing ? LucideIcons.notebookPen : LucideIcons.copyPlus,
     title: _isEditing ? "Edit Server" : "Add New Server",
     subtitle: _isEditing
         ? "Update your connection details"

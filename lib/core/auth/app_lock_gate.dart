@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import 'package:sshub/core/auth/local_auth_service.dart';
 import 'package:sshub/core/di/service_locator.dart';
@@ -123,11 +124,7 @@ class _LockScreen extends StatelessWidget {
                   color: scheme.primary.withValues(alpha: 0.1),
                   shape: BoxShape.circle,
                 ),
-                child: Icon(
-                  Icons.lock_rounded,
-                  size: 48,
-                  color: scheme.primary,
-                ),
+                child: Icon(LucideIcons.lock, size: 48, color: scheme.primary),
               ),
               const SizedBox(height: 32),
               Text(
@@ -151,7 +148,7 @@ class _LockScreen extends StatelessWidget {
               else
                 FilledButton.icon(
                   onPressed: onUnlock,
-                  icon: const Icon(Icons.fingerprint),
+                  icon: const Icon(LucideIcons.fingerprint),
                   label: const Text("Unlock Application"),
                   style: FilledButton.styleFrom(
                     padding: const EdgeInsets.symmetric(

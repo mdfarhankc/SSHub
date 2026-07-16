@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:sshub/core/theme/app_theme.dart';
 import 'package:xterm/xterm.dart' hide TerminalState;
 
@@ -33,19 +34,19 @@ class TerminalKeyBar extends StatelessWidget {
             ),
             const VerticalDivider(width: 12, indent: 8, endIndent: 8),
             _KeyButton(
-              icon: Icons.keyboard_arrow_up,
+              icon: LucideIcons.chevronUp,
               onTap: () => _send(TerminalKey.arrowUp),
             ),
             _KeyButton(
-              icon: Icons.keyboard_arrow_down,
+              icon: LucideIcons.chevronDown,
               onTap: () => _send(TerminalKey.arrowDown),
             ),
             _KeyButton(
-              icon: Icons.keyboard_arrow_left,
+              icon: LucideIcons.chevronLeft,
               onTap: () => _send(TerminalKey.arrowLeft),
             ),
             _KeyButton(
-              icon: Icons.keyboard_arrow_right,
+              icon: LucideIcons.chevronRight,
               onTap: () => _send(TerminalKey.arrowRight),
             ),
           ],

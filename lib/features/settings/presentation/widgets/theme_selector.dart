@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:sshub/core/widgets/segmented_selector.dart';
 import 'package:sshub/features/settings/domain/entities/app_settings.dart';
 
@@ -17,9 +18,9 @@ class ThemeSelector extends StatelessWidget {
     onChanged: onChanged,
     shrinkWrap: true,
     options: const [
-      (AppThemeMode.system, Icons.computer, "System"),
-      (AppThemeMode.light, Icons.light_mode_outlined, "Light"),
-      (AppThemeMode.dark, Icons.dark_mode_outlined, "Dark"),
+      (AppThemeMode.system, LucideIcons.monitor, "System"),
+      (AppThemeMode.light, LucideIcons.sun, "Light"),
+      (AppThemeMode.dark, LucideIcons.moon, "Dark"),
     ],
   );
 }
