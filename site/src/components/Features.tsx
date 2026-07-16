@@ -1,5 +1,5 @@
-import { Check } from "lucide-react";
-import { EXTRAS, FEATURES } from "@/lib/site";
+import { Check, Hammer } from "lucide-react";
+import { EXTRAS, FEATURES, ROADMAP } from "@/lib/site";
 
 export function Features() {
   return (
@@ -50,6 +50,23 @@ export function Features() {
             >
               <Check className="h-4 w-4 text-accent-ink" />
               {e}
+            </span>
+          ))}
+        </div>
+      </div>
+
+      <div className="mt-4 rounded-2xl border border-dashed border-border bg-card/50 p-6">
+        <p className="font-mono text-[10px] uppercase tracking-widest text-muted-foreground">
+          On the roadmap
+        </p>
+        <div className="mt-4 flex flex-wrap gap-x-6 gap-y-3">
+          {ROADMAP.map((r) => (
+            <span
+              key={r}
+              className="flex items-center gap-2 text-sm text-muted-foreground"
+            >
+              <Hammer className="h-4 w-4 text-muted-foreground" />
+              {r}
             </span>
           ))}
         </div>
