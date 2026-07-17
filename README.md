@@ -208,6 +208,20 @@ lib/
         └── presentation/  # blocs, cubits, pages, widgets
 ```
 
+## Contributing
+
+SSHub is not accepting external code contributions at the moment, so pull
+requests will be closed for now. Bug reports and feature ideas are very
+welcome though, please open an issue using one of the templates.
+
+## License
+
+SSHub is licensed under the [GNU General Public License v3.0](LICENSE). You are
+free to use, run, study and share it, and any distributed derivative must remain
+open under the same license and keep the original copyright notice.
+
+The vendored `third_party/xterm` copy keeps its own license, included alongside it.
+
 ## Author
 
 Mohammed Farhan K C ([@mdfarhankc](https://github.com/mdfarhankc))

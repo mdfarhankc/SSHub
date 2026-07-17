@@ -1,0 +1,51 @@
+name: Bug report
+description: Something in SSHub is not working as expected
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to report a bug. Please fill in what you can,
+        the more detail the easier it is to reproduce.
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened
+      description: A clear description of the bug, and what you expected instead.
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      placeholder: |
+        1. Open ...
+        2. Connect to ...
+        3. See error
+    validations:
+      required: true
+  - type: dropdown
+    id: platform
+    attributes:
+      label: Platform
+      options:
+        - Windows
+        - macOS
+        - Linux
+        - Android
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: SSHub version
+      description: Shown on the About screen, for example 4.0.0.
+    validations:
+      required: true
+  - type: textarea
+    id: extra
+    attributes:
+      label: Logs or screenshots
+      description: Anything else that helps. Do not include passwords, private keys or server hostnames you would rather keep private.
+    validations:
+      required: false
