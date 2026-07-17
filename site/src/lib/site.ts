@@ -99,3 +99,67 @@ export const ROADMAP = [
   "File permissions editing",
   "Search within a folder",
 ] as const;
+
+export type CompareValue = "yes" | "no" | "partial";
+
+export interface CompareRow {
+  label: string;
+  // Aligned to COMPARE_APPS order.
+  values: CompareValue[];
+}
+
+export const COMPARE_APPS = ["SSHub", "PuTTY", "Termius", "MobaXterm"] as const;
+
+export const COMPARE_ROWS: CompareRow[] = [
+  { label: "Free to use", values: ["yes", "yes", "partial", "partial"] },
+  { label: "Open source", values: ["yes", "yes", "no", "no"] },
+  { label: "Desktop and mobile", values: ["yes", "no", "yes", "no"] },
+  { label: "Built-in file browser", values: ["yes", "no", "yes", "yes"] },
+  { label: "Tabbed sessions", values: ["yes", "no", "yes", "yes"] },
+  { label: "Works offline, no account", values: ["yes", "yes", "no", "yes"] },
+  { label: "Modern, themeable interface", values: ["yes", "no", "yes", "partial"] },
+];
+
+export interface Faq {
+  q: string;
+  a: string;
+}
+
+export const FAQS: Faq[] = [
+  {
+    q: "Is SSHub free?",
+    a: "Yes. SSHub is free and open source under the GPL-3.0 license. There are no accounts, no paid tiers, and no ads.",
+  },
+  {
+    q: "Where are my passwords and keys stored?",
+    a: "In your operating system's secure store: Windows Credential Manager, the macOS Keychain, and the equivalent keychain on Linux and Android. They are never written in plain text, and private keys stay on your machine.",
+  },
+  {
+    q: "Does SSHub send my data anywhere?",
+    a: "No. There is no cloud, no telemetry, and no analytics. Your servers are saved locally on your device, and nothing leaves it unless you export a backup yourself.",
+  },
+  {
+    q: "Why does my system warn that the app is from an unknown developer?",
+    a: "The builds are not code-signed yet, so Windows, macOS, and Android show a one-time warning the first time you open the app. It is expected, and the install guide on GitHub has the steps to get past it on each platform.",
+  },
+  {
+    q: "Which platforms does it run on?",
+    a: "Windows, macOS, Linux, and Android. Desktop is the primary target. There is no web version, because browsers cannot open the raw TCP connections that SSH needs.",
+  },
+  {
+    q: "Can I connect with an SSH key?",
+    a: "Yes. SSHub supports OpenSSH, RSA, and EC private keys, with an optional key passphrase, alongside plain password login.",
+  },
+  {
+    q: "Can I transfer files?",
+    a: "Yes. A built-in SFTP browser lets you browse, upload, download, and open files in a list or a grid, over its own connection. It starts in read-only mode by default, so a stray tap cannot change anything until you unlock it.",
+  },
+  {
+    q: "How do I move my servers to another computer?",
+    a: "Use the encrypted backup export, then import the file on the other machine. Backups are encrypted by default, and private keys are deliberately left out of them.",
+  },
+  {
+    q: "Can I contribute?",
+    a: "SSHub is not accepting external code contributions right now, so pull requests will be closed. Bug reports and feature ideas are welcome though, through the issue templates on GitHub.",
+  },
+];

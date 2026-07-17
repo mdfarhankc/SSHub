@@ -9,6 +9,8 @@ import { GITHUB_URL, RELEASES_URL } from "@/lib/site";
 
 const NAV = [
   { label: "Features", href: "#features" },
+  { label: "Compare", href: "#compare" },
+  { label: "FAQ", href: "#faq" },
   { label: "Download", href: "#download" },
   { label: "GitHub", href: GITHUB_URL },
 ];

@@ -3,9 +3,12 @@ import { GITHUB_URL, RELEASES_URL, VERSION } from "@/lib/site";
 
 const LINKS = [
   { label: "Features", href: "#features" },
+  { label: "Compare", href: "#compare" },
+  { label: "FAQ", href: "#faq" },
   { label: "Download", href: "#download" },
   { label: "GitHub", href: GITHUB_URL },
   { label: "Releases", href: RELEASES_URL },
+  { label: "License", href: `${GITHUB_URL}/blob/main/LICENSE` },
 ];
 
 export function Footer() {
@@ -17,7 +20,7 @@ export function Footer() {
           <div className="leading-tight">
             <p className="text-sm font-semibold">SSHub</p>
             <p className="font-mono text-xs text-muted-foreground">
-              v{VERSION}
+              v{VERSION} · GPL-3.0
             </p>
           </div>
         </div>

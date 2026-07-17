@@ -7,7 +7,7 @@ import { GITHUB_URL, PLATFORMS, RELEASES_URL } from "@/lib/site";
 export function CallToAction() {
   const { downloadLabel } = useOS();
   return (
-    <section id="download" className="mx-auto max-w-6xl px-5 pb-24">
+    <section id="download" className="mx-auto max-w-6xl px-5 pb-16">
       <div className="relative overflow-hidden rounded-3xl border border-border bg-card px-6 py-16 text-center sm:px-12">
         <div
           aria-hidden

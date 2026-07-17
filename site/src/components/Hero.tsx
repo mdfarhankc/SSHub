@@ -26,7 +26,7 @@ export function Hero() {
         }}
       />
 
-      <div className="relative z-10 mx-auto max-w-6xl px-5 pb-20 pt-28 sm:pt-36 md:pb-28">
+      <div className="relative z-10 mx-auto max-w-6xl px-5 pb-12 pt-28 sm:pt-36 md:pb-16">
         <div className="mx-auto flex max-w-3xl flex-col items-center text-center">
           <a
             href={`${GITHUB_URL}/releases/tag/v${VERSION}`}

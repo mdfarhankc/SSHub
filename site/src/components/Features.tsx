@@ -3,7 +3,7 @@ import { EXTRAS, FEATURES, ROADMAP } from "@/lib/site";
 
 export function Features() {
   return (
-    <section id="features" className="mx-auto max-w-6xl px-5 py-20 md:py-28">
+    <section id="features" className="mx-auto max-w-6xl px-5 py-12 md:py-16">
       <div className="max-w-2xl">
         <p className="font-mono text-xs uppercase tracking-widest text-accent-ink">
           Features
