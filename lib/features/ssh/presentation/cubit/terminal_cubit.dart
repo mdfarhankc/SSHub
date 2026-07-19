@@ -27,6 +27,7 @@ class TerminalCubit extends Cubit<TerminalState> {
   // isClosed only flips once close() has finished awaiting, so a connection
   // landing mid-dispose would still look live.
   bool _disposing = false;
+  bool _stopReconnect = false;
 
   static const _maxReconnectAttempts = 3;
 
@@ -88,13 +89,18 @@ class TerminalCubit extends Cubit<TerminalState> {
     terminal.onResize = null;
   }
 
+  // Stops the retry loop between attempts, so a user who knows the server is
+  // down does not have to wait it out.
+  void stopReconnecting() => _stopReconnect = true;
+
   Future<void> _autoReconnect() async {
     // The shell has ended, but its client and keepalive timer live on until
     // the handle is closed.
     await _handle?.close();
     _handle = null;
+    _stopReconnect = false;
     for (var attempt = 1; attempt <= _maxReconnectAttempts; attempt++) {
-      if (isClosed) return;
+      if (isClosed || _stopReconnect) break;
       emit(
         TerminalReconnecting(
           attempt: attempt,
@@ -102,13 +108,16 @@ class TerminalCubit extends Cubit<TerminalState> {
         ),
       );
       await Future.delayed(Duration(seconds: 2 * attempt));
-      if (isClosed) return;
+      if (isClosed || _stopReconnect) break;
       if (await _establish()) return;
     }
     if (!isClosed) emit(const TerminalDisconnected());
   }
 
   Future<void> reconnect() async {
+    // A manual attempt supersedes the loop, which would otherwise install a
+    // second handle over this one.
+    _stopReconnect = true;
     _detach();
     await _handle?.close();
     _handle = null;

@@ -74,17 +74,18 @@ class _ServerDialogState extends State<ServerDialog> {
       setState(() => _autovalidateMode = .onUserInteraction);
       return;
     }
-    // Secrets pass through untouched; a blank field on edit keeps the stored value.
+    // Secrets pass through untouched; a blank field on edit keeps the stored
+    // value. The unused type keeps its secret too, so toggling does not wipe it.
     final isPassword = _authType == AuthType.password;
     final password = isPassword
         ? _keptSecret(_password, widget.server?.password)
-        : '';
+        : (widget.server?.password ?? '');
     final keepingKey = _isEditing && _privateKey.text.isEmpty;
     final privateKey = isPassword
-        ? ''
+        ? (widget.server?.privateKey ?? '')
         : _keptSecret(_privateKey, widget.server?.privateKey);
     final passphrase = isPassword
-        ? ''
+        ? (widget.server?.passphrase ?? '')
         : (keepingKey && _keyPassphrase.text.isEmpty
               ? (widget.server?.passphrase ?? '')
               : _keyPassphrase.text);

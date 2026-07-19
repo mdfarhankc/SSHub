@@ -56,6 +56,9 @@ class KnownHostsLocalDatasource implements KnownHostsDatasource {
     await _storage.write(key: _key, value: jsonEncode(map));
   }
 
+  @override
+  Future<void> clear() => _storage.delete(key: _key);
+
   static String _entryFor(String host, int port, String type) =>
       "$host:$port:$type";
 

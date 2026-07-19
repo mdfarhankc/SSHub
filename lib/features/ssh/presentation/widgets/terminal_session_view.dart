@@ -5,9 +5,12 @@ import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
+import 'package:sshub/core/auth/reveal_guard.dart';
+import 'package:sshub/core/security/secure_platform.dart';
 import 'package:sshub/core/theme/app_terminal_theme.dart';
 import 'package:sshub/core/widgets/app_snack_bar.dart';
 import 'package:sshub/features/settings/presentation/cubit/settings_cubit.dart';
+import 'package:sshub/features/snippets/domain/entities/snippet.dart';
 import 'package:sshub/features/snippets/presentation/widgets/snippet_picker_sheet.dart';
 import 'package:sshub/features/ssh/presentation/bloc/server_list_bloc.dart';
 import 'package:sshub/features/ssh/presentation/cubit/terminal_cubit.dart';
@@ -44,6 +47,8 @@ class TerminalSessionViewState extends State<TerminalSessionView> {
   final _searchFocus = FocusNode();
   final _terminalFocus = FocusNode();
   bool _searchOpen = false;
+  // Scrollback is only worth showing after a session actually produced any.
+  bool _everConnected = false;
   List<_SearchMatch> _matches = const [];
   int _matchIndex = 0;
 
@@ -95,7 +100,7 @@ class TerminalSessionViewState extends State<TerminalSessionView> {
     if (selection == null) return;
     final text = _terminal.buffer.getText(selection);
     if (text.isEmpty) return;
-    await Clipboard.setData(ClipboardData(text: text));
+    await SecurePlatform.copySensitive(text);
     _terminalController.clearSelection();
     if (mounted) showAppSnackBar(context, "Copied to clipboard");
   }
@@ -127,10 +132,23 @@ class TerminalSessionViewState extends State<TerminalSessionView> {
     showModalBottomSheet(
       context: context,
       showDragHandle: true,
-      builder: (_) => SnippetPickerSheet(
-        onSelected: (snippet) => _terminal.textInput(snippet.value),
-      ),
+      builder: (_) => SnippetPickerSheet(onSelected: _pasteSnippet),
     );
+  }
+
+  // Typing a snippet puts its value on screen, so it goes through the same
+  // gate as revealing one.
+  Future<void> _pasteSnippet(Snippet snippet) async {
+    final locked = context
+        .read<SettingsCubit>()
+        .state
+        .settings
+        .lockSnippetReveal;
+    final allowed = await context.confirmReveal(
+      locked: locked,
+      reason: "Paste ${snippet.label}",
+    );
+    if (allowed) _terminal.textInput(snippet.value);
   }
 
   void _closeThisTab() {
@@ -151,6 +169,83 @@ class TerminalSessionViewState extends State<TerminalSessionView> {
     LogicalKeyboardKey.digit9,
   ];
 
+  // Once a session has produced output, the scrollback is the most useful
+  // thing on screen, so it stays visible under a banner instead of being
+  // replaced by a status page.
+  Widget _endedView(
+    BuildContext context, {
+    required String message,
+    required String actionLabel,
+    required VoidCallback onAction,
+    required Widget fallback,
+    bool isError = false,
+    bool busy = false,
+  }) {
+    if (!_everConnected) return fallback;
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
+    return Column(
+      children: [
+        Material(
+          color: isError ? scheme.errorContainer : scheme.surfaceContainerHigh,
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(16, 10, 8, 10),
+            child: Row(
+              children: [
+                if (busy)
+                  const SizedBox(
+                    width: 16,
+                    height: 16,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
+                else
+                  Icon(
+                    isError ? LucideIcons.circleAlert : LucideIcons.cloudOff,
+                    size: 18,
+                    color: isError ? scheme.onErrorContainer : scheme.onSurface,
+                  ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Text(
+                    message,
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: isError
+                          ? scheme.onErrorContainer
+                          : scheme.onSurfaceVariant,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                TextButton(onPressed: onAction, child: Text(actionLabel)),
+              ],
+            ),
+          ),
+        ),
+        Expanded(
+          child: Builder(
+            builder: (context) {
+              final settings = context.watch<SettingsCubit>().state.settings;
+              return TerminalView(
+                _terminal,
+                controller: _terminalController,
+                scrollController: _scrollController,
+                theme: theme.brightness == Brightness.dark
+                    ? AppTerminalTheme.dark
+                    : AppTerminalTheme.light,
+                padding: const EdgeInsets.all(12),
+                readOnly: true,
+                textStyle: TerminalStyle(
+                  fontSize: settings.terminalFontSize,
+                  fontFamily: settings.terminalFontFamily,
+                ),
+              );
+            },
+          ),
+        ),
+      ],
+    );
+  }
+
   // The terminal has focus and forwards most keys to the shell, so tab and
   // session shortcuts are intercepted here rather than via ancestor Shortcuts.
   // Ctrl+W and Ctrl+T are deliberately left alone: the shell uses them.
@@ -169,6 +264,15 @@ class TerminalSessionViewState extends State<TerminalSessionView> {
           return KeyEventResult.handled;
         case LogicalKeyboardKey.keyW:
           _closeThisTab();
+          return KeyEventResult.handled;
+        case LogicalKeyboardKey.keyC:
+          _copySelection();
+          return KeyEventResult.handled;
+        case LogicalKeyboardKey.keyV:
+          _paste();
+          return KeyEventResult.handled;
+        case LogicalKeyboardKey.keyA:
+          _selectAll();
           return KeyEventResult.handled;
       }
     }
@@ -194,16 +298,8 @@ class TerminalSessionViewState extends State<TerminalSessionView> {
       return KeyEventResult.handled;
     }
 
-    if (!Platform.isMacOS &&
-        keyboard.isControlPressed &&
-        !keyboard.isShiftPressed &&
-        !keyboard.isMetaPressed &&
-        event.logicalKey == LogicalKeyboardKey.keyC &&
-        _terminalController.selection != null) {
-      _copySelection();
-      return KeyEventResult.handled;
-    }
-
+    // Ctrl+C is left to the shell. Copying it instead would swallow the
+    // interrupt whenever a stale selection is lying around.
     return KeyEventResult.ignored;
   }
 
@@ -230,7 +326,7 @@ class TerminalSessionViewState extends State<TerminalSessionView> {
           child: _MenuRow(
             icon: LucideIcons.clipboardPaste,
             label: "Paste",
-            hint: "Ctrl+V",
+            hint: "Ctrl+Shift+V",
           ),
         ),
         PopupMenuItem(
@@ -238,7 +334,7 @@ class TerminalSessionViewState extends State<TerminalSessionView> {
           child: _MenuRow(
             icon: LucideIcons.textSelect,
             label: "Select all",
-            hint: "Ctrl+A",
+            hint: "Ctrl+Shift+A",
           ),
         ),
         PopupMenuDivider(),
@@ -376,10 +472,9 @@ class TerminalSessionViewState extends State<TerminalSessionView> {
         bloc: widget.session,
         listener: (context, state) {
           if (state is TerminalConnected) {
+            _everConnected = true;
             _focusTerminal();
-            context.read<ServerListBloc>().add(
-              ServerUpdated(server.copyWith(lastConnectedAt: DateTime.now())),
-            );
+            context.read<ServerListBloc>().add(ServerConnected(server.id));
           }
         },
         builder: (context, state) {
@@ -394,39 +489,61 @@ class TerminalSessionViewState extends State<TerminalSessionView> {
               message: "Establishing a secure SSH channel to ${server.host}",
             ),
             TerminalReconnecting(:final attempt, :final maxAttempts) =>
-              _StatusView(
-                indicator: const SizedBox(
-                  width: 44,
-                  height: 44,
-                  child: CircularProgressIndicator(strokeWidth: 4),
-                ),
-                title: "Reconnecting",
+              _endedView(
+                context,
                 message:
                     "Connection lost. Reconnecting to ${server.host} "
                     "(attempt $attempt of $maxAttempts)...",
+                actionLabel: "Stop",
+                onAction: widget.session.stopReconnecting,
+                busy: true,
+                fallback: _StatusView(
+                  indicator: const SizedBox(
+                    width: 44,
+                    height: 44,
+                    child: CircularProgressIndicator(strokeWidth: 4),
+                  ),
+                  title: "Reconnecting",
+                  message:
+                      "Connection lost. Reconnecting to ${server.host} "
+                      "(attempt $attempt of $maxAttempts)...",
+                ),
               ),
-            TerminalFailure(:final message) => _StatusView(
-              indicator: Icon(
-                LucideIcons.circleAlert,
-                size: 56,
-                color: theme.colorScheme.error,
-              ),
-              title: "Connection Failed",
-              titleColor: theme.colorScheme.error,
+            TerminalFailure(:final message) => _endedView(
+              context,
               message: message,
-              primaryLabel: "Try Again",
-              onPrimary: widget.session.reconnect,
-            ),
-            TerminalDisconnected() => _StatusView(
-              indicator: Icon(
-                LucideIcons.cloudOff,
-                size: 56,
-                color: theme.colorScheme.onSurfaceVariant,
+              actionLabel: "Try Again",
+              onAction: widget.session.reconnect,
+              isError: true,
+              fallback: _StatusView(
+                indicator: Icon(
+                  LucideIcons.circleAlert,
+                  size: 56,
+                  color: theme.colorScheme.error,
+                ),
+                title: "Connection Failed",
+                titleColor: theme.colorScheme.error,
+                message: message,
+                primaryLabel: "Try Again",
+                onPrimary: widget.session.reconnect,
               ),
-              title: "Disconnected",
+            ),
+            TerminalDisconnected() => _endedView(
+              context,
               message: "The SSH session has ended.",
-              primaryLabel: "Reconnect",
-              onPrimary: widget.session.reconnect,
+              actionLabel: "Reconnect",
+              onAction: widget.session.reconnect,
+              fallback: _StatusView(
+                indicator: Icon(
+                  LucideIcons.cloudOff,
+                  size: 56,
+                  color: theme.colorScheme.onSurfaceVariant,
+                ),
+                title: "Disconnected",
+                message: "The SSH session has ended.",
+                primaryLabel: "Reconnect",
+                onPrimary: widget.session.reconnect,
+              ),
             ),
             TerminalConnected() => Column(
               children: [

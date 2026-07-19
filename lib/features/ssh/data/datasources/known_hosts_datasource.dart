@@ -8,4 +8,8 @@ abstract interface class KnownHostsDatasource {
   // Drops every remembered key for a host so the next connection trusts again.
   // The only way back from a rebuilt server, which legitimately gets new keys.
   Future<void> forget(String host, int port);
+
+  // Drops every remembered key. Orphaned fingerprints would otherwise be
+  // trusted again by a later server with the same host and port.
+  Future<void> clear();
 }

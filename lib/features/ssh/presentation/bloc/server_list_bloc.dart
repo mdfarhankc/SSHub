@@ -1,6 +1,7 @@
 import 'package:equatable/equatable.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
+import 'package:sshub/core/logging/app_log.dart';
 import 'package:sshub/features/ssh/data/datasources/reachability_checker.dart';
 import 'package:sshub/features/ssh/domain/entities/ssh_server.dart';
 import 'package:sshub/features/ssh/domain/repositories/ssh_repository.dart';
@@ -19,6 +20,7 @@ class ServerListBloc extends Bloc<ServerListEvent, ServerListState> {
     on<ServerListLoaded>(_onLoaded);
     on<ServerAdded>(_onAdded);
     on<ServerUpdated>(_onUpdated);
+    on<ServerConnected>(_onConnected);
     on<ServerDeleted>(_onDeleted);
     on<ServerReachabilityRequested>(_onReachabilityRequested);
   }
@@ -84,6 +86,29 @@ class ServerListBloc extends Bloc<ServerListEvent, ServerListState> {
       );
     } catch (e) {
       emit(state.copyWith(errorMessage: "Could not update server"));
+    }
+  }
+
+  Future<void> _onConnected(
+    ServerConnected event,
+    Emitter<ServerListState> emit,
+  ) async {
+    final current = state.servers.where((s) => s.id == event.id).firstOrNull;
+    if (current == null) return;
+    final stamped = current.copyWith(lastConnectedAt: DateTime.now());
+    try {
+      await _repository.updateServer(stamped);
+      emit(
+        state.copyWith(
+          servers: [
+            for (final s in state.servers)
+              if (s.id == event.id) stamped else s,
+          ],
+        ),
+      );
+    } catch (e) {
+      // A missing timestamp is not worth telling the user about.
+      appLog("Could not stamp connect time", e);
     }
   }
 

@@ -39,7 +39,16 @@ class SshClientFactory {
             _verifyHostKey(server, type, fingerprint),
       );
 
-      await client.authenticated;
+      // A server that accepts the socket then stalls during key exchange would
+      // otherwise hang here for good.
+      try {
+        await client.authenticated.timeout(const Duration(seconds: 30));
+      } on TimeoutException {
+        client.close();
+        throw const SshConnectionException(
+          "The server accepted the connection but never finished signing in.",
+        );
+      }
       return client;
     } on SSHHostkeyError {
       throw const SshConnectionException(
@@ -49,8 +58,10 @@ class SshClientFactory {
         "server's menu, then connect again.",
       );
     } on SSHAuthFailError {
-      throw const SshConnectionException(
-        "Authentication failed. Check the username and password.",
+      throw SshConnectionException(
+        server.authType == AuthType.key
+            ? "The server rejected the key for ${server.username}."
+            : "Authentication failed. Check the username and password.",
       );
     } on SocketException {
       throw SshConnectionException(
