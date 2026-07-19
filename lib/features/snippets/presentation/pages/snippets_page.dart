@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:sshub/core/theme/app_theme.dart';
+import 'package:sshub/core/widgets/app_snack_bar.dart';
 import 'package:sshub/core/widgets/page_title.dart';
 import 'package:sshub/features/snippets/domain/entities/snippet.dart';
 import 'package:sshub/features/snippets/presentation/bloc/snippet_list_bloc.dart';
@@ -63,12 +64,22 @@ class SnippetsPage extends StatelessWidget {
       body: Center(
         child: ConstrainedBox(
           constraints: const BoxConstraints(maxWidth: AppTheme.maxContentWidth),
-          child: BlocBuilder<SnippetListBloc, SnippetListState>(
+          child: BlocConsumer<SnippetListBloc, SnippetListState>(
+            listenWhen: (_, current) => current.errorMessage != null,
+            listener: (context, state) =>
+                showAppSnackBar(context, state.errorMessage!, success: false),
             builder: (context, state) {
               return CustomScrollView(
                 slivers: [
                   const LargeHeaderSliver("Snippets"),
-                  if (state.snippets.isEmpty)
+                  // A load failure must not read as an empty list, or the user
+                  // recreates snippets over a store that is still there.
+                  if (state.status == SnippetListStatus.failure)
+                    const SliverFillRemaining(
+                      hasScrollBody: false,
+                      child: _LoadFailed(),
+                    )
+                  else if (state.snippets.isEmpty)
                     const SliverFillRemaining(
                       hasScrollBody: false,
                       child: _EmptyState(),
@@ -166,6 +177,46 @@ class _SnippetTile extends StatelessWidget {
             ],
           ),
         ),
+      ),
+    );
+  }
+}
+
+class _LoadFailed extends StatelessWidget {
+  const _LoadFailed();
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Padding(
+      padding: const EdgeInsets.all(24),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(
+            LucideIcons.triangleAlert,
+            size: 56,
+            color: theme.colorScheme.error,
+          ),
+          const SizedBox(height: 16),
+          Text("Could not load snippets", style: theme.textTheme.titleMedium),
+          const SizedBox(height: 8),
+          Text(
+            "Your snippets are still stored. Try again, and do not add new "
+            "ones until they appear.",
+            textAlign: TextAlign.center,
+            style: theme.textTheme.bodySmall?.copyWith(
+              color: theme.colorScheme.onSurfaceVariant,
+            ),
+          ),
+          const SizedBox(height: 20),
+          FilledButton.icon(
+            onPressed: () =>
+                context.read<SnippetListBloc>().add(SnippetListLoaded()),
+            icon: const Icon(LucideIcons.refreshCw),
+            label: const Text("Try Again"),
+          ),
+        ],
       ),
     );
   }

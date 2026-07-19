@@ -5,6 +5,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import 'package:sshub/core/auth/local_auth_service.dart';
+import 'package:sshub/core/widgets/app_snack_bar.dart';
 import 'package:sshub/core/di/service_locator.dart';
 import 'package:sshub/core/theme/app_theme.dart';
 import 'package:sshub/core/widgets/page_title.dart';
@@ -12,6 +13,7 @@ import 'package:sshub/features/settings/presentation/cubit/settings_cubit.dart';
 import 'package:sshub/features/settings/presentation/widgets/about_card.dart';
 import 'package:sshub/features/settings/presentation/widgets/backup_card.dart';
 import 'package:sshub/features/settings/presentation/widgets/danger_zone.dart';
+import 'package:sshub/features/settings/presentation/widgets/download_card.dart';
 import 'package:sshub/features/settings/presentation/widgets/settings_card.dart';
 import 'package:sshub/features/settings/presentation/widgets/settings_divider.dart';
 import 'package:sshub/features/settings/presentation/widgets/settings_row.dart';
@@ -125,6 +127,8 @@ class SettingsPage extends StatelessWidget {
                         ),
                       ],
                     ),
+                    const SizedBox(height: 16),
+                    const DownloadCard(),
                     if (!Platform.isLinux) ...[
                       const SizedBox(height: 16),
                       SettingsCard(
@@ -140,16 +144,50 @@ class SettingsPage extends StatelessWidget {
                             control: Switch(
                               value: settings.appLockEnabled,
                               onChanged: (value) async {
-                                if (value) {
-                                  cubit.enableAppLock();
-                                } else if (await auth.authenticate(
-                                  "Disable app lock",
-                                )) {
-                                  cubit.disableAppLock();
+                                if (!value) {
+                                  // Unavailable still disables, or the setting
+                                  // could never be turned back off.
+                                  if (await auth.authenticate(
+                                        "Disable app lock",
+                                      ) !=
+                                      AuthResult.failed) {
+                                    cubit.disableAppLock();
+                                  }
+                                  return;
+                                }
+                                final result = await auth.authenticate(
+                                  "Enable app lock",
+                                );
+                                if (!context.mounted) return;
+                                switch (result) {
+                                  case AuthResult.success:
+                                    cubit.enableAppLock();
+                                  case AuthResult.unavailable:
+                                    showAppSnackBar(
+                                      context,
+                                      "Set a screen lock on this device first. "
+                                      "SSHub cannot verify you without one.",
+                                      success: false,
+                                    );
+                                  case AuthResult.failed:
+                                    break;
                                 }
                               },
                             ),
                           ),
+                          if (Platform.isAndroid) ...[
+                            const SettingsDivider(),
+                            SettingsRow(
+                              title: "Block Screenshots",
+                              subtitle:
+                                  "Hide SSHub from screenshots and the recent apps preview.",
+                              keepInline: true,
+                              control: Switch(
+                                value: settings.blockScreenshots,
+                                onChanged: cubit.updateBlockScreenshots,
+                              ),
+                            ),
+                          ],
                           if (settings.appLockEnabled) ...[
                             const SettingsDivider(),
                             SettingsRow(

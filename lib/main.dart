@@ -5,6 +5,7 @@ import 'package:sshub/core/auth/app_lock_gate.dart';
 import 'package:sshub/core/di/service_locator.dart';
 import 'package:sshub/core/providers/app_bloc_providers.dart';
 import 'package:sshub/core/router/app_router.dart';
+import 'package:sshub/core/security/secure_platform.dart';
 import 'package:sshub/core/theme/app_theme.dart';
 import 'package:sshub/features/settings/domain/entities/app_settings.dart';
 import 'package:sshub/features/settings/domain/repositories/settings_repository.dart';
@@ -16,6 +17,11 @@ void main() async {
   setupLocator();
 
   final settings = await sl<SettingsRepository>().load();
+  // The activity blocks capture from launch, so this only has to lift it when
+  // the setting says otherwise.
+  if (!settings.blockScreenshots) {
+    await SecurePlatform.setBlockScreenshots(false);
+  }
   runApp(MyApp(initialSettings: settings));
 }
 

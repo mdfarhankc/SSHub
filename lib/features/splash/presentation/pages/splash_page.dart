@@ -17,6 +17,7 @@ class SplashPage extends StatefulWidget {
 class _SplashPageState extends State<SplashPage> {
   bool _navigated = false;
   bool _minDelayPassed = false;
+  bool _timedOut = false;
 
   @override
   void initState() {
@@ -24,6 +25,11 @@ class _SplashPageState extends State<SplashPage> {
     // Keep the splash on screen for at least a moment, even if data is ready.
     Future.delayed(const Duration(seconds: 1), () {
       _minDelayPassed = true;
+      _goHome();
+    });
+    // Storage that never answers would otherwise hold the splash for good.
+    Future.delayed(const Duration(seconds: 8), () {
+      _timedOut = true;
       _goHome();
     });
   }
@@ -34,7 +40,7 @@ class _SplashPageState extends State<SplashPage> {
 
   void _goHome() {
     if (_navigated || !mounted || !_minDelayPassed) return;
-    if (!_loaded(context.read<ServerListBloc>().state)) return;
+    if (!_timedOut && !_loaded(context.read<ServerListBloc>().state)) return;
     _navigated = true;
     final onboarded = context
         .read<SettingsCubit>()

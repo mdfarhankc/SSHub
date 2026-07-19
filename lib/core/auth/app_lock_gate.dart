@@ -62,11 +62,13 @@ class _AppLockGateState extends State<AppLockGate> with WidgetsBindingObserver {
   Future<void> _authenticate() async {
     if (_authenticating) return;
     setState(() => _authenticating = true);
-    final ok = await sl<LocalAuthService>().authenticate("Unlock SSHub");
+    final result = await sl<LocalAuthService>().authenticate("Unlock SSHub");
     if (!mounted) return;
     setState(() {
       _authenticating = false;
-      if (ok) _locked = false;
+      // Staying locked when there is nothing to authenticate against would shut
+      // the user out for good. Settings warns that the lock is unenforceable.
+      if (result != AuthResult.failed) _locked = false;
     });
   }
 

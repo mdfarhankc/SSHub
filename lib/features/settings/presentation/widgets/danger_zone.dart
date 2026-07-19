@@ -6,6 +6,9 @@ import 'package:sshub/core/auth/local_auth_service.dart';
 import 'package:sshub/core/di/service_locator.dart';
 import 'package:sshub/core/theme/app_theme.dart';
 import 'package:sshub/core/widgets/app_snack_bar.dart';
+import 'package:sshub/features/snippets/domain/repositories/snippet_repository.dart';
+import 'package:sshub/features/snippets/presentation/bloc/snippet_list_bloc.dart';
+import 'package:sshub/features/ssh/data/datasources/known_hosts_datasource.dart';
 import 'package:sshub/features/ssh/domain/repositories/ssh_repository.dart';
 import 'package:sshub/features/ssh/presentation/bloc/server_list_bloc.dart';
 
@@ -18,7 +21,8 @@ class DangerZone extends StatelessWidget {
       builder: (dialogContext) => AlertDialog(
         title: const Text("Clear all data?"),
         content: const Text(
-          "All servers and their stored passwords will be permanently deleted.",
+          "Servers, stored passwords and keys, snippets, and remembered host "
+          "keys will be permanently deleted. Your settings are kept.",
         ),
         actions: [
           TextButton(
@@ -36,12 +40,18 @@ class DangerZone extends StatelessWidget {
       ),
     );
     if (confirmed != true || !context.mounted) return;
-    // Auth passes through where it is unavailable, so the dialog stays the base gate.
-    final authed = await sl<LocalAuthService>().authenticate("Delete all data");
-    if (!authed || !context.mounted) return;
+    // Unavailable passes through, so the dialog stays the base gate. A refused
+    // prompt does not.
+    final result = await sl<LocalAuthService>().authenticate("Delete all data");
+    if (result == AuthResult.failed || !context.mounted) return;
+    // Fingerprints outlive the servers that earned them, so a later server on
+    // the same host and port would be trusted without a prompt.
     await sl<SshRepository>().clearAll();
+    await sl<SnippetRepository>().clearAll();
+    await sl<KnownHostsDatasource>().clear();
     if (!context.mounted) return;
     context.read<ServerListBloc>().add(ServerListLoaded());
+    context.read<SnippetListBloc>().add(SnippetListLoaded());
     showAppSnackBar(context, "All data cleared");
   }
 

@@ -2,6 +2,7 @@ import 'package:equatable/equatable.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import 'package:sshub/core/logging/app_log.dart';
+import 'package:sshub/core/security/secure_platform.dart';
 import 'package:sshub/features/settings/domain/entities/app_settings.dart';
 import 'package:sshub/features/settings/domain/repositories/settings_repository.dart';
 
@@ -60,6 +61,19 @@ class SettingsCubit extends Cubit<SettingsState> {
 
   void updateSftpReadOnly(bool enabled) =>
       _update(state.settings.copyWith(sftpReadOnly: enabled));
+
+  void updateBlockScreenshots(bool enabled) {
+    SecurePlatform.setBlockScreenshots(enabled);
+    _update(state.settings.copyWith(blockScreenshots: enabled));
+  }
+
+  // Null resets to the platform default.
+  void updateDownloadDirectory(String? path) => _update(
+    state.settings.copyWith(
+      downloadDirectory: path,
+      clearDownloadDirectory: path == null,
+    ),
+  );
 
   Future<void> completeOnboarding() =>
       _update(state.settings.copyWith(onboardingComplete: true));

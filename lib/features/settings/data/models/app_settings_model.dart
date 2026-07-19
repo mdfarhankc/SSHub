@@ -12,6 +12,8 @@ class AppSettingsModel extends AppSettings {
     super.sftpShowHidden,
     super.sftpGridView,
     super.sftpReadOnly,
+    super.downloadDirectory,
+    super.blockScreenshots,
   });
 
   factory AppSettingsModel.fromJson(Map<String, dynamic> json) =>
@@ -29,6 +31,8 @@ class AppSettingsModel extends AppSettings {
         sftpShowHidden: json['sftpShowHidden'] as bool? ?? false,
         sftpGridView: json['sftpGridView'] as bool? ?? false,
         sftpReadOnly: json['sftpReadOnly'] as bool? ?? true,
+        downloadDirectory: json['downloadDirectory'] as String?,
+        blockScreenshots: json['blockScreenshots'] as bool? ?? true,
       );
 
   Map<String, dynamic> toJson() => {
@@ -42,6 +46,8 @@ class AppSettingsModel extends AppSettings {
     'sftpShowHidden': sftpShowHidden,
     'sftpGridView': sftpGridView,
     'sftpReadOnly': sftpReadOnly,
+    'downloadDirectory': downloadDirectory,
+    'blockScreenshots': blockScreenshots,
   };
 
   factory AppSettingsModel.fromEntity(AppSettings e) => AppSettingsModel(
@@ -55,5 +61,7 @@ class AppSettingsModel extends AppSettings {
     sftpShowHidden: e.sftpShowHidden,
     sftpGridView: e.sftpGridView,
     sftpReadOnly: e.sftpReadOnly,
+    downloadDirectory: e.downloadDirectory,
+    blockScreenshots: e.blockScreenshots,
   );
 }
