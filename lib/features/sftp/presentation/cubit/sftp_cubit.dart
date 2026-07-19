@@ -5,6 +5,8 @@ import 'package:file_picker/file_picker.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:path_provider/path_provider.dart';
 
+import 'package:sshub/core/format/elapsed.dart';
+import 'package:sshub/core/logging/app_log.dart';
 import 'package:sshub/features/settings/presentation/cubit/settings_cubit.dart';
 import 'package:sshub/features/sftp/domain/entities/remote_file.dart';
 import 'package:sshub/features/sftp/domain/entities/remote_path.dart';
@@ -29,6 +31,10 @@ class SftpCubit extends Cubit<SftpState> {
   // emits are limited to one every 100ms plus a final one at completion.
   static const _progressInterval = Duration(milliseconds: 100);
   DateTime _lastTick = DateTime.fromMillisecondsSinceEpoch(0);
+
+  // The folder currently being listed, so a slower earlier request cannot
+  // land after a newer one.
+  String? _loadingPath;
 
   SftpCubit(this._openSession, this.server, this._settings)
     : super(_initial(_settings)) {
@@ -130,7 +136,10 @@ class SftpCubit extends Cubit<SftpState> {
 
   Future<void> delete(RemoteFile file) => _mutate(() => _session!.delete(file));
 
-  Future<void> upload() async {
+  // [confirmOverwrite] is asked before replacing a file that already exists.
+  Future<void> upload({
+    Future<bool> Function(String name)? confirmOverwrite,
+  }) async {
     if (_denied()) return;
     final session = _session;
     if (session == null || _transferBusy()) return;
@@ -140,141 +149,201 @@ class SftpCubit extends Cubit<SftpState> {
     final localPath = picked?.path;
     if (picked == null || localPath == null || isClosed) return;
 
-    _startTransfer(picked.name, isUpload: true, total: picked.size);
+    final remotePath = RemotePath.join(state.path, picked.name);
     try {
-      await session.upload(
-        localPath,
-        RemotePath.join(state.path, picked.name),
-        onProgress: (bytes) => _tick(bytes, picked.size),
-      );
-      if (isClosed) return;
-      emit(state.copyWith(clearTransfer: true));
-      await refresh();
-    } on SshConnectionException catch (e) {
-      if (!isClosed) {
-        emit(state.copyWith(clearTransfer: true, errorMessage: e.message));
+      if (await session.exists(remotePath)) {
+        final replace = await confirmOverwrite?.call(picked.name) ?? false;
+        if (!replace || isClosed) return;
       }
+    } on SshConnectionException catch (e) {
+      if (!isClosed) emit(state.copyWith(errorMessage: e.message));
+      return;
     }
+
+    final done = await _runTransfer(
+      picked.name,
+      isUpload: true,
+      total: picked.size,
+      action: () async {
+        await session.upload(
+          localPath,
+          remotePath,
+          onProgress: (bytes) => _tick(bytes, picked.size),
+        );
+        return null;
+      },
+    );
+    if (done && !isClosed) await refresh();
+  }
+
+  void cancelTransfer() {
+    if (state.transfer == null) return;
+    _session?.cancelTransfer();
+  }
+
+  // The one transfer slot is freed here whatever the body does, so an
+  // unexpected failure cannot leave the browser refusing every later transfer.
+  Future<bool> _runTransfer(
+    String name, {
+    required bool isUpload,
+    required int total,
+    required Future<String?> Function() action,
+  }) async {
+    _startTransfer(name, isUpload: isUpload, total: total);
+    final startedAt = DateTime.now();
+    String? notice;
+    String? error;
+    var completed = false;
+    try {
+      notice = await action();
+      if (notice != null) {
+        notice =
+            "$notice in ${formatElapsed(DateTime.now().difference(startedAt))}";
+      }
+      completed = true;
+    } on SftpCancelled {
+      notice = "Transfer stopped.";
+    } on SshConnectionException catch (e) {
+      error = e.message;
+    } catch (e) {
+      appLog("Transfer failed", e);
+      error = "The transfer could not be completed.";
+    }
+    if (!isClosed) {
+      emit(
+        state.copyWith(
+          clearTransfer: true,
+          noticeMessage: notice,
+          errorMessage: error,
+        ),
+      );
+    }
+    return completed;
   }
 
   Future<void> download(RemoteFile file) async {
     final session = _session;
     if (session == null || _transferBusy()) return;
-    if (Platform.isAndroid || Platform.isIOS) {
-      await _downloadMobile(session, file);
+    if (file.isDirectory) {
+      await _downloadFolder(session, file);
     } else {
-      await _downloadDesktop(session, file);
+      await _downloadFile(session, file);
     }
   }
 
-  // Desktop's save dialog returns a real path, so the download streams
-  // straight to it.
-  Future<void> _downloadDesktop(SftpSession session, RemoteFile file) async {
-    final localPath = await FilePicker.platform.saveFile(
-      dialogTitle: "Save ${file.name}",
-      fileName: file.name,
-    );
-    if (localPath == null || isClosed) return;
-
-    _startTransfer(file.name, isUpload: false, total: file.size);
+  Future<void> _downloadFile(SftpSession session, RemoteFile file) async {
+    final String localPath;
     try {
-      await session.download(
-        file,
-        localPath,
-        onProgress: (bytes) => _tick(bytes, file.size),
-      );
-      if (!isClosed) {
-        emit(
-          state.copyWith(
-            clearTransfer: true,
-            noticeMessage: "Saved to $localPath",
-          ),
-        );
-      }
-    } on SshConnectionException catch (e) {
-      if (!isClosed) {
-        emit(state.copyWith(clearTransfer: true, errorMessage: e.message));
-      }
-    }
-  }
-
-  // Android's save dialog returns a content:// URI, which cannot be streamed
-  // into, so the download goes to a temp file and the dialog opens afterward.
-  Future<void> _downloadMobile(SftpSession session, RemoteFile file) async {
-    final String tempPath;
-    try {
-      final dir = await getTemporaryDirectory();
-      tempPath = "${dir.path}/${file.name}";
+      localPath = _unusedPath(await _downloadRoot(), file.name);
     } catch (_) {
       if (!isClosed) {
         emit(state.copyWith(errorMessage: "Could not prepare the download."));
       }
       return;
     }
+    if (isClosed) return;
 
-    _startTransfer(file.name, isUpload: false, total: file.size);
-    try {
-      await session.download(
-        file,
-        tempPath,
-        onProgress: (bytes) => _tick(bytes, file.size),
-      );
-    } on SshConnectionException catch (e) {
-      await _deleteQuietly(tempPath);
-      if (!isClosed) {
-        emit(state.copyWith(clearTransfer: true, errorMessage: e.message));
-      }
-      return;
-    }
-    if (isClosed) {
-      await _deleteQuietly(tempPath);
-      return;
-    }
-
-    try {
-      final saved = await FilePicker.platform.saveFile(
-        dialogTitle: "Save ${file.name}",
-        fileName: file.name,
-        bytes: await File(tempPath).readAsBytes(),
-      );
-      if (!isClosed) {
-        // A null result is a dismissed dialog, not a saved file.
-        emit(
-          state.copyWith(
-            clearTransfer: true,
-            noticeMessage: saved == null ? null : "Saved ${file.name}",
-          ),
+    await _runTransfer(
+      file.name,
+      isUpload: false,
+      total: file.size,
+      action: () async {
+        await session.download(
+          file,
+          localPath,
+          onProgress: (bytes) => _tick(bytes, file.size),
         );
-      }
-    } catch (_) {
-      if (!isClosed) {
-        emit(
-          state.copyWith(
-            clearTransfer: true,
-            errorMessage: "Could not save the file.",
-          ),
-        );
-      }
-    } finally {
-      await _deleteQuietly(tempPath);
-    }
+        return "Saved to $localPath";
+      },
+    );
   }
 
-  Future<void> _deleteQuietly(String path) async {
+  // Reads only, so read-only mode still allows it.
+  Future<void> _downloadFolder(SftpSession session, RemoteFile folder) async {
+    final String destination;
     try {
-      final file = File(path);
-      if (await file.exists()) await file.delete();
+      destination = _unusedPath(await _downloadRoot(), folder.name);
     } catch (_) {
-      // A leftover temp file is harmless; the OS clears the cache directory.
+      if (!isClosed) {
+        emit(state.copyWith(errorMessage: "Could not prepare the download."));
+      }
+      return;
     }
+    if (isClosed) return;
+
+    // Size is unknown until the walk ends.
+    await _runTransfer(
+      folder.name,
+      isUpload: false,
+      total: 0,
+      action: () async {
+        final skipped = await session.downloadDirectory(
+          folder,
+          destination,
+          onProgress: (files, bytes, name) => _tickFolder(files, bytes, name),
+        );
+        final skippedNote = skipped == 0 ? "" : ", $skipped skipped";
+        return "Saved to $destination$skippedNote";
+      },
+    );
+  }
+
+  // The folder from settings, or the platform default if unset or gone.
+  Future<String> _downloadRoot() async {
+    final chosen = _settings.state.settings.downloadDirectory;
+    if (chosen != null) {
+      final directory = Directory(chosen);
+      if (await directory.exists()) return chosen;
+    }
+    final fallback =
+        await getDownloadsDirectory() ??
+        await getApplicationDocumentsDirectory();
+    await fallback.create(recursive: true);
+    return fallback.path;
+  }
+
+  void _tickFolder(int files, int bytes, String name) {
+    if (isClosed || state.transfer == null) return;
+    final now = DateTime.now();
+    if (now.difference(_lastTick) < _progressInterval) return;
+    _lastTick = now;
+    emit(
+      state.copyWith(
+        transfer: state.transfer!.copyWith(
+          transferred: bytes,
+          detail: "$files files  ·  $name",
+        ),
+      ),
+    );
+  }
+
+  // Nothing prompts for a location, so avoid replacing an earlier download.
+  String _unusedPath(String directory, String name) {
+    final dot = name.lastIndexOf('.');
+    final stem = dot <= 0 ? name : name.substring(0, dot);
+    final extension = dot <= 0 ? "" : name.substring(dot);
+    var path = "$directory/$name";
+    for (
+      var n = 1;
+      FileSystemEntity.typeSync(path) != FileSystemEntityType.notFound;
+      n++
+    ) {
+      path = "$directory/$stem ($n)$extension";
+    }
+    return path;
   }
 
   Future<void> _load(String path) async {
     final session = _session;
     if (session == null) return;
+    _loadingPath = path;
+    // Listing a folder is a round trip, so the bar has to say something is
+    // happening. Connecting already has a screen of its own.
+    if (state.status == SftpStatus.ready) emit(state.copyWith(busy: true));
     try {
       final entries = await session.list(path);
-      if (isClosed) return;
+      // A newer folder was opened while this one was still loading.
+      if (isClosed || _loadingPath != path) return;
       emit(
         state.copyWith(
           status: SftpStatus.ready,
@@ -285,12 +354,25 @@ class SftpCubit extends Cubit<SftpState> {
         ),
       );
     } on SshConnectionException catch (e) {
-      if (isClosed) return;
+      if (isClosed || _loadingPath != path) return;
       // The current listing stays on screen; only say why the move failed.
       if (state.status == SftpStatus.ready) {
         emit(state.copyWith(errorMessage: e.message, busy: false));
       } else {
         _fail(e.message);
+      }
+    } catch (e) {
+      appLog("Could not list $path", e);
+      if (isClosed || _loadingPath != path) return;
+      if (state.status == SftpStatus.ready) {
+        emit(
+          state.copyWith(
+            errorMessage: "Could not open that folder.",
+            busy: false,
+          ),
+        );
+      } else {
+        _fail("Could not open that folder.");
       }
     }
   }
@@ -319,6 +401,7 @@ class SftpCubit extends Cubit<SftpState> {
           isUpload: isUpload,
           transferred: 0,
           total: total,
+          startedAt: DateTime.now(),
         ),
       ),
     );

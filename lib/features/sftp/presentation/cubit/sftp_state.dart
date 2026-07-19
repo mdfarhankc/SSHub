@@ -8,26 +8,44 @@ class SftpTransfer extends Equatable {
   final int transferred;
   final int total;
 
+  // Set for folders, whose size is unknown until the walk ends.
+  final String? detail;
+
+  final DateTime startedAt;
+
   const SftpTransfer({
     required this.name,
     required this.isUpload,
     required this.transferred,
     required this.total,
+    required this.startedAt,
+    this.detail,
   });
+
+  Duration get elapsed => DateTime.now().difference(startedAt);
 
   // Null when the size is unknown, which the UI shows as an indeterminate bar.
   double? get fraction =>
       total <= 0 ? null : (transferred / total).clamp(0.0, 1.0);
 
-  SftpTransfer copyWith({int? transferred}) => SftpTransfer(
+  SftpTransfer copyWith({int? transferred, String? detail}) => SftpTransfer(
     name: name,
     isUpload: isUpload,
     transferred: transferred ?? this.transferred,
     total: total,
+    startedAt: startedAt,
+    detail: detail ?? this.detail,
   );
 
   @override
-  List<Object?> get props => [name, isUpload, transferred, total];
+  List<Object?> get props => [
+    name,
+    isUpload,
+    transferred,
+    total,
+    startedAt,
+    detail,
+  ];
 }
 
 class SftpState extends Equatable {

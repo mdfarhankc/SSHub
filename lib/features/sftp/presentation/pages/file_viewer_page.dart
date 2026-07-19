@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import 'package:sshub/core/format/byte_size.dart';
+import 'package:sshub/core/security/secure_platform.dart';
 import 'package:sshub/core/theme/app_theme.dart';
 import 'package:sshub/core/widgets/app_snack_bar.dart';
 import 'package:sshub/features/sftp/presentation/cubit/file_viewer_cubit.dart';
@@ -50,7 +50,7 @@ class FileViewerPage extends StatelessWidget {
                   tooltip: "Copy all",
                   icon: const Icon(LucideIcons.files),
                   onPressed: () async {
-                    await Clipboard.setData(ClipboardData(text: state.text));
+                    await SecurePlatform.copySensitive(state.text);
                     if (context.mounted) {
                       showAppSnackBar(context, "Copied to the clipboard");
                     }

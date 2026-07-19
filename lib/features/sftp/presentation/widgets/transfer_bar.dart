@@ -2,11 +2,18 @@ import 'package:flutter/material.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import 'package:sshub/core/format/byte_size.dart';
+import 'package:sshub/core/format/elapsed.dart';
+import 'package:sshub/core/theme/app_theme.dart';
 import 'package:sshub/features/sftp/presentation/cubit/sftp_cubit.dart';
 
 class TransferBar extends StatelessWidget {
   final SftpTransfer transfer;
-  const TransferBar({super.key, required this.transfer});
+  final VoidCallback onCancel;
+  const TransferBar({
+    super.key,
+    required this.transfer,
+    required this.onCancel,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -35,13 +42,28 @@ class TransferBar extends StatelessWidget {
                   ),
                   const SizedBox(width: 10),
                   Expanded(
-                    child: Text(
-                      transfer.name,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: theme.textTheme.bodyMedium?.copyWith(
-                        fontWeight: FontWeight.w600,
-                      ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          transfer.name,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: theme.textTheme.bodyMedium?.copyWith(
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                        if (transfer.detail != null)
+                          Text(
+                            transfer.detail!,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: theme.textTheme.bodySmall?.copyWith(
+                              color: scheme.onSurfaceVariant,
+                            ),
+                          ),
+                      ],
                     ),
                   ),
                   const SizedBox(width: 12),
@@ -50,6 +72,14 @@ class TransferBar extends StatelessWidget {
                         ? "${formatBytes(transfer.transferred)} / ${formatBytes(transfer.total)}"
                         : formatBytes(transfer.transferred),
                     style: theme.textTheme.bodySmall?.copyWith(
+                      color: scheme.onSurfaceVariant,
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Text(
+                    formatElapsed(transfer.elapsed),
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      fontFamily: AppTheme.mono,
                       color: scheme.onSurfaceVariant,
                     ),
                   ),
@@ -67,6 +97,13 @@ class TransferBar extends StatelessWidget {
                       ),
                     ),
                   ],
+                  const SizedBox(width: 4),
+                  IconButton(
+                    tooltip: "Stop transfer",
+                    visualDensity: VisualDensity.compact,
+                    icon: const Icon(LucideIcons.x, size: 18),
+                    onPressed: onCancel,
+                  ),
                 ],
               ),
               const SizedBox(height: 8),

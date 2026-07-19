@@ -46,7 +46,20 @@ class _DartSftpSession implements SftpSession {
   final SSHClient _client;
   final SftpClient _sftp;
 
-  const _DartSftpSession(this._client, this._sftp);
+  _DartSftpSession(this._client, this._sftp);
+
+  // Checked at every chunk and every entry, so a stop lands quickly without
+  // tearing down the channel.
+  bool _cancelled = false;
+
+  static const _maxConcurrentFiles = 6;
+
+  @override
+  void cancelTransfer() => _cancelled = true;
+
+  void _throwIfCancelled() {
+    if (_cancelled) throw const SftpCancelled();
+  }
 
   @override
   Future<String> home() => _wrap(() => _sftp.absolute('.'));
@@ -89,6 +102,18 @@ class _DartSftpSession implements SftpSession {
   }
 
   @override
+  Future<bool> exists(String path) => _wrap(() async {
+    try {
+      await _sftp.stat(path);
+      return true;
+    } on SftpStatusError catch (e) {
+      // 2 is "no such file", the only answer that means absent.
+      if (e.code == 2) return false;
+      rethrow;
+    }
+  });
+
+  @override
   Future<void> makeDirectory(String path) => _wrap(() => _sftp.mkdir(path));
 
   @override
@@ -96,9 +121,21 @@ class _DartSftpSession implements SftpSession {
       _wrap(() => _sftp.rename(from, to));
 
   @override
-  Future<void> delete(RemoteFile file) => _wrap(
-    () => file.isDirectory ? _sftp.rmdir(file.path) : _sftp.remove(file.path),
-  );
+  Future<void> delete(RemoteFile file) =>
+      _wrap(timeout: null, () => _deleteEntry(file));
+
+  // rmdir needs an empty dir. Symlinks unlinked, never followed.
+  Future<void> _deleteEntry(RemoteFile file) async {
+    if (file.isLink || !file.isDirectory) {
+      await _sftp.remove(file.path);
+      return;
+    }
+    for (final name in await _sftp.listdir(file.path)) {
+      if (name.filename == '.' || name.filename == '..') continue;
+      await _deleteEntry(_toRemoteFile(file.path, name));
+    }
+    await _sftp.rmdir(file.path);
+  }
 
   @override
   Future<Uint8List> readBytes(RemoteFile file, {required int maxBytes}) =>
@@ -125,12 +162,110 @@ class _DartSftpSession implements SftpSession {
     String localPath, {
     void Function(int bytes)? onProgress,
   }) => _wrap(timeout: null, () async {
+    _cancelled = false;
+    try {
+      return await _copyToLocal(file.path, localPath, onProgress: onProgress);
+    } on SftpCancelled {
+      // A truncated file is indistinguishable from a whole one.
+      await _deleteLocal(localPath);
+      rethrow;
+    }
+  });
+
+  // Consuming read() with await for pauses its request pipeline every chunk,
+  // which costs most of the throughput. Cancellation rides the progress
+  // callback instead, so download keeps its own tuning and backpressure.
+  Future<int> _copyToLocal(
+    String remotePath,
+    String localPath, {
+    int? length,
+    void Function(int bytes)? onProgress,
+  }) async {
     final sink = File(localPath).openWrite();
     try {
-      return await _sftp.download(file.path, sink, onProgress: onProgress);
+      return await _sftp.download(
+        remotePath,
+        sink,
+        // Known from the listing, which saves a stat round trip per file.
+        length: length,
+        onProgress: (bytes) {
+          _throwIfCancelled();
+          onProgress?.call(bytes);
+        },
+      );
     } finally {
       await sink.close();
     }
+  }
+
+  Future<void> _deleteLocal(String path) async {
+    try {
+      final file = File(path);
+      if (await file.exists()) await file.delete();
+    } catch (_) {
+      // Nothing useful to do if the partial file will not go.
+    }
+  }
+
+  @override
+  Future<int> downloadDirectory(
+    RemoteFile folder,
+    String localPath, {
+    void Function(int files, int bytes, String name)? onProgress,
+  }) => _wrap(timeout: null, () async {
+    _cancelled = false;
+    var files = 0;
+    var bytes = 0;
+    var skipped = 0;
+
+    Future<void> copyOne(RemoteFile entry, String target) async {
+      try {
+        bytes += await _copyToLocal(
+          entry.path,
+          target,
+          length: entry.size > 0 ? entry.size : null,
+        );
+        onProgress?.call(++files, bytes, entry.name);
+      } on SftpCancelled {
+        await _deleteLocal(target);
+        rethrow;
+      } catch (_) {
+        // Skip unreadable entries, usually permission denied.
+        skipped++;
+      }
+    }
+
+    Future<void> walk(String remoteDir, String localDir) async {
+      await Directory(localDir).create(recursive: true);
+      _throwIfCancelled();
+      final entries = [
+        for (final name in await _sftp.listdir(remoteDir))
+          if (name.filename != '.' && name.filename != '..')
+            _toRemoteFile(remoteDir, name),
+      ];
+      // Recursing into a link could loop or escape the folder.
+      final folders = entries.where((e) => e.isDirectory && !e.isLink);
+      final plain = entries
+          .where((e) => !e.isDirectory || e.isLink)
+          .toList(growable: false);
+
+      // A small file costs a round trip far more than it costs bandwidth, so
+      // several are in flight at once.
+      for (var i = 0; i < plain.length; i += _maxConcurrentFiles) {
+        _throwIfCancelled();
+        await Future.wait([
+          for (final entry in plain.skip(i).take(_maxConcurrentFiles))
+            copyOne(entry, "$localDir/${entry.name}"),
+        ]);
+      }
+
+      for (final folder in folders) {
+        await walk(folder.path, "$localDir/${folder.name}");
+      }
+    }
+
+    await walk(folder.path, localPath);
+    return skipped;
   });
 
   @override
@@ -139,6 +274,7 @@ class _DartSftpSession implements SftpSession {
     String remotePath, {
     void Function(int bytes)? onProgress,
   }) => _wrap(timeout: null, () async {
+    _cancelled = false;
     final remote = await _sftp.open(
       remotePath,
       mode:
@@ -146,11 +282,20 @@ class _DartSftpSession implements SftpSession {
           SftpFileOpenMode.write |
           SftpFileOpenMode.truncate,
     );
+    var cancelled = false;
     try {
-      final source = File(localPath).openRead().cast<Uint8List>();
+      final source = File(localPath).openRead().cast<Uint8List>().map((chunk) {
+        _throwIfCancelled();
+        return chunk;
+      });
       await remote.write(source, onProgress: onProgress).done;
+    } on SftpCancelled {
+      cancelled = true;
+      rethrow;
     } finally {
       await remote.close();
+      // The half-written file would otherwise stand in for the real one.
+      if (cancelled) await _sftp.remove(remotePath).catchError((_) {});
     }
   });
 

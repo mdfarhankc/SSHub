@@ -3,13 +3,23 @@ import 'dart:typed_data';
 import 'package:sshub/features/sftp/domain/entities/remote_file.dart';
 import 'package:sshub/features/ssh/domain/entities/ssh_server.dart';
 
+// Thrown by a transfer the user stopped.
+class SftpCancelled implements Exception {
+  const SftpCancelled();
+}
+
 // A live SFTP channel. Paths are POSIX and absolute. Failures surface as
 // SshConnectionException so the browser reports them like any other SSH error.
 abstract interface class SftpSession {
+  // Stops the running transfer at its next chunk or entry.
+  void cancelTransfer();
+
   // Absolute path of the login directory, the browser's starting point.
   Future<String> home();
 
   Future<List<RemoteFile>> list(String path);
+
+  Future<bool> exists(String path);
 
   Future<void> makeDirectory(String path);
 
@@ -27,6 +37,14 @@ abstract interface class SftpSession {
     RemoteFile file,
     String localPath, {
     void Function(int bytes)? onProgress,
+  });
+
+  // Mirrors [folder] into [localPath], transferring as the walk finds entries.
+  // Returns the number skipped because they could not be read.
+  Future<int> downloadDirectory(
+    RemoteFile folder,
+    String localPath, {
+    void Function(int files, int bytes, String name)? onProgress,
   });
 
   Future<void> upload(
