@@ -46,8 +46,6 @@ app.*.map.json
 /android/app/profile
 /android/app/release
 
-Makefile
-
 # Android signing (never commit keys or passwords)
 /android/key.properties
 **/*.jks
