@@ -1,26 +1,36 @@
-## SSHub 4.0.0
+## SSHub 4.1.0
+
+This release closes several security gaps found in 4.0.0. Updating is recommended.
 
 New
 
-- Files: a full SFTP file browser for every server. Browse in a list or a grid, upload, download, rename, delete and create folders. It opens its own connection, so it does not depend on a terminal being open
-- Read-only mode, on by default: the file browser cannot change anything on the server until you unlock it, so a misclick on a production box stays harmless
-- File viewer: open a text file straight from the browser instead of downloading it. Binary files are detected rather than shown as noise, and large files open as a capped preview
-- Tabbed sessions: keep up to ten servers open at once. Each tab keeps its own scrollback while it sits in the background, and Ctrl+Tab or Alt+1-9 switches between them
-- Forget host key: a rebuilt server presents a new host key, and SSHub can now be told to trust it again from the server's menu instead of refusing forever
+- Download a whole folder, with everything inside it. Files transfer as the walk finds them, so a large folder starts moving straight away instead of waiting for the whole tree to be listed
+- Stop a transfer while it is running. A cancelled download removes its half-written file, and a cancelled upload removes the partial file on the server, so neither is left standing in for a complete one
+- Choose where downloads are saved, in Settings. Every download goes there on every platform, and the folder is checked before it is kept
+- Block screenshots, on by default on Android, which also hides SSHub from the recent apps preview
 
 Improvements
 
-- A new icon set across the whole app: one consistent outlined style in place of the mix of filled and outlined icons
-- Host keys are remembered per key type, so a server offering more than one key can no longer look like a changed host
-- The file browser remembers whether you were in list or grid view, and whether hidden files were shown
-- A dropped connection is now reported straight away instead of leaving the file browser waiting on a reply that never comes
-- A minimum window size on desktop, so the layout cannot be squeezed into an unusable shape
+- Folder downloads move several files at once and no longer ask the server for a size it already reported, which makes a folder of many small files dramatically faster
+- Transfers show elapsed time while running and report how long they took when they finish
+- Changing folders now shows that it is working, and a slower earlier request can no longer land after a newer one
+- Text copied from the terminal or the file viewer is flagged as sensitive, so keyboards and clipboard previews do not show it in clear text
+- Deleting a folder asks for its name to be typed back, since it takes everything inside
 
 Fixes
 
-- Typing in a newly opened tab could go to the previously focused tab, which could run a command on the wrong server
-- Closing a tab while it was still connecting left the SSH connection open
-- Retrying a failed file session left the previous connection open
-- Symlinked folders opened as files instead of being entered
-- Starting a second download while one was running left the first with no visible progress
-- The About screen referenced an icon that was missing from the bundle
+- App lock silently allowed everything when the device had no screen lock. It now refuses to be enabled without one, and secret reveals stay hidden rather than opening
+- Clear all data left remembered host keys behind, so a later server on the same address was trusted without a prompt. It now clears host keys and snippets too
+- Switching a server between password and key authentication erased the other credential for good
+- Uploading a file whose name already existed replaced it on the server with no warning
+- The snippet picker pasted values without the authentication its own setting promises
+- Ctrl+C copied instead of interrupting whenever a selection had been left behind. Copy is now Ctrl+Shift+C, matching the menu
+- Deleting a folder with anything inside it failed instead of removing it
+- A dropped connection replaced the scrollback with a status screen, hiding the output you needed to read. The session now stays visible under a banner
+- Reconnecting a tab could write its older copy of a server back over edits made since
+- An unexpected error during a transfer left the file browser refusing every later transfer
+- Connecting could hang for good if a server accepted the connection then stalled before signing in
+- Auto-reconnect could not be stopped, and a manual retry raced it
+- The splash screen could hang for good if stored data never loaded
+- Snippet failures were invisible, and a failed load looked like an empty list, inviting you to recreate snippets that were still there
+- Key authentication failures said to check a password that is not used

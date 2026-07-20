@@ -11,7 +11,7 @@ import {
   type LucideIcon,
 } from "lucide-react";
 
-export const VERSION = "4.0.0";
+export const VERSION = "4.1.0";
 export const GITHUB_URL = "https://github.com/mdfarhankc/SSHub";
 export const RELEASES_URL = `${GITHUB_URL}/releases/latest`;
 

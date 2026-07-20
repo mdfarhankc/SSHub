@@ -1,7 +1,7 @@
 name: sshub
 description: "SSHub is a fast, minimal SSH client for the desktop. Save your servers, connect with one click, and work in a full terminal. Credentials stay encrypted on your machine."
 publish_to: 'none'
-version: 4.0.0+6
+version: 4.1.0+7
 
 environment:
   sdk: ^3.12.0

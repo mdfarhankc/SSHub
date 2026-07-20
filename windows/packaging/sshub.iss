@@ -3,7 +3,7 @@
 ; registers an uninstaller. Build with: iscc windows\packaging\sshub.iss
 
 #define MyAppName "SSHub"
-#define MyAppVersion "4.0.0"
+#define MyAppVersion "4.1.0"
 #define MyAppPublisher "Mohammed Farhan K C"
 #define MyAppExeName "sshub.exe"
 
