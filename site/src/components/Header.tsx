@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Star } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { GithubIcon } from "@/components/GithubIcon";
+import { GitHubStars } from "@/components/GitHubStars";
 import { Logo } from "@/components/Logo";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { cn } from "@/lib/utils";
@@ -59,6 +60,46 @@ export function Header() {
 
         <div className="flex items-center gap-1.5">
           <ThemeToggle />
+          {/* Anchor the annotation to the star button so it tracks the button,
+              not the full-width header. */}
+          <div className="relative hidden sm:block">
+            <GitHubStars />
+            <div
+              aria-hidden
+              className={cn(
+                "pointer-events-none absolute right-[44px] top-[calc(100%+0.8rem)] hidden select-none items-start gap-1 text-primary transition-all duration-300 ease-out lg:flex",
+                scrolled
+                  ? "-translate-y-1 opacity-0"
+                  : "translate-y-0 opacity-100"
+              )}
+            >
+              <span
+                className="-rotate-6 whitespace-nowrap text-2xl leading-none"
+                style={{ fontFamily: "'Caveat', cursive" }}
+              >
+                Leave a star!
+              </span>
+              <svg
+                viewBox="0 0 40 44"
+                fill="none"
+                className="-mt-5 h-11 w-10 shrink-0"
+              >
+                <path
+                  d="M6 40C20 34 31 24 31 6"
+                  stroke="currentColor"
+                  strokeWidth="2.5"
+                  strokeLinecap="round"
+                />
+                <path
+                  d="M31 6L21 11M31 6L34 17"
+                  stroke="currentColor"
+                  strokeWidth="2.5"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+              </svg>
+            </div>
+          </div>
           <Button asChild size="sm" className="hidden sm:inline-flex">
             <a href={RELEASES_URL}>
               <GithubIcon />
