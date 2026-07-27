@@ -7,7 +7,12 @@ import 'package:sshub/features/settings/data/datasources/settings_datasource.dar
 import 'package:sshub/features/settings/data/models/app_settings_model.dart';
 
 class SettingsLocalDatasource implements SettingsDatasource {
-  const SettingsLocalDatasource();
+  SettingsLocalDatasource();
+
+  // Saves share one temp file, so overlapping writes would rename it out from
+  // under each other. Serialising them keeps each write whole.
+  Future<void> _pending = Future.value();
+
   Future<File> _file() async {
     final dir = await getApplicationSupportDirectory();
     return File("${dir.path}${Platform.pathSeparator}settings.json");
@@ -28,7 +33,13 @@ class SettingsLocalDatasource implements SettingsDatasource {
   }
 
   @override
-  Future<void> save(AppSettingsModel settings) async {
+  Future<void> save(AppSettingsModel settings) {
+    final result = _pending.then((_) => _write(settings));
+    _pending = result.catchError((_) {});
+    return result;
+  }
+
+  Future<void> _write(AppSettingsModel settings) async {
     final file = await _file();
     // Write to a temp file then rename so a crash mid-write can't corrupt
     // the settings file (rename is atomic on the same volume).

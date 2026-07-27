@@ -3,18 +3,19 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import 'package:sshub/core/widgets/app_snack_bar.dart';
+import 'package:sshub/core/widgets/blurred_bottom_sheet.dart';
 import 'package:sshub/features/settings/presentation/cubit/backup_cubit.dart';
 import 'package:sshub/features/settings/presentation/widgets/export_options_dialog.dart';
 import 'package:sshub/features/settings/presentation/widgets/passphrase_dialog.dart';
-import 'package:sshub/features/settings/presentation/widgets/settings_card.dart';
+import 'package:sshub/features/settings/presentation/widgets/settings_group.dart';
 import 'package:sshub/features/snippets/presentation/bloc/snippet_list_bloc.dart';
 import 'package:sshub/features/ssh/presentation/bloc/server_list_bloc.dart';
 
-class BackupCard extends StatelessWidget {
-  const BackupCard({super.key});
+class BackupSection extends StatelessWidget {
+  const BackupSection({super.key});
 
   Future<void> _export(BuildContext context) async {
-    final options = await showModalBottomSheet<ExportOptions>(
+    final options = await showBlurredBottomSheet<ExportOptions>(
       context: context,
       isScrollControlled: true,
       useSafeArea: true,
@@ -30,7 +31,7 @@ class BackupCard extends StatelessWidget {
         showAppLoadingSnackBar(context, state.message ?? "Working...");
       case BackupStatus.needsPassphrase:
         ScaffoldMessenger.of(context).hideCurrentSnackBar();
-        final passphrase = await showModalBottomSheet<String>(
+        final passphrase = await showBlurredBottomSheet<String>(
           context: context,
           isScrollControlled: true,
           useSafeArea: true,
@@ -64,9 +65,7 @@ class BackupCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return BlocListener<BackupCubit, BackupState>(
       listener: _onState,
-      child: SettingsCard(
-        icon: LucideIcons.databaseBackup,
-        title: "Backup & Restore",
+      child: SettingsGroup(
         description: "Export or import your server configurations securely.",
         children: [
           Padding(

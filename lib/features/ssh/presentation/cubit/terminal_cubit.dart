@@ -17,7 +17,7 @@ class TerminalCubit extends Cubit<TerminalState> {
   // The terminal and its selection controller belong to the session, not the
   // widget, so a tab keeps its scrollback while it sits in the background or
   // the terminal page is popped back to Home.
-  final terminal = Terminal(maxLines: 10000);
+  final Terminal terminal;
   final terminalController = TerminalController();
 
   SshSessionHandle? _handle;
@@ -31,8 +31,9 @@ class TerminalCubit extends Cubit<TerminalState> {
 
   static const _maxReconnectAttempts = 3;
 
-  TerminalCubit(this._connectToServer, this.server)
-    : super(const TerminalConnecting()) {
+  TerminalCubit(this._connectToServer, this.server, {int scrollback = 10000})
+    : terminal = Terminal(maxLines: scrollback),
+      super(const TerminalConnecting()) {
     _initialConnect();
   }
 

@@ -6,8 +6,10 @@ import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:sshub/core/auth/reveal_guard.dart';
+import 'package:sshub/core/widgets/blurred_bottom_sheet.dart';
 import 'package:sshub/core/widgets/app_form_sheet.dart';
 import 'package:sshub/core/widgets/section_header.dart';
+import 'package:sshub/features/settings/domain/entities/app_settings.dart';
 import 'package:sshub/features/settings/presentation/cubit/settings_cubit.dart';
 import 'package:sshub/features/ssh/domain/entities/ssh_server.dart';
 import 'package:sshub/features/ssh/presentation/widgets/auth_type_selector.dart';
@@ -21,7 +23,7 @@ class ServerDialog extends StatefulWidget {
 
   // Opens the form as a bottom sheet; returns the saved server or null.
   static Future<SshServer?> show(BuildContext context, {SshServer? server}) {
-    return showModalBottomSheet<SshServer>(
+    return showBlurredBottomSheet<SshServer>(
       context: context,
       isScrollControlled: true,
       useSafeArea: true,
@@ -37,11 +39,12 @@ class _ServerDialogState extends State<ServerDialog> {
   final GlobalKey<FormState> _formKey = GlobalKey<FormState>();
   late final _label = TextEditingController(text: widget.server?.label ?? "");
   late final _host = TextEditingController(text: widget.server?.host ?? "");
+  // New servers prefill from the Connections defaults; edits keep their values.
   late final _port = TextEditingController(
-    text: widget.server?.port.toString() ?? "22",
+    text: widget.server?.port.toString() ?? _defaults.defaultPort.toString(),
   );
   late final _username = TextEditingController(
-    text: widget.server?.username ?? "",
+    text: widget.server?.username ?? _defaults.defaultUsername,
   );
   late final _description = TextEditingController(
     text: widget.server?.description ?? "",
@@ -53,6 +56,7 @@ class _ServerDialogState extends State<ServerDialog> {
   late AuthType _authType = widget.server?.authType ?? AuthType.password;
 
   bool get _isEditing => widget.server != null;
+  AppSettings get _defaults => context.read<SettingsCubit>().state.settings;
   // Quiet until the first failed save, then validate live as the user types.
   AutovalidateMode _autovalidateMode = .disabled;
 

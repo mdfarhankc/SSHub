@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:sshub/core/auth/reveal_guard.dart';
+import 'package:sshub/core/widgets/blurred_bottom_sheet.dart';
 import 'package:sshub/core/widgets/app_form_sheet.dart';
 import 'package:sshub/features/settings/presentation/cubit/settings_cubit.dart';
 import 'package:sshub/features/snippets/domain/entities/snippet.dart';
@@ -13,7 +14,7 @@ class SnippetDialog extends StatefulWidget {
   const SnippetDialog({super.key, this.snippet});
 
   static Future<Snippet?> show(BuildContext context, {Snippet? snippet}) =>
-      showModalBottomSheet<Snippet>(
+      showBlurredBottomSheet<Snippet>(
         context: context,
         isScrollControlled: true,
         useSafeArea: true,

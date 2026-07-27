@@ -1,15 +1,16 @@
 import 'package:flutter/material.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
+import 'package:url_launcher/url_launcher.dart';
+
 import 'package:sshub/core/app_info.dart';
 import 'package:sshub/core/theme/app_theme.dart';
 import 'package:sshub/core/widgets/app_snack_bar.dart';
-import 'package:sshub/features/settings/presentation/widgets/settings_card.dart';
 import 'package:sshub/features/settings/presentation/widgets/settings_divider.dart';
+import 'package:sshub/features/settings/presentation/widgets/settings_group.dart';
 import 'package:sshub/features/settings/presentation/widgets/update_check_tile.dart';
-import 'package:url_launcher/url_launcher.dart';
 
-class AboutCard extends StatelessWidget {
-  const AboutCard({super.key});
+class AboutSection extends StatelessWidget {
+  const AboutSection({super.key});
 
   Future<void> _openGithub(BuildContext context) async {
     final uri = Uri.parse("https://github.com/mdfarhankc");
@@ -29,10 +30,7 @@ class AboutCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final scheme = theme.colorScheme;
-    return SettingsCard(
-      icon: LucideIcons.info,
-      title: "About",
-      description: "App details and updates.",
+    return SettingsGroup(
       children: [
         Padding(
           padding: const EdgeInsets.fromLTRB(20, 12, 20, 12),

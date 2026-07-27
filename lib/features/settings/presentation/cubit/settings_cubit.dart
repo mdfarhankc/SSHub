@@ -30,11 +30,44 @@ class SettingsCubit extends Cubit<SettingsState> {
         : AppThemeMode.dark,
   );
 
+  // Live while dragging: update the visible value without writing to disk on
+  // every frame. updateTerminalFontSize persists once the drag ends.
+  void previewTerminalFontSize(double size) => emit(
+    SettingsState(settings: state.settings.copyWith(terminalFontSize: size)),
+  );
+
   void updateTerminalFontSize(double size) =>
       _update(state.settings.copyWith(terminalFontSize: size));
 
   void updateTerminalFontFamily(String family) =>
       _update(state.settings.copyWith(terminalFontFamily: family));
+
+  void updateTerminalColorScheme(String scheme) =>
+      _update(state.settings.copyWith(terminalColorScheme: scheme));
+
+  void updateTerminalScrollback(int lines) =>
+      _update(state.settings.copyWith(terminalScrollback: lines));
+
+  void updateCursorStyle(String style) =>
+      _update(state.settings.copyWith(cursorStyle: style));
+
+  void updateBellVisual(bool enabled) =>
+      _update(state.settings.copyWith(bellVisual: enabled));
+
+  void updateBellSound(bool enabled) =>
+      _update(state.settings.copyWith(bellSound: enabled));
+
+  void updateCopyOnSelect(bool enabled) =>
+      _update(state.settings.copyWith(copyOnSelect: enabled));
+
+  void updatePasteOnRightClick(bool enabled) =>
+      _update(state.settings.copyWith(pasteOnRightClick: enabled));
+
+  void updateReduceMotion(bool enabled) =>
+      _update(state.settings.copyWith(reduceMotion: enabled));
+
+  void updateCloseSessionOnBack(bool enabled) =>
+      _update(state.settings.copyWith(closeSessionOnBack: enabled));
 
   void enableAppLock() =>
       _update(state.settings.copyWith(appLockEnabled: true));
@@ -52,6 +85,15 @@ class SettingsCubit extends Cubit<SettingsState> {
 
   void updateLockSnippetReveal(bool enabled) =>
       _update(state.settings.copyWith(lockSnippetReveal: enabled));
+
+  void updateAutoLockMinutes(int minutes) =>
+      _update(state.settings.copyWith(autoLockMinutes: minutes));
+
+  void updateDefaultPort(int port) =>
+      _update(state.settings.copyWith(defaultPort: port));
+
+  void updateDefaultUsername(String username) =>
+      _update(state.settings.copyWith(defaultUsername: username));
 
   void updateSftpShowHidden(bool enabled) =>
       _update(state.settings.copyWith(sftpShowHidden: enabled));

@@ -35,6 +35,46 @@ class KnownHostsLocalDatasource implements KnownHostsDatasource {
   }
 
   @override
+  Future<List<KnownHostEntry>> listAll() async {
+    final map = await _load();
+    final entries = <KnownHostEntry>[];
+    for (final e in map.entries) {
+      // Keys are host:port:type, or legacy host:port. The host may itself hold
+      // colons (IPv6), so parse from the right where port and type sit.
+      final parts = e.key.split(':');
+      if (parts.length < 2) continue;
+      final last = parts.last;
+      final lastPort = int.tryParse(last);
+      if (lastPort != null) {
+        entries.add(
+          KnownHostEntry(
+            host: parts.sublist(0, parts.length - 1).join(':'),
+            port: lastPort,
+            type: null,
+            fingerprint: e.value,
+          ),
+        );
+        continue;
+      }
+      final port = int.tryParse(parts[parts.length - 2]);
+      if (port == null) continue;
+      entries.add(
+        KnownHostEntry(
+          host: parts.sublist(0, parts.length - 2).join(':'),
+          port: port,
+          type: last,
+          fingerprint: e.value,
+        ),
+      );
+    }
+    entries.sort((a, b) {
+      final byHost = a.host.compareTo(b.host);
+      return byHost != 0 ? byHost : a.port.compareTo(b.port);
+    });
+    return entries;
+  }
+
+  @override
   Future<void> remember(
     String host,
     int port,

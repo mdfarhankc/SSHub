@@ -9,11 +9,12 @@ import 'package:sshub/features/settings/presentation/cubit/backup_cubit.dart';
 import 'package:sshub/features/settings/presentation/cubit/settings_cubit.dart';
 import 'package:sshub/features/snippets/domain/repositories/snippet_repository.dart';
 import 'package:sshub/features/snippets/presentation/bloc/snippet_list_bloc.dart';
+import 'package:sshub/features/sftp/domain/usecases/open_sftp_session.dart';
 import 'package:sshub/features/ssh/data/datasources/reachability_checker.dart';
 import 'package:sshub/features/ssh/domain/repositories/ssh_repository.dart';
 import 'package:sshub/features/ssh/domain/usecases/connect_to_server.dart';
 import 'package:sshub/features/ssh/presentation/bloc/server_list_bloc.dart';
-import 'package:sshub/features/ssh/presentation/cubit/terminal_sessions_cubit.dart';
+import 'package:sshub/features/ssh/presentation/cubit/workspace_sessions_cubit.dart';
 
 class AppBlocProviders extends StatelessWidget {
   final Widget child;
@@ -50,7 +51,11 @@ class AppBlocProviders extends StatelessWidget {
           ),
         ),
         BlocProvider(
-          create: (_) => TerminalSessionsCubit(sl<ConnectToServer>()),
+          create: (context) => WorkspaceSessionsCubit(
+            sl<ConnectToServer>(),
+            sl<OpenSftpSession>(),
+            context.read<SettingsCubit>(),
+          ),
         ),
       ],
       child: child,

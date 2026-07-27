@@ -5,6 +5,19 @@ import 'package:flutter/widgets.dart';
 
 bool get _isApple => Platform.isMacOS || Platform.isIOS;
 
+/// Digits 1-9, in order, for "jump to tab N" shortcuts.
+const sessionDigitKeys = [
+  LogicalKeyboardKey.digit1,
+  LogicalKeyboardKey.digit2,
+  LogicalKeyboardKey.digit3,
+  LogicalKeyboardKey.digit4,
+  LogicalKeyboardKey.digit5,
+  LogicalKeyboardKey.digit6,
+  LogicalKeyboardKey.digit7,
+  LogicalKeyboardKey.digit8,
+  LogicalKeyboardKey.digit9,
+];
+
 /// Label for the primary shortcut modifier on this platform.
 String get shortcutModifierLabel => _isApple ? "Cmd" : "Ctrl";
 

@@ -83,3 +83,21 @@ flutter:
           weight: 500
         - asset: assets/fonts/JetBrainsMono-Bold.ttf
           weight: 700
+    - family: Source Code Pro
+      fonts:
+        - asset: assets/fonts/SourceCodePro-Regular.ttf
+          weight: 400
+        - asset: assets/fonts/SourceCodePro-Bold.ttf
+          weight: 700
+    - family: IBM Plex Mono
+      fonts:
+        - asset: assets/fonts/IBMPlexMono-Regular.ttf
+          weight: 400
+        - asset: assets/fonts/IBMPlexMono-Bold.ttf
+          weight: 700
+    - family: Ubuntu Mono
+      fonts:
+        - asset: assets/fonts/UbuntuMono-Regular.ttf
+          weight: 400
+        - asset: assets/fonts/UbuntuMono-Bold.ttf
+          weight: 700

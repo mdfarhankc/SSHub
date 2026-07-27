@@ -60,6 +60,7 @@ private open class SecurePlatformApiPigeonCodec : StandardMessageCodec() {
 interface SecurePlatformApi {
   fun setBlockScreenshots(enabled: Boolean)
   fun copySensitive(text: String)
+  fun bell()
 
   companion object {
     /** The codec used by SecurePlatformApi. */
@@ -96,6 +97,22 @@ interface SecurePlatformApi {
             val textArg = args[0] as String
             val wrapped: List<Any?> = try {
               api.copySensitive(textArg)
+              listOf(null)
+            } catch (exception: Throwable) {
+              SecurePlatformApiPigeonUtils.wrapError(exception)
+            }
+            reply.reply(wrapped)
+          }
+        } else {
+          channel.setMessageHandler(null)
+        }
+      }
+      run {
+        val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.sshub.SecurePlatformApi.bell$separatedMessageChannelSuffix", codec)
+        if (api != null) {
+          channel.setMessageHandler { _, reply ->
+            val wrapped: List<Any?> = try {
+              api.bell()
               listOf(null)
             } catch (exception: Throwable) {
               SecurePlatformApiPigeonUtils.wrapError(exception)

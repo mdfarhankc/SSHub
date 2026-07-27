@@ -3,31 +3,43 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import 'package:sshub/core/theme/app_theme.dart';
+import 'package:sshub/core/widgets/blurred_bottom_sheet.dart';
 import 'package:sshub/core/theme/server_colors.dart';
 import 'package:sshub/features/ssh/domain/entities/ssh_server.dart';
 import 'package:sshub/features/ssh/presentation/bloc/server_list_bloc.dart';
-import 'package:sshub/features/ssh/presentation/cubit/terminal_sessions_cubit.dart';
+import 'package:sshub/features/ssh/presentation/cubit/workspace_session.dart';
+import 'package:sshub/features/ssh/presentation/cubit/workspace_sessions_cubit.dart';
 
-// Server list for the terminal's "+" button, so a new tab can be opened
-// without leaving the session you are already in.
+// Server list for the workspace "+" button, so a new tab can be opened without
+// leaving the session you are already in. Each server can start a terminal or a
+// file browser.
 class ServerPickerSheet extends StatelessWidget {
-  final ValueChanged<SshServer> onSelected;
+  final void Function(SshServer server, WorkspaceKind kind) onSelected;
   const ServerPickerSheet({super.key, required this.onSelected});
 
   static Future<void> show(
     BuildContext context, {
-    required ValueChanged<SshServer> onSelected,
-  }) => showModalBottomSheet(
+    required void Function(SshServer server, WorkspaceKind kind) onSelected,
+  }) => showBlurredBottomSheet(
     context: context,
     showDragHandle: true,
     builder: (_) => ServerPickerSheet(onSelected: onSelected),
   );
 
-  // Picks a server and opens it as a new tab. A second session to an already
-  // connected host is intentional here: choosing "+" means "another session".
+  // Opens the chosen server as a new tab. A second session to an already open
+  // host is intentional here: choosing "+" means "another session".
   static void openSession(BuildContext context) {
-    final sessions = context.read<TerminalSessionsCubit>();
-    show(context, onSelected: sessions.open);
+    final sessions = context.read<WorkspaceSessionsCubit>();
+    show(
+      context,
+      onSelected: (server, kind) => switch (kind) {
+        WorkspaceKind.terminal => sessions.openTerminal(
+          server,
+          focusExisting: false,
+        ),
+        WorkspaceKind.files => sessions.openFiles(server, focusExisting: false),
+      },
+    );
   }
 
   @override
@@ -102,7 +114,7 @@ class ServerPickerSheet extends StatelessWidget {
                             ),
                           ),
                           child: Icon(
-                            LucideIcons.terminal,
+                            LucideIcons.server,
                             size: 18,
                             color: accent,
                           ),
@@ -121,10 +133,29 @@ class ServerPickerSheet extends StatelessWidget {
                             fontFamily: AppTheme.mono,
                           ),
                         ),
-                        onTap: () {
-                          onSelected(server);
-                          Navigator.pop(context);
-                        },
+                        trailing: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            IconButton(
+                              tooltip: "Terminal",
+                              icon: const Icon(LucideIcons.terminal, size: 20),
+                              onPressed: () => _pick(
+                                context,
+                                server,
+                                WorkspaceKind.terminal,
+                              ),
+                            ),
+                            IconButton(
+                              tooltip: "Files",
+                              icon: const Icon(LucideIcons.folder, size: 20),
+                              onPressed: () =>
+                                  _pick(context, server, WorkspaceKind.files),
+                            ),
+                          ],
+                        ),
+                        // Tapping the row defaults to a terminal.
+                        onTap: () =>
+                            _pick(context, server, WorkspaceKind.terminal),
                       );
                     },
                   ),
@@ -134,5 +165,10 @@ class ServerPickerSheet extends StatelessWidget {
         },
       ),
     );
+  }
+
+  void _pick(BuildContext context, SshServer server, WorkspaceKind kind) {
+    onSelected(server, kind);
+    Navigator.pop(context);
   }
 }

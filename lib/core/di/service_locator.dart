@@ -34,9 +34,7 @@ void setupLocator() {
   sl.registerLazySingleton<ServerDatasource>(
     () => const ServerLocalDatasource(),
   );
-  sl.registerLazySingleton<SettingsDatasource>(
-    () => const SettingsLocalDatasource(),
-  );
+  sl.registerLazySingleton<SettingsDatasource>(() => SettingsLocalDatasource());
   sl.registerLazySingleton<KnownHostsDatasource>(
     () => const KnownHostsLocalDatasource(),
   );

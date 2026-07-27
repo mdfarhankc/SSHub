@@ -17,4 +17,7 @@ abstract class SecurePlatformApi {
 
   // Flags the clip sensitive so keyboards do not preview it.
   void copySensitive(String text);
+
+  // Short notification tone for the terminal bell.
+  void bell();
 }

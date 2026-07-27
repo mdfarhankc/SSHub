@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
@@ -6,25 +7,23 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import 'package:sshub/core/auth/reveal_guard.dart';
+import 'package:sshub/core/platform/system_bell.dart';
 import 'package:sshub/core/security/secure_platform.dart';
-import 'package:sshub/core/theme/app_terminal_theme.dart';
+import 'package:sshub/core/shortcuts/app_shortcuts.dart';
+import 'package:sshub/core/theme/terminal_schemes.dart';
 import 'package:sshub/core/widgets/app_snack_bar.dart';
+import 'package:sshub/core/widgets/blurred_bottom_sheet.dart';
 import 'package:sshub/features/settings/presentation/cubit/settings_cubit.dart';
 import 'package:sshub/features/snippets/domain/entities/snippet.dart';
 import 'package:sshub/features/snippets/presentation/widgets/snippet_picker_sheet.dart';
 import 'package:sshub/features/ssh/presentation/bloc/server_list_bloc.dart';
 import 'package:sshub/features/ssh/presentation/cubit/terminal_cubit.dart';
-import 'package:sshub/features/ssh/presentation/cubit/terminal_sessions_cubit.dart';
+import 'package:sshub/features/ssh/presentation/cubit/workspace_session.dart';
+import 'package:sshub/features/ssh/presentation/cubit/workspace_sessions_cubit.dart';
 import 'package:sshub/features/ssh/presentation/widgets/server_picker_sheet.dart';
 import 'package:sshub/features/ssh/presentation/widgets/terminal_key_bar.dart';
+import 'package:sshub/features/ssh/presentation/widgets/terminal_search.dart';
 import 'package:xterm/xterm.dart' hide TerminalState;
-
-class _SearchMatch {
-  final int line;
-  final int startCol;
-  final int endCol;
-  const _SearchMatch(this.line, this.startCol, this.endCol);
-}
 
 // One tab's body. The session owns the terminal and its scrollback, so this
 // widget only renders it and handles view-level concerns like search.
@@ -42,15 +41,29 @@ class TerminalSessionView extends StatefulWidget {
 }
 
 class TerminalSessionViewState extends State<TerminalSessionView> {
+  // How long the visual bell flash stays lit, and how long the selection must
+  // settle before copy-on-select fires.
+  static const _bellFlashDuration = Duration(milliseconds: 120);
+  static const _copyDebounce = Duration(milliseconds: 150);
+
   final _scrollController = ScrollController();
   final _searchController = TextEditingController();
   final _searchFocus = FocusNode();
   final _terminalFocus = FocusNode();
+  late final TerminalSearchController _search = TerminalSearchController(
+    _terminal,
+  );
   bool _searchOpen = false;
   // Scrollback is only worth showing after a session actually produced any.
   bool _everConnected = false;
-  List<_SearchMatch> _matches = const [];
-  int _matchIndex = 0;
+
+  // Copy-on-select fires after the selection stops changing, not every drag
+  // frame. The bell flash clears itself shortly after it lights up.
+  Timer? _copyTimer;
+  Timer? _bellTimer;
+  bool _bellFlash = false;
+  // Search and select-all set the selection in code; those must not auto-copy.
+  bool _suppressAutoCopy = false;
 
   Terminal get _terminal => widget.session.terminal;
   TerminalController get _terminalController =>
@@ -59,6 +72,11 @@ class TerminalSessionViewState extends State<TerminalSessionView> {
   @override
   void initState() {
     super.initState();
+    _terminal.onBell = _onBell;
+    _terminalController.addListener(_onSelectionChanged);
+    // The search model finds matches; this view applies the selection and
+    // scrolls to whichever one is current.
+    _search.addListener(_onSearchMatchChanged);
     // A tab opened from the tab bar is born active, so it never sees a change
     // of isActive to focus on.
     if (widget.isActive) _focusTerminal();
@@ -88,12 +106,79 @@ class TerminalSessionViewState extends State<TerminalSessionView> {
 
   @override
   void dispose() {
+    _terminal.onBell = null;
+    _terminalController.removeListener(_onSelectionChanged);
+    _search.removeListener(_onSearchMatchChanged);
+    _search.dispose();
+    _copyTimer?.cancel();
+    _bellTimer?.cancel();
     _scrollController.dispose();
     _searchController.dispose();
     _searchFocus.dispose();
     _terminalFocus.dispose();
     super.dispose();
   }
+
+  void _onBell() {
+    if (!mounted) return;
+    final settings = context.read<SettingsCubit>().state.settings;
+    if (settings.bellSound) SystemBell.ring();
+    if (!settings.bellVisual) return;
+    setState(() => _bellFlash = true);
+    _bellTimer?.cancel();
+    _bellTimer = Timer(_bellFlashDuration, () {
+      if (mounted) setState(() => _bellFlash = false);
+    });
+  }
+
+  // Copies once the selection settles, so a drag does not spam the clipboard.
+  void _onSelectionChanged() {
+    if (!mounted || _suppressAutoCopy) return;
+    if (!context.read<SettingsCubit>().state.settings.copyOnSelect) return;
+    if (_terminalController.selection == null) return;
+    _copyTimer?.cancel();
+    _copyTimer = Timer(_copyDebounce, () {
+      final selection = _terminalController.selection;
+      if (selection == null) return;
+      final text = _terminal.buffer.getText(selection);
+      if (text.isNotEmpty) SecurePlatform.copySensitive(text);
+    });
+  }
+
+  // Runs [body] with auto-copy muted, restoring the flag even if it throws so
+  // a failed programmatic selection cannot leave copy-on-select stuck off.
+  void _withoutAutoCopy(void Function() body) {
+    _suppressAutoCopy = true;
+    try {
+      body();
+    } finally {
+      _suppressAutoCopy = false;
+    }
+  }
+
+  // Selects the current search match and scrolls it into view, or clears the
+  // selection when the query stops matching.
+  void _onSearchMatchChanged() {
+    final match = _search.current;
+    if (match == null) {
+      _terminalController.clearSelection();
+      return;
+    }
+    _withoutAutoCopy(() {
+      _terminalController.setSelection(
+        _terminal.buffer.createAnchor(match.startCol, match.line),
+        _terminal.buffer.createAnchor(match.endCol, match.line),
+        mode: SelectionMode.line,
+      );
+    });
+    _scrollToLine(match.line);
+  }
+
+  TerminalCursorType _cursorType(String style) => switch (style) {
+    "Bar" => TerminalCursorType.verticalBar,
+    "Underline" => TerminalCursorType.underline,
+    _ => TerminalCursorType.block,
+  };
 
   Future<void> _copySelection() async {
     final selection = _terminalController.selection;
@@ -112,14 +197,16 @@ class TerminalSessionViewState extends State<TerminalSessionView> {
   }
 
   void _selectAll() {
-    _terminalController.setSelection(
-      _terminal.buffer.createAnchor(0, 0),
-      _terminal.buffer.createAnchor(
-        _terminal.viewWidth,
-        _terminal.buffer.height - 1,
-      ),
-      mode: SelectionMode.line,
-    );
+    _withoutAutoCopy(() {
+      _terminalController.setSelection(
+        _terminal.buffer.createAnchor(0, 0),
+        _terminal.buffer.createAnchor(
+          _terminal.viewWidth,
+          _terminal.buffer.height - 1,
+        ),
+        mode: SelectionMode.line,
+      );
+    });
   }
 
   // Ctrl+L: ask the shell to redraw a clean screen.
@@ -129,7 +216,7 @@ class TerminalSessionViewState extends State<TerminalSessionView> {
   }
 
   void showSnippets() {
-    showModalBottomSheet(
+    showBlurredBottomSheet(
       context: context,
       showDragHandle: true,
       builder: (_) => SnippetPickerSheet(onSelected: _pasteSnippet),
@@ -152,22 +239,12 @@ class TerminalSessionViewState extends State<TerminalSessionView> {
   }
 
   void _closeThisTab() {
-    final sessions = context.read<TerminalSessionsCubit>();
-    final index = sessions.state.sessions.indexOf(widget.session);
+    final sessions = context.read<WorkspaceSessionsCubit>();
+    final index = sessions.state.sessions.indexWhere(
+      (s) => s is TerminalWorkspaceSession && s.cubit == widget.session,
+    );
     if (index != -1) sessions.closeSession(index);
   }
-
-  static const _digits = [
-    LogicalKeyboardKey.digit1,
-    LogicalKeyboardKey.digit2,
-    LogicalKeyboardKey.digit3,
-    LogicalKeyboardKey.digit4,
-    LogicalKeyboardKey.digit5,
-    LogicalKeyboardKey.digit6,
-    LogicalKeyboardKey.digit7,
-    LogicalKeyboardKey.digit8,
-    LogicalKeyboardKey.digit9,
-  ];
 
   // Once a session has produced output, the scrollback is the most useful
   // thing on screen, so it stays visible under a banner instead of being
@@ -229,9 +306,10 @@ class TerminalSessionViewState extends State<TerminalSessionView> {
                 _terminal,
                 controller: _terminalController,
                 scrollController: _scrollController,
-                theme: theme.brightness == Brightness.dark
-                    ? AppTerminalTheme.dark
-                    : AppTerminalTheme.light,
+                theme: TerminalSchemes.resolve(
+                  settings.terminalColorScheme,
+                  dark: theme.brightness == Brightness.dark,
+                ),
                 padding: const EdgeInsets.all(12),
                 readOnly: true,
                 textStyle: TerminalStyle(
@@ -278,15 +356,15 @@ class TerminalSessionViewState extends State<TerminalSessionView> {
     }
 
     if (modifier && event.logicalKey == LogicalKeyboardKey.tab) {
-      final sessions = context.read<TerminalSessionsCubit>();
+      final sessions = context.read<WorkspaceSessionsCubit>();
       keyboard.isShiftPressed ? sessions.previous() : sessions.next();
       return KeyEventResult.handled;
     }
 
     if (keyboard.isAltPressed) {
-      final index = _digits.indexOf(event.logicalKey);
+      final index = sessionDigitKeys.indexOf(event.logicalKey);
       if (index != -1) {
-        context.read<TerminalSessionsCubit>().setActive(index);
+        context.read<WorkspaceSessionsCubit>().setActive(index);
         return KeyEventResult.handled;
       }
     }
@@ -374,69 +452,12 @@ class TerminalSessionViewState extends State<TerminalSessionView> {
   void openSearch() {
     setState(() => _searchOpen = true);
     _searchFocus.requestFocus();
-    if (_searchController.text.isNotEmpty) _runSearch(_searchController.text);
+    if (_searchController.text.isNotEmpty) _search.run(_searchController.text);
   }
 
   void _closeSearch() {
-    setState(() {
-      _searchOpen = false;
-      _matches = const [];
-      _matchIndex = 0;
-    });
-    _terminalController.clearSelection();
-  }
-
-  void _runSearch(String query) {
-    if (query.isEmpty) {
-      setState(() {
-        _matches = const [];
-        _matchIndex = 0;
-      });
-      _terminalController.clearSelection();
-      return;
-    }
-    final needle = query.toLowerCase();
-    final matches = <_SearchMatch>[];
-    final lines = _terminal.buffer.lines;
-    for (var y = 0; y < _terminal.buffer.height; y++) {
-      final text = lines[y].getText().toLowerCase();
-      var start = text.indexOf(needle);
-      while (start != -1) {
-        matches.add(_SearchMatch(y, start, start + query.length));
-        start = text.indexOf(needle, start + query.length);
-      }
-    }
-    setState(() {
-      _matches = matches;
-      _matchIndex = 0;
-    });
-    if (matches.isNotEmpty) {
-      _gotoMatch(0);
-    } else {
-      _terminalController.clearSelection();
-    }
-  }
-
-  void _gotoMatch(int index) {
-    if (_matches.isEmpty) return;
-    final match = _matches[index];
-    _terminalController.setSelection(
-      _terminal.buffer.createAnchor(match.startCol, match.line),
-      _terminal.buffer.createAnchor(match.endCol, match.line),
-      mode: SelectionMode.line,
-    );
-    _scrollToLine(match.line);
-    setState(() => _matchIndex = index);
-  }
-
-  void _nextMatch() {
-    if (_matches.isNotEmpty) _gotoMatch((_matchIndex + 1) % _matches.length);
-  }
-
-  void _prevMatch() {
-    if (_matches.isNotEmpty) {
-      _gotoMatch((_matchIndex - 1 + _matches.length) % _matches.length);
-    }
+    setState(() => _searchOpen = false);
+    _search.clear();
   }
 
   // Scroll extent maps 1:1 to buffer lines, so cell height derives from it.
@@ -450,6 +471,10 @@ class TerminalSessionViewState extends State<TerminalSessionView> {
       0.0,
       position.maxScrollExtent,
     );
+    if (context.read<SettingsCubit>().state.settings.reduceMotion) {
+      _scrollController.jumpTo(target);
+      return;
+    }
     _scrollController.animateTo(
       target,
       duration: const Duration(milliseconds: 200),
@@ -547,26 +572,53 @@ class TerminalSessionViewState extends State<TerminalSessionView> {
             ),
             TerminalConnected() => Column(
               children: [
-                if (_searchOpen) _buildSearchBar(context),
+                if (_searchOpen)
+                  TerminalSearchBar(
+                    controller: _search,
+                    textController: _searchController,
+                    focusNode: _searchFocus,
+                    onChanged: _search.run,
+                    onNext: _search.next,
+                    onPrevious: _search.previous,
+                    onClose: _closeSearch,
+                  ),
                 Expanded(
-                  child: TerminalView(
-                    _terminal,
-                    controller: _terminalController,
-                    scrollController: _scrollController,
-                    focusNode: _terminalFocus,
-                    theme: isDark
-                        ? AppTerminalTheme.dark
-                        : AppTerminalTheme.light,
-                    padding: const EdgeInsets.all(12),
-                    autofocus: widget.isActive,
-                    onSecondaryTapDown: (details, _) =>
-                        _showContextMenu(context, details.globalPosition),
-                    onKeyEvent: (node, event) =>
-                        _handleTerminalKey(context, event),
-                    textStyle: TerminalStyle(
-                      fontSize: settings.terminalFontSize,
-                      fontFamily: settings.terminalFontFamily,
-                    ),
+                  child: Stack(
+                    children: [
+                      TerminalView(
+                        _terminal,
+                        controller: _terminalController,
+                        scrollController: _scrollController,
+                        focusNode: _terminalFocus,
+                        theme: TerminalSchemes.resolve(
+                          settings.terminalColorScheme,
+                          dark: isDark,
+                        ),
+                        padding: const EdgeInsets.all(12),
+                        autofocus: widget.isActive,
+                        cursorType: _cursorType(settings.cursorStyle),
+                        onSecondaryTapDown: (details, _) =>
+                            settings.pasteOnRightClick
+                            ? _paste()
+                            : _showContextMenu(context, details.globalPosition),
+                        onKeyEvent: (node, event) =>
+                            _handleTerminalKey(context, event),
+                        textStyle: TerminalStyle(
+                          fontSize: settings.terminalFontSize,
+                          fontFamily: settings.terminalFontFamily,
+                        ),
+                      ),
+                      if (_bellFlash)
+                        Positioned.fill(
+                          child: IgnorePointer(
+                            child: ColoredBox(
+                              color: theme.colorScheme.onSurface.withValues(
+                                alpha: 0.18,
+                              ),
+                            ),
+                          ),
+                        ),
+                    ],
                   ),
                 ),
                 if (Platform.isAndroid || Platform.isIOS)
@@ -575,73 +627,6 @@ class TerminalSessionViewState extends State<TerminalSessionView> {
             ),
           };
         },
-      ),
-    );
-  }
-
-  Widget _buildSearchBar(BuildContext context) {
-    final theme = Theme.of(context);
-    final scheme = theme.colorScheme;
-    final hasMatches = _matches.isNotEmpty;
-    final count = hasMatches ? "${_matchIndex + 1}/${_matches.length}" : "0/0";
-
-    return Material(
-      color: scheme.surfaceContainerHigh,
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-        child: Row(
-          children: [
-            Icon(LucideIcons.search, size: 18, color: scheme.onSurfaceVariant),
-            const SizedBox(width: 8),
-            Expanded(
-              child: CallbackShortcuts(
-                bindings: {
-                  const SingleActivator(LogicalKeyboardKey.escape):
-                      _closeSearch,
-                  const SingleActivator(LogicalKeyboardKey.enter, shift: true):
-                      _prevMatch,
-                },
-                child: TextField(
-                  controller: _searchController,
-                  focusNode: _searchFocus,
-                  autofocus: true,
-                  style: theme.textTheme.bodyMedium,
-                  decoration: const InputDecoration(
-                    isDense: true,
-                    border: InputBorder.none,
-                    hintText: "Find in terminal",
-                  ),
-                  onChanged: _runSearch,
-                  onSubmitted: (_) => _nextMatch(),
-                ),
-              ),
-            ),
-            Text(
-              count,
-              style: theme.textTheme.bodySmall?.copyWith(
-                color: scheme.onSurfaceVariant,
-              ),
-            ),
-            IconButton(
-              tooltip: "Previous (Shift+Enter)",
-              visualDensity: VisualDensity.compact,
-              icon: const Icon(LucideIcons.chevronUp, size: 20),
-              onPressed: hasMatches ? _prevMatch : null,
-            ),
-            IconButton(
-              tooltip: "Next (Enter)",
-              visualDensity: VisualDensity.compact,
-              icon: const Icon(LucideIcons.chevronDown, size: 20),
-              onPressed: hasMatches ? _nextMatch : null,
-            ),
-            IconButton(
-              tooltip: "Close (Esc)",
-              visualDensity: VisualDensity.compact,
-              icon: const Icon(LucideIcons.x, size: 20),
-              onPressed: _closeSearch,
-            ),
-          ],
-        ),
       ),
     );
   }

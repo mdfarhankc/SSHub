@@ -17,8 +17,6 @@ void main() async {
   setupLocator();
 
   final settings = await sl<SettingsRepository>().load();
-  // The activity blocks capture from launch, so this only has to lift it when
-  // the setting says otherwise.
   if (!settings.blockScreenshots) {
     await SecurePlatform.setBlockScreenshots(false);
   }
@@ -34,15 +32,16 @@ class MyApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return AppBlocProviders(
       initialSettings: initialSettings,
-      child: BlocBuilder<SettingsCubit, SettingsState>(
-        builder: (context, state) {
+      child: BlocSelector<SettingsCubit, SettingsState, AppThemeMode>(
+        selector: (state) => state.settings.themeMode,
+        builder: (context, themeMode) {
           return MaterialApp(
             debugShowCheckedModeBanner: false,
             themeAnimationDuration: Duration.zero,
             title: 'SSHub',
             theme: AppTheme.light,
             darkTheme: AppTheme.dark,
-            themeMode: switch (state.settings.themeMode) {
+            themeMode: switch (themeMode) {
               AppThemeMode.system => ThemeMode.system,
               AppThemeMode.light => ThemeMode.light,
               AppThemeMode.dark => ThemeMode.dark,

@@ -4,8 +4,12 @@ import android.content.ClipData
 import android.content.ClipDescription
 import android.content.ClipboardManager
 import android.content.Context
+import android.media.AudioManager
+import android.media.ToneGenerator
 import android.os.Build
 import android.os.Bundle
+import android.os.Handler
+import android.os.Looper
 import android.os.PersistableBundle
 import android.view.WindowManager
 import io.flutter.embedding.android.FlutterFragmentActivity
@@ -51,5 +55,17 @@ class MainActivity : FlutterFragmentActivity(), SecurePlatformApi {
             }
         }
         clipboard.setPrimaryClip(clip)
+    }
+
+    // A short notification beep for the terminal bell. Released after it plays
+    // so the generator is not held open.
+    override fun bell() {
+        try {
+            val tone = ToneGenerator(AudioManager.STREAM_NOTIFICATION, 80)
+            tone.startTone(ToneGenerator.TONE_PROP_BEEP, 150)
+            Handler(Looper.getMainLooper()).postDelayed({ tone.release() }, 250)
+        } catch (e: RuntimeException) {
+            // Some devices refuse to allocate a tone generator; skip the beep.
+        }
     }
 }

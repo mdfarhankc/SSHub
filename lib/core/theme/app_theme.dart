@@ -15,8 +15,9 @@ abstract final class AppTheme {
   static const double radius2xl = 24;
   static const double radius3xl = 28;
 
-  static final ThemeData light = _build(Brightness.light);
-  static final ThemeData dark = _build(Brightness.dark);
+  // Getters, not cached finals, so theme edits show up on hot reload.
+  static ThemeData get light => _build(Brightness.light);
+  static ThemeData get dark => _build(Brightness.dark);
 
   static List<BoxShadow> cardShadow(
     Brightness brightness, {
@@ -46,7 +47,8 @@ abstract final class AppTheme {
 
     final base = ThemeData(
       colorScheme: scheme,
-      fontFamily: "Inter",
+      // No fontFamily: use the platform's own UI font (Segoe UI on Windows,
+      // SF on macOS/iOS, Roboto on Android), like the reference app.
       useMaterial3: true,
     );
 
@@ -153,6 +155,27 @@ abstract final class AppTheme {
       dividerTheme: DividerThemeData(
         thickness: 1,
         color: scheme.outlineVariant,
+      ),
+      // Plain knob, no checkmark, accent track when on.
+      switchTheme: SwitchThemeData(
+        thumbIcon: const WidgetStatePropertyAll(Icon(null)),
+        trackOutlineColor: WidgetStateProperty.resolveWith(
+          (states) => states.contains(WidgetState.selected)
+              ? Colors.transparent
+              : scheme.outlineVariant,
+        ),
+      ),
+      // Thin track, small thumb, no division ticks.
+      sliderTheme: SliderThemeData(
+        trackHeight: 3,
+        activeTrackColor: scheme.primary,
+        inactiveTrackColor: scheme.surfaceContainerHighest,
+        thumbColor: scheme.primary,
+        overlayColor: scheme.primary.withValues(alpha: 0.12),
+        thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 6),
+        overlayShape: const RoundSliderOverlayShape(overlayRadius: 12),
+        tickMarkShape: SliderTickMarkShape.noTickMark,
+        trackShape: const RoundedRectSliderTrackShape(),
       ),
     );
   }
