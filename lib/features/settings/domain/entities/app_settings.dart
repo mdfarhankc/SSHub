@@ -53,6 +53,10 @@ class AppSettings extends Equatable {
   // Android only.
   final bool blockScreenshots;
 
+  // Keyboard shortcut overrides: action name to a serialized KeyBinding. Only
+  // actions the user rebound appear here; the rest fall back to defaults.
+  final Map<String, String> shortcutOverrides;
+
   const AppSettings({
     this.themeMode = .system,
     this.terminalFontSize = 14,
@@ -78,6 +82,7 @@ class AppSettings extends Equatable {
     this.defaultUsername = '',
     this.downloadDirectory,
     this.blockScreenshots = true,
+    this.shortcutOverrides = const {},
   });
 
   AppSettings copyWith({
@@ -105,6 +110,7 @@ class AppSettings extends Equatable {
     String? defaultUsername,
     String? downloadDirectory,
     bool? blockScreenshots,
+    Map<String, String>? shortcutOverrides,
     // null cannot express "reset to default".
     bool clearDownloadDirectory = false,
   }) => AppSettings(
@@ -134,6 +140,7 @@ class AppSettings extends Equatable {
         ? null
         : (downloadDirectory ?? this.downloadDirectory),
     blockScreenshots: blockScreenshots ?? this.blockScreenshots,
+    shortcutOverrides: shortcutOverrides ?? this.shortcutOverrides,
   );
 
   @override
@@ -162,5 +169,6 @@ class AppSettings extends Equatable {
     defaultUsername,
     downloadDirectory,
     blockScreenshots,
+    shortcutOverrides,
   ];
 }

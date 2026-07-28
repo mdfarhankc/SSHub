@@ -3,7 +3,7 @@ import 'dart:io' show Platform;
 import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
 
-bool get _isApple => Platform.isMacOS || Platform.isIOS;
+bool get isApplePlatform => Platform.isMacOS || Platform.isIOS;
 
 /// Digits 1-9, in order, for "jump to tab N" shortcuts.
 const sessionDigitKeys = [
@@ -19,7 +19,7 @@ const sessionDigitKeys = [
 ];
 
 /// Label for the primary shortcut modifier on this platform.
-String get shortcutModifierLabel => _isApple ? "Cmd" : "Ctrl";
+String get shortcutModifierLabel => isApplePlatform ? "Cmd" : "Ctrl";
 
 /// Binds [key] to [callback] using the platform's primary modifier.
 Map<ShortcutActivator, VoidCallback> shortcutBinding(
@@ -27,7 +27,7 @@ Map<ShortcutActivator, VoidCallback> shortcutBinding(
   VoidCallback callback, {
   bool shift = false,
 }) {
-  final activator = _isApple
+  final activator = isApplePlatform
       ? SingleActivator(key, meta: true, shift: shift)
       : SingleActivator(key, control: true, shift: shift);
   return {activator: callback};

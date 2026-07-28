@@ -10,6 +10,7 @@ import 'package:sshub/features/settings/presentation/sections/data_section.dart'
 import 'package:sshub/features/settings/presentation/sections/files_section.dart';
 import 'package:sshub/features/settings/presentation/sections/known_hosts_section.dart';
 import 'package:sshub/features/settings/presentation/sections/security_section.dart';
+import 'package:sshub/features/settings/presentation/sections/shortcuts_section.dart';
 
 // One entry in the settings list. [body] is the detail content shown in the
 // pane on desktop or the pushed page on a phone.
@@ -47,6 +48,12 @@ List<SettingsSection> buildSettingsSections() => [
     title: "Connections",
     subtitle: "Defaults for new servers",
     body: (_) => const ConnectionsSection(),
+  ),
+  SettingsSection(
+    icon: LucideIcons.keyboard,
+    title: "Shortcuts",
+    subtitle: "Customise keyboard shortcuts",
+    body: (_) => const ShortcutsSection(),
   ),
   // App lock relies on the device biometric stack, which Linux lacks.
   if (!Platform.isLinux)

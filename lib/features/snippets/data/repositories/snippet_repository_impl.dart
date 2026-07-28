@@ -35,5 +35,10 @@ class SnippetRepositoryImpl implements SnippetRepository {
   }
 
   @override
+  Future<void> reorderSnippets(List<Snippet> snippets) => _localDatasource.save(
+    [for (final s in snippets) SnippetModel.fromEntity(s)],
+  );
+
+  @override
   Future<void> clearAll() => _localDatasource.clear();
 }

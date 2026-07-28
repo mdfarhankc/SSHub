@@ -10,12 +10,15 @@ import 'package:sshub/core/auth/reveal_guard.dart';
 import 'package:sshub/core/platform/system_bell.dart';
 import 'package:sshub/core/security/secure_platform.dart';
 import 'package:sshub/core/shortcuts/app_shortcuts.dart';
+import 'package:sshub/core/shortcuts/shortcut_actions.dart';
 import 'package:sshub/core/theme/terminal_schemes.dart';
 import 'package:sshub/core/widgets/app_snack_bar.dart';
 import 'package:sshub/core/widgets/blurred_bottom_sheet.dart';
 import 'package:sshub/features/settings/presentation/cubit/settings_cubit.dart';
 import 'package:sshub/features/snippets/domain/entities/snippet.dart';
+import 'package:sshub/features/snippets/domain/snippet_placeholders.dart';
 import 'package:sshub/features/snippets/presentation/widgets/snippet_picker_sheet.dart';
+import 'package:sshub/features/snippets/presentation/widgets/snippet_prompt_dialog.dart';
 import 'package:sshub/features/ssh/presentation/bloc/server_list_bloc.dart';
 import 'package:sshub/features/ssh/presentation/cubit/terminal_cubit.dart';
 import 'package:sshub/features/ssh/presentation/cubit/workspace_session.dart';
@@ -219,23 +222,58 @@ class TerminalSessionViewState extends State<TerminalSessionView> {
     showBlurredBottomSheet(
       context: context,
       showDragHandle: true,
-      builder: (_) => SnippetPickerSheet(onSelected: _pasteSnippet),
+      builder: (_) => SnippetPickerSheet(onSelected: _useSnippet),
     );
   }
 
-  // Typing a snippet puts its value on screen, so it goes through the same
-  // gate as revealing one.
-  Future<void> _pasteSnippet(Snippet snippet) async {
-    final locked = context
-        .read<SettingsCubit>()
-        .state
-        .settings
-        .lockSnippetReveal;
-    final allowed = await context.confirmReveal(
-      locked: locked,
-      reason: "Paste ${snippet.label}",
+  // Resolves placeholders, gates secrets, then inserts, runs or copies. Typing
+  // a secret puts it on screen, so it goes through the same reveal gate.
+  Future<void> _useSnippet(Snippet snippet, SnippetUse use) async {
+    final server = widget.session.server;
+    final prompts = snippetPrompts(snippet.value);
+    var answers = const <String, String>{};
+    if (prompts.isNotEmpty) {
+      final result = await SnippetPromptDialog.show(
+        context,
+        snippet.label,
+        prompts,
+      );
+      if (result == null || !mounted) return;
+      answers = result;
+    }
+    final resolved = resolveSnippet(
+      snippet.value,
+      context: SnippetContext(
+        host: server.host,
+        user: server.username,
+        port: server.port,
+      ),
+      answers: answers,
     );
-    if (allowed) _terminal.textInput(snippet.value);
+
+    if (snippet.isSecret) {
+      final locked = context
+          .read<SettingsCubit>()
+          .state
+          .settings
+          .lockSnippetReveal;
+      final allowed = await context.confirmReveal(
+        locked: locked,
+        reason: "Paste ${snippet.label}",
+      );
+      if (!allowed || !mounted) return;
+    }
+
+    switch (use) {
+      case SnippetUse.insert:
+        _terminal.textInput(resolved);
+      case SnippetUse.run:
+        _terminal.textInput(resolved);
+        _terminal.textInput('\r');
+      case SnippetUse.copy:
+        await SecurePlatform.copySensitive(resolved);
+        if (mounted) showAppSnackBar(context, "Copied to clipboard");
+    }
   }
 
   void _closeThisTab() {
@@ -327,34 +365,54 @@ class TerminalSessionViewState extends State<TerminalSessionView> {
   // The terminal has focus and forwards most keys to the shell, so tab and
   // session shortcuts are intercepted here rather than via ancestor Shortcuts.
   // Ctrl+W and Ctrl+T are deliberately left alone: the shell uses them.
+  // The rebindable actions the terminal handles itself, since it holds focus.
+  static const _terminalActions = {
+    ShortcutAction.snippets,
+    ShortcutAction.newTab,
+    ShortcutAction.closeTab,
+    ShortcutAction.copySelection,
+    ShortcutAction.pasteClipboard,
+    ShortcutAction.selectAll,
+    ShortcutAction.find,
+  };
+
   KeyEventResult _handleTerminalKey(BuildContext context, KeyEvent event) {
     if (event is! KeyDownEvent) return KeyEventResult.ignored;
     final keyboard = HardwareKeyboard.instance;
-    final modifier = keyboard.isControlPressed || keyboard.isMetaPressed;
+    final overrides = context
+        .read<SettingsCubit>()
+        .state
+        .settings
+        .shortcutOverrides;
 
-    if (modifier && keyboard.isShiftPressed) {
-      switch (event.logicalKey) {
-        case LogicalKeyboardKey.keyS:
-          showSnippets();
-          return KeyEventResult.handled;
-        case LogicalKeyboardKey.keyT:
-          ServerPickerSheet.openSession(context);
-          return KeyEventResult.handled;
-        case LogicalKeyboardKey.keyW:
-          _closeThisTab();
-          return KeyEventResult.handled;
-        case LogicalKeyboardKey.keyC:
-          _copySelection();
-          return KeyEventResult.handled;
-        case LogicalKeyboardKey.keyV:
-          _paste();
-          return KeyEventResult.handled;
-        case LogicalKeyboardKey.keyA:
-          _selectAll();
-          return KeyEventResult.handled;
-      }
+    switch (matchShortcut(event, overrides, _terminalActions)) {
+      case ShortcutAction.snippets:
+        showSnippets();
+        return KeyEventResult.handled;
+      case ShortcutAction.newTab:
+        ServerPickerSheet.openSession(context);
+        return KeyEventResult.handled;
+      case ShortcutAction.closeTab:
+        _closeThisTab();
+        return KeyEventResult.handled;
+      case ShortcutAction.copySelection:
+        _copySelection();
+        return KeyEventResult.handled;
+      case ShortcutAction.pasteClipboard:
+        _paste();
+        return KeyEventResult.handled;
+      case ShortcutAction.selectAll:
+        _selectAll();
+        return KeyEventResult.handled;
+      case ShortcutAction.find:
+        openSearch();
+        return KeyEventResult.handled;
+      default:
+        break;
     }
 
+    // Tab cycling and Alt+number jumps stay fixed.
+    final modifier = keyboard.isControlPressed || keyboard.isMetaPressed;
     if (modifier && event.logicalKey == LogicalKeyboardKey.tab) {
       final sessions = context.read<WorkspaceSessionsCubit>();
       keyboard.isShiftPressed ? sessions.previous() : sessions.next();
@@ -367,13 +425,6 @@ class TerminalSessionViewState extends State<TerminalSessionView> {
         context.read<WorkspaceSessionsCubit>().setActive(index);
         return KeyEventResult.handled;
       }
-    }
-
-    if (modifier &&
-        !keyboard.isShiftPressed &&
-        event.logicalKey == LogicalKeyboardKey.keyF) {
-      openSearch();
-      return KeyEventResult.handled;
     }
 
     // Ctrl+C is left to the shell. Copying it instead would swallow the

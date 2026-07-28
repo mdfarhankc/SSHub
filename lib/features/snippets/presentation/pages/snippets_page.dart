@@ -3,31 +3,67 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:sshub/core/theme/app_theme.dart';
 import 'package:sshub/core/widgets/app_snack_bar.dart';
-import 'package:sshub/core/widgets/page_title.dart';
+import 'package:sshub/core/widgets/context_menu_area.dart';
 import 'package:sshub/features/snippets/domain/entities/snippet.dart';
 import 'package:sshub/features/snippets/presentation/bloc/snippet_list_bloc.dart';
 import 'package:sshub/features/snippets/presentation/widgets/snippet_dialog.dart';
+import 'package:uuid/uuid.dart';
 
-class SnippetsPage extends StatelessWidget {
+class SnippetsPage extends StatefulWidget {
   const SnippetsPage({super.key});
 
   static const route = "/snippets";
 
-  Future<void> _add(BuildContext context) async {
+  @override
+  State<SnippetsPage> createState() => _SnippetsPageState();
+}
+
+class _SnippetsPageState extends State<SnippetsPage> {
+  final _searchController = TextEditingController();
+  String _query = "";
+
+  bool get _searching => _query.trim().isNotEmpty;
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _add() async {
     final result = await SnippetDialog.show(context);
-    if (result != null && context.mounted) {
+    if (result != null && mounted) {
       context.read<SnippetListBloc>().add(SnippetAdded(result));
     }
   }
 
-  Future<void> _edit(BuildContext context, Snippet snippet) async {
+  Future<void> _edit(Snippet snippet) async {
     final result = await SnippetDialog.show(context, snippet: snippet);
-    if (result != null && context.mounted) {
+    if (result != null && mounted) {
       context.read<SnippetListBloc>().add(SnippetUpdated(result));
     }
   }
 
-  Future<void> _delete(BuildContext context, Snippet snippet) async {
+  void _duplicate(Snippet snippet) {
+    context.read<SnippetListBloc>().add(
+      SnippetAdded(
+        Snippet(
+          id: const Uuid().v7(),
+          label: "${snippet.label} copy",
+          value: snippet.value,
+          type: snippet.type,
+        ),
+      ),
+    );
+  }
+
+  void _togglePin(Snippet snippet) {
+    context.read<SnippetListBloc>().add(
+      SnippetUpdated(snippet.copyWith(pinned: !snippet.pinned)),
+    );
+  }
+
+  Future<void> _delete(Snippet snippet) async {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (dialogContext) => AlertDialog(
@@ -48,16 +84,35 @@ class SnippetsPage extends StatelessWidget {
         ],
       ),
     );
-    if (confirmed == true && context.mounted) {
+    if (confirmed == true && mounted) {
       context.read<SnippetListBloc>().add(SnippetDeleted(snippet.id));
     }
+  }
+
+  void _reorder(List<Snippet> snippets, int oldIndex, int newIndex) {
+    final list = [...snippets];
+    if (newIndex > oldIndex) newIndex -= 1;
+    list.insert(newIndex, list.removeAt(oldIndex));
+    context.read<SnippetListBloc>().add(SnippetsReordered(list));
+  }
+
+  List<Snippet> _filter(List<Snippet> all) {
+    final q = _query.trim().toLowerCase();
+    if (q.isEmpty) return all;
+    return [
+      for (final s in all)
+        if (s.label.toLowerCase().contains(q) ||
+            (!s.isSecret && s.value.toLowerCase().contains(q)))
+          s,
+    ];
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      appBar: AppBar(title: const Text("Snippets")),
       floatingActionButton: FloatingActionButton.extended(
-        onPressed: () => _add(context),
+        onPressed: _add,
         icon: const Icon(LucideIcons.plus),
         label: const Text("New Snippet"),
       ),
@@ -69,37 +124,27 @@ class SnippetsPage extends StatelessWidget {
             listener: (context, state) =>
                 showAppSnackBar(context, state.errorMessage!, success: false),
             builder: (context, state) {
-              return CustomScrollView(
-                slivers: [
-                  const LargeHeaderSliver("Snippets"),
-                  // A load failure must not read as an empty list, or the user
-                  // recreates snippets over a store that is still there.
-                  if (state.status == SnippetListStatus.failure)
-                    const SliverFillRemaining(
-                      hasScrollBody: false,
-                      child: _LoadFailed(),
-                    )
-                  else if (state.snippets.isEmpty)
-                    const SliverFillRemaining(
-                      hasScrollBody: false,
-                      child: _EmptyState(),
-                    )
-                  else
-                    SliverPadding(
-                      padding: const EdgeInsets.fromLTRB(16, 8, 16, 96),
-                      sliver: SliverList.separated(
-                        itemCount: state.snippets.length,
-                        separatorBuilder: (_, _) => const SizedBox(height: 8),
-                        itemBuilder: (context, index) {
-                          final snippet = state.snippets[index];
-                          return _SnippetTile(
-                            snippet: snippet,
-                            onEdit: () => _edit(context, snippet),
-                            onDelete: () => _delete(context, snippet),
-                          );
-                        },
-                      ),
+              if (state.status == SnippetListStatus.failure) {
+                return const _LoadFailed();
+              }
+              if (state.snippets.isEmpty) {
+                return _EmptyState(onAdd: _add);
+              }
+              final filtered = _filter(state.snippets);
+              return Column(
+                children: [
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
+                    child: _SearchField(
+                      controller: _searchController,
+                      onChanged: (v) => setState(() => _query = v),
                     ),
+                  ),
+                  Expanded(
+                    child: filtered.isEmpty
+                        ? const _NoMatches()
+                        : _buildList(state.snippets, filtered),
+                  ),
                 ],
               );
             },
@@ -108,75 +153,248 @@ class SnippetsPage extends StatelessWidget {
       ),
     );
   }
+
+  Widget _buildList(List<Snippet> all, List<Snippet> filtered) {
+    const padding = EdgeInsets.fromLTRB(16, 8, 16, 96);
+    // Reordering only makes sense over the whole, unfiltered list.
+    if (_searching) {
+      return ListView.separated(
+        padding: padding,
+        itemCount: filtered.length,
+        separatorBuilder: (_, _) => const SizedBox(height: 8),
+        itemBuilder: (context, index) =>
+            _tileFor(filtered[index], index, false),
+      );
+    }
+    return ReorderableListView.builder(
+      padding: padding,
+      buildDefaultDragHandles: false,
+      itemCount: all.length,
+      onReorder: (oldIndex, newIndex) => _reorder(all, oldIndex, newIndex),
+      proxyDecorator: (child, _, _) =>
+          Material(color: Colors.transparent, child: child),
+      itemBuilder: (context, index) => Padding(
+        key: ValueKey(all[index].id),
+        padding: const EdgeInsets.only(bottom: 8),
+        child: _tileFor(all[index], index, true),
+      ),
+    );
+  }
+
+  Widget _tileFor(Snippet snippet, int index, bool reorderable) => _SnippetTile(
+    key: ValueKey("tile-${snippet.id}"),
+    snippet: snippet,
+    index: index,
+    reorderable: reorderable,
+    onEdit: () => _edit(snippet),
+    onDuplicate: () => _duplicate(snippet),
+    onTogglePin: () => _togglePin(snippet),
+    onDelete: () => _delete(snippet),
+  );
 }
 
-class _SnippetTile extends StatelessWidget {
+class _SearchField extends StatelessWidget {
+  final TextEditingController controller;
+  final ValueChanged<String> onChanged;
+  const _SearchField({required this.controller, required this.onChanged});
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    return TextField(
+      controller: controller,
+      onChanged: onChanged,
+      decoration: InputDecoration(
+        hintText: "Search snippets",
+        prefixIcon: const Icon(LucideIcons.search, size: 20),
+        suffixIcon: controller.text.isEmpty
+            ? null
+            : IconButton(
+                icon: const Icon(LucideIcons.x, size: 18),
+                onPressed: () {
+                  controller.clear();
+                  onChanged("");
+                },
+              ),
+        filled: true,
+        fillColor: scheme.surfaceContainerHighest.withValues(alpha: 0.3),
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(AppTheme.radiusMd),
+          borderSide: BorderSide.none,
+        ),
+        contentPadding: EdgeInsets.zero,
+      ),
+    );
+  }
+}
+
+class _SnippetTile extends StatefulWidget {
   final Snippet snippet;
+  final int index;
+  final bool reorderable;
   final VoidCallback onEdit;
+  final VoidCallback onDuplicate;
+  final VoidCallback onTogglePin;
   final VoidCallback onDelete;
   const _SnippetTile({
+    super.key,
     required this.snippet,
+    required this.index,
+    required this.reorderable,
     required this.onEdit,
+    required this.onDuplicate,
+    required this.onTogglePin,
     required this.onDelete,
   });
+
+  @override
+  State<_SnippetTile> createState() => _SnippetTileState();
+}
+
+class _SnippetTileState extends State<_SnippetTile> {
+  final _menuKey = GlobalKey<ContextMenuAreaState>();
+
+  Snippet get snippet => widget.snippet;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final scheme = theme.colorScheme;
-    return Card(
-      margin: EdgeInsets.zero,
-      child: InkWell(
-        onTap: onEdit,
-        borderRadius: BorderRadius.circular(AppTheme.radiusLg),
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(16, 10, 8, 10),
-          child: Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(10),
-                decoration: BoxDecoration(
-                  color: scheme.primaryContainer.withValues(alpha: 0.3),
-                  borderRadius: BorderRadius.circular(AppTheme.radiusMd),
+    final isSecret = snippet.isSecret;
+
+    return ContextMenuArea(
+      key: _menuKey,
+      borderRadius: BorderRadius.circular(AppTheme.radiusLg),
+      actions: [
+        ContextMenuAction(
+          icon: LucideIcons.pencil,
+          label: "Edit",
+          onPressed: widget.onEdit,
+        ),
+        ContextMenuAction(
+          icon: LucideIcons.copyPlus,
+          label: "Duplicate",
+          onPressed: widget.onDuplicate,
+        ),
+        ContextMenuAction(
+          icon: snippet.pinned ? LucideIcons.pinOff : LucideIcons.pin,
+          label: snippet.pinned ? "Unpin" : "Pin",
+          onPressed: widget.onTogglePin,
+        ),
+        ContextMenuAction(
+          icon: LucideIcons.trash2,
+          label: "Delete",
+          onPressed: widget.onDelete,
+          destructive: true,
+        ),
+      ],
+      child: Card(
+        margin: EdgeInsets.zero,
+        child: InkWell(
+          onTap: widget.onEdit,
+          borderRadius: BorderRadius.circular(AppTheme.radiusLg),
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(14, 10, 6, 10),
+            child: Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: scheme.primaryContainer.withValues(alpha: 0.3),
+                    borderRadius: BorderRadius.circular(AppTheme.radiusMd),
+                  ),
+                  child: Icon(
+                    isSecret ? LucideIcons.keyRound : LucideIcons.terminal,
+                    size: 20,
+                    color: scheme.primary,
+                  ),
                 ),
-                child: Icon(LucideIcons.zap, size: 20, color: scheme.primary),
-              ),
-              const SizedBox(width: 14),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      snippet.label,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: theme.textTheme.titleSmall?.copyWith(
-                        fontWeight: FontWeight.w600,
+                const SizedBox(width: 14),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Flexible(
+                            child: Text(
+                              snippet.label,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: theme.textTheme.titleSmall?.copyWith(
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ),
+                          if (snippet.pinned) ...[
+                            const SizedBox(width: 6),
+                            Icon(
+                              LucideIcons.pin,
+                              size: 13,
+                              color: scheme.primary,
+                            ),
+                          ],
+                        ],
                       ),
-                    ),
-                    const SizedBox(height: 2),
-                    Text(
-                      "Hidden value",
-                      style: theme.textTheme.bodySmall?.copyWith(
+                      const SizedBox(height: 2),
+                      Text(
+                        isSecret ? "••••••••••" : snippet.value,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          color: scheme.onSurfaceVariant,
+                          fontFamily: isSecret ? null : AppTheme.mono,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                IconButton(
+                  tooltip: "Snippet options",
+                  visualDensity: VisualDensity.compact,
+                  icon: const Icon(LucideIcons.ellipsis, size: 20),
+                  onPressed: () => _menuKey.currentState?.open(),
+                ),
+                if (widget.reorderable)
+                  ReorderableDragStartListener(
+                    index: widget.index,
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 4),
+                      child: Icon(
+                        LucideIcons.gripVertical,
+                        size: 18,
                         color: scheme.onSurfaceVariant,
                       ),
                     ),
-                  ],
-                ),
-              ),
-              IconButton(
-                tooltip: "Edit",
-                icon: const Icon(LucideIcons.pencil, size: 20),
-                onPressed: onEdit,
-              ),
-              IconButton(
-                tooltip: "Delete",
-                icon: Icon(LucideIcons.trash2, size: 20, color: scheme.error),
-                onPressed: onDelete,
-              ),
-            ],
+                  ),
+              ],
+            ),
           ),
         ),
+      ),
+    );
+  }
+}
+
+class _NoMatches extends StatelessWidget {
+  const _NoMatches();
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    return Center(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(LucideIcons.searchX, size: 40, color: scheme.onSurfaceVariant),
+          const SizedBox(height: 12),
+          Text(
+            "No snippets match your search",
+            style: Theme.of(
+              context,
+            ).textTheme.bodyMedium?.copyWith(color: scheme.onSurfaceVariant),
+          ),
+        ],
       ),
     );
   }
@@ -223,7 +441,8 @@ class _LoadFailed extends StatelessWidget {
 }
 
 class _EmptyState extends StatelessWidget {
-  const _EmptyState();
+  final VoidCallback onAdd;
+  const _EmptyState({required this.onAdd});
 
   @override
   Widget build(BuildContext context) {
@@ -252,11 +471,18 @@ class _EmptyState extends StatelessWidget {
             ),
             const SizedBox(height: 8),
             Text(
-              "Save reusable text like tokens or commands, then paste them into any terminal with a tap.",
+              "Save reusable secrets like tokens, or commands you run often, "
+              "then drop them into any terminal with a tap.",
               textAlign: TextAlign.center,
               style: theme.textTheme.bodyMedium?.copyWith(
                 color: scheme.onSurfaceVariant,
               ),
+            ),
+            const SizedBox(height: 24),
+            FilledButton.icon(
+              onPressed: onAdd,
+              icon: const Icon(LucideIcons.plus),
+              label: const Text("Add your first snippet"),
             ),
           ],
         ),

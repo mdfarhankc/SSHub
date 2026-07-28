@@ -3,6 +3,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 
 import 'package:sshub/core/logging/app_log.dart';
 import 'package:sshub/core/security/secure_platform.dart';
+import 'package:sshub/core/shortcuts/shortcut_actions.dart';
 import 'package:sshub/features/settings/domain/entities/app_settings.dart';
 import 'package:sshub/features/settings/domain/repositories/settings_repository.dart';
 
@@ -116,6 +117,21 @@ class SettingsCubit extends Cubit<SettingsState> {
       clearDownloadDirectory: path == null,
     ),
   );
+
+  // Passing the default binding (or null) drops the override so the action
+  // falls back to its default.
+  void updateShortcut(ShortcutAction action, KeyBinding? binding) {
+    final overrides = {...state.settings.shortcutOverrides};
+    if (binding == null || binding == shortcutDef(action).defaultBinding) {
+      overrides.remove(action.name);
+    } else {
+      overrides[action.name] = binding.serialize();
+    }
+    _update(state.settings.copyWith(shortcutOverrides: overrides));
+  }
+
+  void resetShortcuts() =>
+      _update(state.settings.copyWith(shortcutOverrides: const {}));
 
   Future<void> completeOnboarding() =>
       _update(state.settings.copyWith(onboardingComplete: true));

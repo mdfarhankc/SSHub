@@ -26,6 +26,7 @@ class AppSettingsModel extends AppSettings {
     super.defaultUsername,
     super.downloadDirectory,
     super.blockScreenshots,
+    super.shortcutOverrides,
   });
 
   factory AppSettingsModel.fromJson(
@@ -58,6 +59,11 @@ class AppSettingsModel extends AppSettings {
     defaultUsername: json['defaultUsername'] as String? ?? '',
     downloadDirectory: json['downloadDirectory'] as String?,
     blockScreenshots: json['blockScreenshots'] as bool? ?? true,
+    shortcutOverrides:
+        (json['shortcutOverrides'] as Map?)?.map(
+          (k, v) => MapEntry(k as String, v as String),
+        ) ??
+        const {},
   );
 
   Map<String, dynamic> toJson() => {
@@ -85,6 +91,7 @@ class AppSettingsModel extends AppSettings {
     'defaultUsername': defaultUsername,
     'downloadDirectory': downloadDirectory,
     'blockScreenshots': blockScreenshots,
+    'shortcutOverrides': shortcutOverrides,
   };
 
   factory AppSettingsModel.fromEntity(AppSettings e) => AppSettingsModel(
@@ -112,5 +119,6 @@ class AppSettingsModel extends AppSettings {
     defaultUsername: e.defaultUsername,
     downloadDirectory: e.downloadDirectory,
     blockScreenshots: e.blockScreenshots,
+    shortcutOverrides: e.shortcutOverrides,
   );
 }

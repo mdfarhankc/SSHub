@@ -7,6 +7,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:sshub/core/responsive/responsive.dart';
 import 'package:sshub/core/shortcuts/app_shortcuts.dart';
+import 'package:sshub/core/shortcuts/shortcut_actions.dart';
 import 'package:sshub/core/shortcuts/shortcuts_help_dialog.dart';
 import 'package:sshub/core/theme/app_theme.dart';
 import 'package:sshub/core/widgets/app_snack_bar.dart';
@@ -104,25 +105,21 @@ class _HomePageState extends State<HomePage> {
 
   Map<ShortcutActivator, VoidCallback> _shortcutBindings(
     BuildContext context,
+    Map<String, String> overrides,
   ) => {
-    ...shortcutBinding(LogicalKeyboardKey.keyN, () => _addServer(context)),
-    ...shortcutBinding(LogicalKeyboardKey.keyF, _focusSearch),
-    ...shortcutBinding(
-      LogicalKeyboardKey.keyE,
-      () => Navigator.pushNamed(context, SnippetsPage.route),
-    ),
-    ...shortcutBinding(LogicalKeyboardKey.comma, () => _openSettings(context)),
-    ...shortcutBinding(
-      LogicalKeyboardKey.keyR,
-      () => _checkReachability(context),
-    ),
-    ...shortcutBinding(
-      LogicalKeyboardKey.keyD,
-      () => context.read<SettingsCubit>().toggleThemeMode(),
-      shift: true,
-    ),
+    ...buildShortcuts({
+      ShortcutAction.addServer: () => _addServer(context),
+      ShortcutAction.focusSearch: _focusSearch,
+      ShortcutAction.openSnippets: () =>
+          Navigator.pushNamed(context, SnippetsPage.route),
+      ShortcutAction.openSettings: () => _openSettings(context),
+      ShortcutAction.refreshServers: () => _checkReachability(context),
+      ShortcutAction.toggleTheme: () =>
+          context.read<SettingsCubit>().toggleThemeMode(),
+    }, overrides),
+    // Fixed function keys stay out of the customisable set.
     const SingleActivator(LogicalKeyboardKey.f1): () =>
-        ShortcutsHelpDialog.show(context),
+        ShortcutsHelpDialog.show(context, overrides),
     const SingleActivator(LogicalKeyboardKey.f5): () =>
         _checkReachability(context),
   };
@@ -132,10 +129,13 @@ class _HomePageState extends State<HomePage> {
     final theme = Theme.of(context);
     final scheme = theme.colorScheme;
     final mod = shortcutModifierLabel;
+    final overrides = context.select<SettingsCubit, Map<String, String>>(
+      (c) => c.state.settings.shortcutOverrides,
+    );
 
     return Scaffold(
       body: CallbackShortcuts(
-        bindings: _shortcutBindings(context),
+        bindings: _shortcutBindings(context, overrides),
         child: Focus(
           autofocus: true,
           child: Center(
@@ -194,8 +194,10 @@ class _HomePageState extends State<HomePage> {
                               ),
                             if (!Platform.isAndroid && !Platform.isIOS)
                               IconButton(
-                                onPressed: () =>
-                                    ShortcutsHelpDialog.show(context),
+                                onPressed: () => ShortcutsHelpDialog.show(
+                                  context,
+                                  overrides,
+                                ),
                                 icon: const Icon(LucideIcons.circleHelp),
                                 color: scheme.onSurfaceVariant,
                                 tooltip: "Help (F1)",

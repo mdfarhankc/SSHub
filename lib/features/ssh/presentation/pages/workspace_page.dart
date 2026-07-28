@@ -4,6 +4,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import 'package:sshub/core/shortcuts/app_shortcuts.dart';
+import 'package:sshub/core/shortcuts/shortcut_actions.dart';
 import 'package:sshub/core/theme/app_theme.dart';
 import 'package:sshub/features/settings/presentation/cubit/settings_cubit.dart';
 import 'package:sshub/features/sftp/presentation/cubit/sftp_cubit.dart';
@@ -39,25 +40,24 @@ class _WorkspacePageState extends State<WorkspacePage> {
       _keys.putIfAbsent(session, () => GlobalKey<TerminalSessionViewState>());
 
   // Also bound here: a tab with no view yet cannot catch them.
-  Map<ShortcutActivator, VoidCallback> _shortcutBindings(BuildContext context) {
+  Map<ShortcutActivator, VoidCallback> _shortcutBindings(
+    BuildContext context,
+    Map<String, String> overrides,
+  ) {
     final sessions = context.read<WorkspaceSessionsCubit>();
     return {
+      // Tab cycling and Alt+number jumps stay fixed.
       ...shortcutBinding(LogicalKeyboardKey.tab, sessions.next),
       ...shortcutBinding(
         LogicalKeyboardKey.tab,
         sessions.previous,
         shift: true,
       ),
-      ...shortcutBinding(
-        LogicalKeyboardKey.keyT,
-        () => ServerPickerSheet.openSession(context),
-        shift: true,
-      ),
-      ...shortcutBinding(
-        LogicalKeyboardKey.keyW,
-        () => sessions.closeSession(sessions.state.activeIndex),
-        shift: true,
-      ),
+      ...buildShortcuts({
+        ShortcutAction.newTab: () => ServerPickerSheet.openSession(context),
+        ShortcutAction.closeTab: () =>
+            sessions.closeSession(sessions.state.activeIndex),
+      }, overrides),
       for (var i = 0; i < sessionDigitKeys.length; i++)
         SingleActivator(sessionDigitKeys[i], alt: true): () =>
             sessions.setActive(i),
@@ -118,6 +118,9 @@ class _WorkspacePageState extends State<WorkspacePage> {
         final closeOnBack = context.select<SettingsCubit, bool>(
           (c) => c.state.settings.closeSessionOnBack,
         );
+        final overrides = context.select<SettingsCubit, Map<String, String>>(
+          (c) => c.state.settings.shortcutOverrides,
+        );
 
         return PopScope(
           canPop: !closeOnBack,
@@ -129,7 +132,7 @@ class _WorkspacePageState extends State<WorkspacePage> {
             sessions.closeAll();
           },
           child: CallbackShortcuts(
-            bindings: _shortcutBindings(context),
+            bindings: _shortcutBindings(context, overrides),
             // Yields focus once a terminal connects and asks for it.
             child: Focus(
               autofocus: true,

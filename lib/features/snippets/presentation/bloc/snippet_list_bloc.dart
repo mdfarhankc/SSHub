@@ -15,6 +15,7 @@ class SnippetListBloc extends Bloc<SnippetListEvent, SnippetListState> {
     on<SnippetAdded>(_onAdded);
     on<SnippetUpdated>(_onUpdated);
     on<SnippetDeleted>(_onDeleted);
+    on<SnippetsReordered>(_onReordered);
   }
 
   Future<void> _onLoaded(
@@ -76,6 +77,19 @@ class SnippetListBloc extends Bloc<SnippetListEvent, SnippetListState> {
       );
     } catch (e) {
       emit(state.copyWith(errorMessage: "Could not delete snippet"));
+    }
+  }
+
+  Future<void> _onReordered(
+    SnippetsReordered event,
+    Emitter<SnippetListState> emit,
+  ) async {
+    // Show the new order first so the drag feels immediate.
+    emit(state.copyWith(snippets: event.snippets));
+    try {
+      await _repository.reorderSnippets(event.snippets);
+    } catch (e) {
+      emit(state.copyWith(errorMessage: "Could not save the new order"));
     }
   }
 }

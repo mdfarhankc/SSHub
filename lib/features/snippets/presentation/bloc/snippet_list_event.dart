@@ -18,3 +18,8 @@ final class SnippetDeleted extends SnippetListEvent {
   final String id;
   SnippetDeleted(this.id);
 }
+
+final class SnippetsReordered extends SnippetListEvent {
+  final List<Snippet> snippets;
+  SnippetsReordered(this.snippets);
+}

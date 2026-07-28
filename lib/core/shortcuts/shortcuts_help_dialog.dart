@@ -1,13 +1,21 @@
 import 'package:flutter/material.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:sshub/core/shortcuts/app_shortcuts.dart';
+import 'package:sshub/core/shortcuts/shortcut_actions.dart';
 import 'package:sshub/core/theme/app_theme.dart';
 
 class ShortcutsHelpDialog extends StatelessWidget {
-  const ShortcutsHelpDialog({super.key});
+  // The user's current bindings, so the list reflects any customisations.
+  final Map<String, String> overrides;
+  const ShortcutsHelpDialog({super.key, required this.overrides});
 
-  static Future<void> show(BuildContext context) =>
-      showDialog(context: context, builder: (_) => const ShortcutsHelpDialog());
+  static Future<void> show(
+    BuildContext context,
+    Map<String, String> overrides,
+  ) => showDialog(
+    context: context,
+    builder: (_) => ShortcutsHelpDialog(overrides: overrides),
+  );
 
   @override
   Widget build(BuildContext context) {
@@ -16,17 +24,10 @@ class ShortcutsHelpDialog extends StatelessWidget {
     final mod = shortcutModifierLabel;
 
     final shortcuts = <(String, String)>[
-      ("$mod N", "Add a new server"),
-      ("$mod F", "Search your servers"),
-      ("$mod E", "Open snippets"),
-      ("$mod ,", "Open settings"),
-      ("$mod R", "Refresh server status"),
-      ("$mod Shift D", "Toggle light and dark theme"),
-      ("$mod Shift S", "Paste a snippet while in a terminal"),
-      ("$mod Shift T", "Open another session in a new tab"),
-      ("$mod Shift W", "Close the current tab"),
-      ("$mod Tab", "Switch to the next tab"),
-      ("Alt 1-9", "Jump to a tab by number"),
+      for (final def in kShortcutDefs)
+        (bindingFor(def.action, overrides).display, def.label),
+      ("$mod+Tab", "Switch to the next tab"),
+      ("Alt+1-9", "Jump to a tab by number"),
       ("F1", "Show this help"),
     ];
 
@@ -44,7 +45,7 @@ class ShortcutsHelpDialog extends StatelessWidget {
       (
         LucideIcons.zap,
         "Snippets",
-        "Save reusable tokens or commands once, then paste them into any terminal with a tap or $mod Shift S.",
+        "Save reusable tokens or commands once, then paste them into any terminal with a tap or ${bindingFor(ShortcutAction.snippets, overrides).display}.",
       ),
       (
         LucideIcons.lock,
@@ -168,7 +169,7 @@ class _Keys extends StatelessWidget {
         spacing: 4,
         runSpacing: 4,
         children: [
-          for (final key in combo.split(' '))
+          for (final key in combo.split('+'))
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
               decoration: BoxDecoration(
