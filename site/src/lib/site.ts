@@ -1,17 +1,14 @@
 import {
   KeyRound,
   ShieldCheck,
-  Radio,
   TerminalSquare,
-  RefreshCw,
   Archive,
   FolderOpen,
   Layers,
-  Lock,
   type LucideIcon,
 } from "lucide-react";
 
-export const VERSION = "4.1.0";
+export const VERSION = "4.3.0";
 export const GITHUB_URL = "https://github.com/mdfarhankc/SSHub";
 export const RELEASES_URL = `${GITHUB_URL}/releases/latest`;
 
@@ -38,10 +35,10 @@ export const FEATURES: Feature[] = [
     body: "Keep up to ten servers open at once. Every tab holds its own scrollback, and switching is a keystroke.",
   },
   {
-    icon: Lock,
-    label: "safety",
-    title: "Read-only by default",
-    body: "The file browser cannot change anything on your server until you unlock it, so a misclick on production stays harmless.",
+    icon: TerminalSquare,
+    label: "terminal",
+    title: "A real terminal",
+    body: "A full xterm terminal with copy, paste, select all, and find-in-scrollback. Not a cut-down shell.",
   },
   {
     icon: KeyRound,
@@ -56,24 +53,6 @@ export const FEATURES: Feature[] = [
     body: "SSHub remembers each server's fingerprint and refuses to connect if it changes, so you notice when something is off.",
   },
   {
-    icon: Radio,
-    label: "status",
-    title: "Live server status",
-    body: "Every card shows whether the host is online, offline, or being checked, before you open a session.",
-  },
-  {
-    icon: TerminalSquare,
-    label: "terminal",
-    title: "A real terminal",
-    body: "A full xterm terminal with copy, paste, select all, and find-in-scrollback. Not a cut-down shell.",
-  },
-  {
-    icon: RefreshCw,
-    label: "resilience",
-    title: "Auto-reconnect",
-    body: "Dropped connections retry on their own with backoff, and only report a failure once the retries are spent.",
-  },
-  {
     icon: Archive,
     label: "backups",
     title: "Encrypted backups",
@@ -82,12 +61,16 @@ export const FEATURES: Feature[] = [
 ];
 
 export const EXTRAS = [
+  "Read-only file browser by default",
+  "Live server status",
+  "Auto-reconnect with backoff",
+  "Server tags and filtering",
+  "Color-coded servers",
   "Snippets",
   "Keyboard shortcuts",
   "App lock",
   "Light and dark themes",
   "In-app update check",
-  "Color-tagged servers",
 ] as const;
 
 export const ROADMAP = [

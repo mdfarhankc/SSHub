@@ -1,3 +1,47 @@
+## SSHub 4.3.0
+
+This release adds server tags, a jump-to-path file browser and one consistent menu across the app, along with the security and performance fixes from a full audit.
+
+New
+
+- Tag your servers and filter the home screen by tag, so a long list stays manageable. A server can carry several tags at once, and typing a tag suggests ones you already use
+- Jump straight to a folder in the file browser: click the path, type where you want to go and press Enter. Folder names complete as you type, and each level is listed only once rather than on every keystroke
+- Right-click or long-press a file to open the same lifted menu the server cards use, with download, rename and delete
+- The snippets page splits into Secrets and Commands columns, each reordered on its own
+
+Improvements
+
+- A folder download now refuses any server-supplied name that would write outside the folder you chose, so a malicious listing cannot drop files elsewhere on your machine
+- Every menu shares one look now: server cards, tabs, the file browser and the terminal's right-click menu
+- The terminal's find box is a floating panel rather than a full-width bar, and no longer draws a stray border when focused
+- Copying from the terminal with the keyboard stays marked sensitive, matching the on-screen copy
+- Find no longer rescans the whole scrollback on every keystroke, and changing a setting no longer rebuilds every open terminal
+- The back button and the file browser's up control use clearer icons
+
+## SSHub 4.2.0
+
+This release brings a unified workspace, a reworked snippets system and customisable keyboard shortcuts.
+
+New
+
+- Terminals and file browsers now share one tab strip, opened side by side and kept connected while you move around your servers. Right-click a tab to duplicate it or close others
+- Snippets can be a hidden Secret or a plain Command. Commands are shown in full and searchable, and any snippet can be inserted, run, or copied. Commands can carry {{host}}, {{user}} and {{port}} for the current session, or {{prompt:Label}} to ask for a value when used. Pin the ones you use most and drag to reorder them
+- Rebind most keyboard shortcuts in Settings, with conflict detection and a reset to defaults
+- A terminal bell you can set to flash the screen, play a native sound, or both
+- Choose the terminal cursor shape: block, bar or underline
+- Manage remembered SSH host keys in Settings, and forget one when a server is rebuilt
+- A dedicated Help page listing every shortcut and short guides to each feature
+- Set a default port and username that prefill when you add a server
+- Terminal options for copy on select, paste on right click and reduced motion
+
+Improvements
+
+- Dragging a selection past the top or bottom edge now scrolls through the scrollback, and holding Shift extends an existing selection
+- Ctrl+C copies when text is selected and sends the interrupt when nothing is, the way Windows Terminal and PuTTY behave. Ctrl+Shift+C still copies explicitly
+- Pasting a large or multi-line block asks for confirmation first, so an accidental paste cannot quietly run commands
+- Settings are reorganised into focused sections
+- Lifted, iOS-style menus on server cards and tabs, with a blurred backdrop behind sheets and menus
+
 ## SSHub 4.1.0
 
 This release closes several security gaps found in 4.0.0. Updating is recommended.

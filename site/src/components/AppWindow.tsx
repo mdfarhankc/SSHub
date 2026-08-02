@@ -21,6 +21,7 @@ interface Node {
   accent: string;
   status: Status;
   lastSeen: string;
+  tags: string[];
 }
 
 // Server accent palette from core/theme/server_colors.dart.
@@ -32,6 +33,7 @@ const SERVERS: Node[] = [
     accent: "#3b82f6",
     status: "online",
     lastSeen: "Last seen: 2m ago",
+    tags: ["prod", "web"],
   },
   {
     label: "db-master",
@@ -40,6 +42,7 @@ const SERVERS: Node[] = [
     accent: "#22c55e",
     status: "online",
     lastSeen: "Last seen: just now",
+    tags: ["prod", "db"],
   },
   {
     label: "staging",
@@ -48,6 +51,7 @@ const SERVERS: Node[] = [
     accent: "#a855f7",
     status: "offline",
     lastSeen: "Last seen: 3h ago",
+    tags: ["staging"],
   },
   {
     label: "backup-eu",
@@ -56,8 +60,11 @@ const SERVERS: Node[] = [
     accent: "#f59e0b",
     status: "checking",
     lastSeen: "Last seen: 1d ago",
+    tags: ["backup"],
   },
 ];
+
+const TAG_FILTERS = ["All", "prod", "db", "staging", "backup"];
 
 // Reachability colors from server_card.dart: online = primary (mint),
 // offline = muted, checking = warning amber.
@@ -101,6 +108,18 @@ function ServerCard({ s }: { s: Node }) {
       </div>
 
       <p className="mt-3 truncate text-xs text-[#8ca096]">{s.desc}</p>
+
+      <div className="mt-2.5 flex flex-wrap gap-1.5">
+        {s.tags.map((t) => (
+          <span
+            key={t}
+            className="rounded-md px-2 py-0.5 text-[10px] font-bold"
+            style={{ backgroundColor: `${s.accent}1f`, color: s.accent }}
+          >
+            {t}
+          </span>
+        ))}
+      </div>
 
       <div className="mt-auto flex items-center justify-between pt-4">
         <span className="rounded-md bg-[#1a2420] px-2 py-1 text-[10px] font-semibold text-[#c2cfc9]">
@@ -171,6 +190,22 @@ export function AppWindow() {
             <Plus className="h-4 w-4" />
             <span className="hidden sm:inline">Add Server</span>
           </button>
+        </div>
+
+        {/* Tag filter row */}
+        <div className="mt-4 flex flex-wrap items-center gap-2">
+          {TAG_FILTERS.map((t, i) => (
+            <span
+              key={t}
+              className={
+                i === 0
+                  ? "rounded-full bg-[#00e599] px-3 py-1 text-xs font-semibold text-[#04140e]"
+                  : "rounded-full border border-[#1e2a26] bg-[#141c1a] px-3 py-1 text-xs text-[#8ca096]"
+              }
+            >
+              {t}
+            </span>
+          ))}
         </div>
 
         {/* Server grid */}
