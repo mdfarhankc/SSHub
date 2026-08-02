@@ -262,6 +262,10 @@ class _ServerCardState extends State<ServerCard> {
                             color: scheme.onSurfaceVariant,
                           ),
                         ),
+                      if (server.tags.isNotEmpty) ...[
+                        const SizedBox(height: 8),
+                        _TagChips(tags: server.tags, accent: accent),
+                      ],
                       const Spacer(),
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -304,6 +308,51 @@ class _ServerCardState extends State<ServerCard> {
       visualDensity: VisualDensity.compact,
       icon: const Icon(LucideIcons.ellipsis, size: 22),
       onPressed: () => _menuKey.currentState?.open(),
+    );
+  }
+}
+
+// A single clipped line of tag pills. Extra tags collapse into a "+N" pill so
+// the card keeps its fixed height regardless of how many tags a server carries.
+class _TagChips extends StatelessWidget {
+  final List<String> tags;
+  final Color accent;
+  const _TagChips({required this.tags, required this.accent});
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    const maxShown = 3;
+    final shown = tags.take(maxShown).toList();
+    final extra = tags.length - shown.length;
+
+    Widget pill(String text) => Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+      decoration: BoxDecoration(
+        color: accent.withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(AppTheme.radiusXs),
+      ),
+      child: Text(
+        text,
+        maxLines: 1,
+        softWrap: false,
+        overflow: TextOverflow.ellipsis,
+        style: theme.textTheme.labelSmall?.copyWith(
+          fontSize: 10,
+          fontWeight: FontWeight.w700,
+          color: accent,
+        ),
+      ),
+    );
+
+    return Row(
+      children: [
+        for (var i = 0; i < shown.length; i++) ...[
+          if (i > 0) const SizedBox(width: 6),
+          Flexible(child: pill(shown[i])),
+        ],
+        if (extra > 0) ...[const SizedBox(width: 6), pill("+$extra")],
+      ],
     );
   }
 }

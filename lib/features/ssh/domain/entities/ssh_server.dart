@@ -15,6 +15,7 @@ class SshServer extends Equatable {
   final AuthType authType;
   final int? colorValue;
   final DateTime? lastConnectedAt;
+  final List<String> tags;
 
   const SshServer({
     required this.id,
@@ -29,6 +30,7 @@ class SshServer extends Equatable {
     this.authType = AuthType.password,
     this.colorValue,
     this.lastConnectedAt,
+    this.tags = const [],
   });
 
   SshServer copyWith({
@@ -43,6 +45,7 @@ class SshServer extends Equatable {
     AuthType? authType,
     int? colorValue,
     DateTime? lastConnectedAt,
+    List<String>? tags,
   }) => SshServer(
     id: id,
     label: label ?? this.label,
@@ -56,6 +59,7 @@ class SshServer extends Equatable {
     authType: authType ?? this.authType,
     colorValue: colorValue ?? this.colorValue,
     lastConnectedAt: lastConnectedAt ?? this.lastConnectedAt,
+    tags: tags ?? this.tags,
   );
 
   @override
@@ -72,5 +76,6 @@ class SshServer extends Equatable {
     authType,
     colorValue,
     lastConnectedAt,
+    tags,
   ];
 }

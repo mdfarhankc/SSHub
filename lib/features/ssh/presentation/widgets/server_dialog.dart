@@ -9,9 +9,11 @@ import 'package:sshub/core/auth/reveal_guard.dart';
 import 'package:sshub/core/widgets/blurred_bottom_sheet.dart';
 import 'package:sshub/core/widgets/app_form_sheet.dart';
 import 'package:sshub/core/widgets/section_header.dart';
+import 'package:sshub/core/widgets/tag_input.dart';
 import 'package:sshub/features/settings/domain/entities/app_settings.dart';
 import 'package:sshub/features/settings/presentation/cubit/settings_cubit.dart';
 import 'package:sshub/features/ssh/domain/entities/ssh_server.dart';
+import 'package:sshub/features/ssh/presentation/bloc/server_list_bloc.dart';
 import 'package:sshub/features/ssh/presentation/widgets/auth_type_selector.dart';
 import 'package:sshub/features/ssh/presentation/widgets/color_picker.dart';
 import 'package:sshub/features/ssh/presentation/widgets/dialog_field.dart';
@@ -54,6 +56,13 @@ class _ServerDialogState extends State<ServerDialog> {
   final TextEditingController _keyPassphrase = TextEditingController();
   late int? _color = widget.server?.colorValue;
   late AuthType _authType = widget.server?.authType ?? AuthType.password;
+  late List<String> _tags = List.of(widget.server?.tags ?? const []);
+
+  // Tags already used on other servers, offered as one-tap suggestions.
+  List<String> _tagSuggestions() {
+    final servers = context.read<ServerListBloc>().state.servers;
+    return {for (final s in servers) ...s.tags}.toList()..sort();
+  }
 
   bool get _isEditing => widget.server != null;
   AppSettings get _defaults => context.read<SettingsCubit>().state.settings;
@@ -106,6 +115,7 @@ class _ServerDialogState extends State<ServerDialog> {
       description: _description.text.trim(),
       colorValue: _color,
       lastConnectedAt: widget.server?.lastConnectedAt,
+      tags: _tags,
     );
     Navigator.pop(context, server);
   }
@@ -296,6 +306,14 @@ class _ServerDialogState extends State<ServerDialog> {
         ColorPicker(
           selected: _color,
           onSelected: (value) => setState(() => _color = value),
+        ),
+        const SizedBox(height: 24),
+        const SectionHeader(icon: LucideIcons.tag, title: "Tags"),
+        const SizedBox(height: 12),
+        TagInput(
+          tags: _tags,
+          suggestions: _tagSuggestions(),
+          onChanged: (tags) => setState(() => _tags = tags),
         ),
       ],
     );
