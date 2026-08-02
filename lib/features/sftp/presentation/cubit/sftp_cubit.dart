@@ -87,6 +87,30 @@ class SftpCubit extends Cubit<SftpState> {
     if (!state.isRoot) await _load(RemotePath.parentOf(state.path));
   }
 
+  Future<void> goToPath(String path) async {
+    var target = path.trim();
+    if (target.isEmpty) return;
+    if (!target.startsWith('/')) target = '/$target';
+    if (target.length > 1 && target.endsWith('/')) {
+      target = target.substring(0, target.length - 1);
+    }
+    if (target != state.path) await _load(target);
+  }
+
+  Future<List<RemoteFile>> listFolder(String path) async {
+    final session = _session;
+    if (session == null) return const [];
+    try {
+      final entries = await session.list(path);
+      return [
+        for (final e in entries)
+          if (e.isDirectory) e,
+      ];
+    } catch (_) {
+      return const [];
+    }
+  }
+
   void toggleHidden() {
     final value = !state.showHidden;
     emit(state.copyWith(showHidden: value));
@@ -319,6 +343,11 @@ class SftpCubit extends Cubit<SftpState> {
 
   // Nothing prompts for a location, so avoid replacing an earlier download.
   String _unusedPath(String directory, String name) {
+    // A server-supplied name that is not a plain file name could escape the
+    // download folder, so refuse it rather than write outside it.
+    if (!RemotePath.isSafeLocalSegment(name)) {
+      throw ArgumentError.value(name, 'name', 'unsafe download name');
+    }
     final dot = name.lastIndexOf('.');
     final stem = dot <= 0 ? name : name.substring(0, dot);
     final extension = dot <= 0 ? "" : name.substring(dot);

@@ -9,4 +9,14 @@ abstract final class RemotePath {
     if (index <= 0) return '/';
     return path.substring(0, index);
   }
+
+  // A listing entry names one file. A server that returns a name with a path
+  // separator or a parent reference is trying to write outside the folder the
+  // user chose, so such names never reach the local disk.
+  static bool isSafeLocalSegment(String name) =>
+      name.isNotEmpty &&
+      name != '.' &&
+      name != '..' &&
+      !name.contains('/') &&
+      !name.contains(r'\');
 }

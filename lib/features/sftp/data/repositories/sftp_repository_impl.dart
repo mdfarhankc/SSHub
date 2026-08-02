@@ -238,11 +238,17 @@ class _DartSftpSession implements SftpSession {
     Future<void> walk(String remoteDir, String localDir) async {
       await Directory(localDir).create(recursive: true);
       _throwIfCancelled();
-      final entries = [
+      final listed = [
         for (final name in await _sftp.listdir(remoteDir))
           if (name.filename != '.' && name.filename != '..')
             _toRemoteFile(remoteDir, name),
       ];
+      // A name with a separator or a parent reference would write outside the
+      // download folder, so a malicious server's entries are dropped here.
+      final entries = listed
+          .where((e) => RemotePath.isSafeLocalSegment(e.name))
+          .toList(growable: false);
+      skipped += listed.length - entries.length;
       // Recursing into a link could loop or escape the folder.
       final folders = entries.where((e) => e.isDirectory && !e.isLink);
       final plain = entries
