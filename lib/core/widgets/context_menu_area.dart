@@ -4,19 +4,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import 'package:sshub/core/theme/app_theme.dart';
+import 'package:sshub/core/widgets/app_menu.dart';
 
-class ContextMenuAction {
-  final IconData icon;
-  final String label;
-  final VoidCallback onPressed;
-  final bool destructive;
-  const ContextMenuAction({
-    required this.icon,
-    required this.label,
-    required this.onPressed,
-    this.destructive = false,
-  });
-}
+// ContextMenuAction lives with the shared menu; re-exported so existing callers
+// that import it from here keep working.
+export 'package:sshub/core/widgets/app_menu.dart' show ContextMenuAction;
 
 // Long-press on touch or right-click on desktop lifts the child above a blurred
 // backdrop and shows its actions, the way an iOS context menu does. Pure
@@ -214,7 +206,7 @@ class _ContextMenuOverlayState extends State<_ContextMenuOverlay>
                   alignment: fitsBelow
                       ? Alignment.topLeft
                       : Alignment.bottomLeft,
-                  child: _Menu(
+                  child: AppMenu(
                     width: _menuWidth,
                     actions: widget.actions,
                     onSelected: (a) => _dismiss(a.onPressed),
@@ -225,62 +217,6 @@ class _ContextMenuOverlayState extends State<_ContextMenuOverlay>
           ],
         );
       },
-    );
-  }
-}
-
-class _Menu extends StatelessWidget {
-  final double width;
-  final List<ContextMenuAction> actions;
-  final ValueChanged<ContextMenuAction> onSelected;
-  const _Menu({
-    required this.width,
-    required this.actions,
-    required this.onSelected,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-    return Material(
-      elevation: 8,
-      color: scheme.surface,
-      borderRadius: BorderRadius.circular(AppTheme.radiusLg),
-      clipBehavior: Clip.antiAlias,
-      child: SizedBox(
-        width: width,
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            for (var i = 0; i < actions.length; i++) ...[
-              if (i > 0) Divider(height: 1, color: scheme.outlineVariant),
-              _row(context, actions[i]),
-            ],
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _row(BuildContext context, ContextMenuAction action) {
-    final scheme = Theme.of(context).colorScheme;
-    final color = action.destructive ? scheme.error : scheme.onSurface;
-    return InkWell(
-      onTap: () => onSelected(action),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-        child: Row(
-          children: [
-            Expanded(
-              child: Text(
-                action.label,
-                style: TextStyle(color: color, fontWeight: FontWeight.w500),
-              ),
-            ),
-            Icon(action.icon, size: 18, color: color),
-          ],
-        ),
-      ),
     );
   }
 }

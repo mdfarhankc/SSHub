@@ -89,11 +89,17 @@ class _SnippetsPageState extends State<SnippetsPage> {
     }
   }
 
-  void _reorder(List<Snippet> snippets, int oldIndex, int newIndex) {
-    final list = [...snippets];
+  void _reorderWithinType(SnippetType type, int oldIndex, int newIndex) {
+    final all = context.read<SnippetListBloc>().state.snippets;
+    final sub = [
+      for (final s in all)
+        if (s.type == type) s,
+    ];
     if (newIndex > oldIndex) newIndex -= 1;
-    list.insert(newIndex, list.removeAt(oldIndex));
-    context.read<SnippetListBloc>().add(SnippetsReordered(list));
+    sub.insert(newIndex, sub.removeAt(oldIndex));
+    var i = 0;
+    final rebuilt = [for (final s in all) s.type == type ? sub[i++] : s];
+    context.read<SnippetListBloc>().add(SnippetsReordered(rebuilt));
   }
 
   List<Snippet> _filter(List<Snippet> all) {
@@ -130,7 +136,6 @@ class _SnippetsPageState extends State<SnippetsPage> {
               if (state.snippets.isEmpty) {
                 return _EmptyState(onAdd: _add);
               }
-              final filtered = _filter(state.snippets);
               return Column(
                 children: [
                   Padding(
@@ -140,11 +145,7 @@ class _SnippetsPageState extends State<SnippetsPage> {
                       onChanged: (v) => setState(() => _query = v),
                     ),
                   ),
-                  Expanded(
-                    child: filtered.isEmpty
-                        ? const _NoMatches()
-                        : _buildList(state.snippets, filtered),
-                  ),
+                  Expanded(child: _twoColumns(state.snippets)),
                 ],
               );
             },
@@ -154,30 +155,85 @@ class _SnippetsPageState extends State<SnippetsPage> {
     );
   }
 
-  Widget _buildList(List<Snippet> all, List<Snippet> filtered) {
-    const padding = EdgeInsets.fromLTRB(16, 8, 16, 96);
-    // Reordering only makes sense over the whole, unfiltered list.
-    if (_searching) {
-      return ListView.separated(
-        padding: padding,
-        itemCount: filtered.length,
-        separatorBuilder: (_, _) => const SizedBox(height: 8),
-        itemBuilder: (context, index) =>
-            _tileFor(filtered[index], index, false),
-      );
+  Widget _twoColumns(List<Snippet> all) {
+    final secrets = [
+      for (final s in all)
+        if (s.isSecret) s,
+    ];
+    final commands = [
+      for (final s in all)
+        if (!s.isSecret) s,
+    ];
+    final shownSecrets = _searching ? _filter(secrets) : secrets;
+    final shownCommands = _searching ? _filter(commands) : commands;
+    if (_searching && shownSecrets.isEmpty && shownCommands.isEmpty) {
+      return const _NoMatches();
     }
-    return ReorderableListView.builder(
-      padding: padding,
-      buildDefaultDragHandles: false,
-      itemCount: all.length,
-      onReorder: (oldIndex, newIndex) => _reorder(all, oldIndex, newIndex),
-      proxyDecorator: (child, _, _) =>
-          Material(color: Colors.transparent, child: child),
-      itemBuilder: (context, index) => Padding(
-        key: ValueKey(all[index].id),
-        padding: const EdgeInsets.only(bottom: 8),
-        child: _tileFor(all[index], index, true),
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Expanded(
+            child: _typeColumn(
+              SnippetType.secret,
+              "Secrets",
+              LucideIcons.keyRound,
+              shownSecrets,
+            ),
+          ),
+          const SizedBox(width: 16),
+          Expanded(
+            child: _typeColumn(
+              SnippetType.command,
+              "Commands",
+              LucideIcons.terminal,
+              shownCommands,
+            ),
+          ),
+        ],
       ),
+    );
+  }
+
+  Widget _typeColumn(
+    SnippetType type,
+    String title,
+    IconData icon,
+    List<Snippet> shown,
+  ) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _ColumnHeader(icon: icon, title: title, count: shown.length),
+        const SizedBox(height: 8),
+        Expanded(
+          child: shown.isEmpty
+              ? _EmptyColumn(searching: _searching)
+              : _searching
+              ? ListView.separated(
+                  padding: const EdgeInsets.only(bottom: 88),
+                  itemCount: shown.length,
+                  separatorBuilder: (_, _) => const SizedBox(height: 8),
+                  itemBuilder: (context, index) =>
+                      _tileFor(shown[index], index, false),
+                )
+              : ReorderableListView.builder(
+                  padding: const EdgeInsets.only(bottom: 88),
+                  buildDefaultDragHandles: false,
+                  itemCount: shown.length,
+                  onReorder: (oldIndex, newIndex) =>
+                      _reorderWithinType(type, oldIndex, newIndex),
+                  proxyDecorator: (child, _, _) =>
+                      Material(color: Colors.transparent, child: child),
+                  itemBuilder: (context, index) => Padding(
+                    key: ValueKey(shown[index].id),
+                    padding: const EdgeInsets.only(bottom: 8),
+                    child: _tileFor(shown[index], index, true),
+                  ),
+                ),
+        ),
+      ],
     );
   }
 
@@ -356,14 +412,17 @@ class _SnippetTileState extends State<_SnippetTile> {
                   onPressed: () => _menuKey.currentState?.open(),
                 ),
                 if (widget.reorderable)
-                  ReorderableDragStartListener(
-                    index: widget.index,
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 4),
-                      child: Icon(
-                        LucideIcons.gripVertical,
-                        size: 18,
-                        color: scheme.onSurfaceVariant,
+                  MouseRegion(
+                    cursor: SystemMouseCursors.click,
+                    child: ReorderableDragStartListener(
+                      index: widget.index,
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 4),
+                        child: Icon(
+                          LucideIcons.gripVertical,
+                          size: 18,
+                          color: scheme.onSurfaceVariant,
+                        ),
                       ),
                     ),
                   ),
@@ -371,6 +430,63 @@ class _SnippetTileState extends State<_SnippetTile> {
             ),
           ),
         ),
+      ),
+    );
+  }
+}
+
+class _ColumnHeader extends StatelessWidget {
+  final IconData icon;
+  final String title;
+  final int count;
+  const _ColumnHeader({
+    required this.icon,
+    required this.title,
+    required this.count,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
+    return Padding(
+      padding: const EdgeInsets.only(left: 4),
+      child: Row(
+        children: [
+          Icon(icon, size: 16, color: scheme.onSurfaceVariant),
+          const SizedBox(width: 8),
+          Text(
+            title,
+            style: theme.textTheme.titleSmall?.copyWith(
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+          const SizedBox(width: 6),
+          Text(
+            "$count",
+            style: theme.textTheme.bodySmall?.copyWith(
+              color: scheme.onSurfaceVariant,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _EmptyColumn extends StatelessWidget {
+  final bool searching;
+  const _EmptyColumn({required this.searching});
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    return Center(
+      child: Text(
+        searching ? "No matches" : "Nothing here yet",
+        style: Theme.of(
+          context,
+        ).textTheme.bodySmall?.copyWith(color: scheme.onSurfaceVariant),
       ),
     );
   }

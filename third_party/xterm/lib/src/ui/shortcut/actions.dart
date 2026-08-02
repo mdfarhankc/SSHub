@@ -10,6 +10,7 @@ class TerminalActions extends StatelessWidget {
     required this.terminal,
     required this.controller,
     required this.child,
+    this.onCopy,
   });
 
   final Terminal terminal;
@@ -17,6 +18,11 @@ class TerminalActions extends StatelessWidget {
   final TerminalController controller;
 
   final Widget child;
+
+  /// Copies selected text to the clipboard. Falls back to a plain clipboard
+  /// write when not provided; the host app can pass a handler that marks the
+  /// data sensitive.
+  final Future<void> Function(String text)? onCopy;
 
   @override
   Widget build(BuildContext context) {
@@ -43,7 +49,11 @@ class TerminalActions extends StatelessWidget {
 
             final text = terminal.buffer.getText(selection);
 
-            await Clipboard.setData(ClipboardData(text: text));
+            if (onCopy != null) {
+              await onCopy!(text);
+            } else {
+              await Clipboard.setData(ClipboardData(text: text));
+            }
 
             return null;
           },

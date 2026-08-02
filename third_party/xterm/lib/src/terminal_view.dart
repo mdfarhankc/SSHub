@@ -48,6 +48,7 @@ class TerminalView extends StatefulWidget {
     this.readOnly = false,
     this.hardwareKeyboardOnly = false,
     this.simulateScroll = true,
+    this.onCopy,
   });
 
   /// The underlying terminal that this widget renders.
@@ -141,6 +142,10 @@ class TerminalView extends StatefulWidget {
   /// emulators. True by default.
   final bool simulateScroll;
 
+  /// Copies selected text to the clipboard. When null a plain clipboard write
+  /// is used; a host app can pass a handler that marks the data sensitive.
+  final Future<void> Function(String text)? onCopy;
+
   @override
   State<TerminalView> createState() => TerminalViewState();
 }
@@ -162,7 +167,11 @@ class TerminalViewState extends State<TerminalView> {
 
   late ScrollController _scrollController;
 
-  RenderTerminal get renderTerminal => _viewportKey.currentContext!.findRenderObject() as RenderTerminal;
+  RenderTerminal get renderTerminal =>
+      _viewportKey.currentContext!.findRenderObject() as RenderTerminal;
+
+  /// The inner [Scrollable], used to auto-scroll while drag-selecting.
+  ScrollableState? get scrollableState => _scrollableKey.currentState;
 
   @override
   void initState() {
@@ -264,7 +273,8 @@ class TerminalViewState extends State<TerminalView> {
         onAction: (action) {
           _scrollToBottom();
           // Android sends TextInputAction.newline when the user presses the virtual keyboard's enter key.
-          if (action == TextInputAction.done || action == TextInputAction.newline) {
+          if (action == TextInputAction.done ||
+              action == TextInputAction.newline) {
             widget.terminal.keyInput(TerminalKey.enter);
           }
         },
@@ -287,6 +297,7 @@ class TerminalViewState extends State<TerminalView> {
     child = TerminalActions(
       terminal: widget.terminal,
       controller: _controller,
+      onCopy: widget.onCopy,
       child: child,
     );
 
@@ -300,8 +311,10 @@ class TerminalViewState extends State<TerminalView> {
       terminalController: _controller,
       onTapUp: _onTapUp,
       onTapDown: _onTapDown,
-      onSecondaryTapDown: widget.onSecondaryTapDown != null ? _onSecondaryTapDown : null,
-      onSecondaryTapUp: widget.onSecondaryTapUp != null ? _onSecondaryTapUp : null,
+      onSecondaryTapDown:
+          widget.onSecondaryTapDown != null ? _onSecondaryTapDown : null,
+      onSecondaryTapUp:
+          widget.onSecondaryTapUp != null ? _onSecondaryTapUp : null,
       readOnly: widget.readOnly,
       child: child,
     );
@@ -312,7 +325,8 @@ class TerminalViewState extends State<TerminalView> {
     );
 
     child = Container(
-      color: widget.theme.background.withValues(alpha: widget.backgroundOpacity),
+      color:
+          widget.theme.background.withValues(alpha: widget.backgroundOpacity),
       padding: widget.padding,
       child: child,
     );
@@ -333,7 +347,8 @@ class TerminalViewState extends State<TerminalView> {
   }
 
   Rect get globalCursorRect {
-    return renderTerminal.localToGlobal(renderTerminal.cursorOffset) & renderTerminal.cellSize;
+    return renderTerminal.localToGlobal(renderTerminal.cursorOffset) &
+        renderTerminal.cellSize;
   }
 
   void _onTapUp(TapUpDetails details) {

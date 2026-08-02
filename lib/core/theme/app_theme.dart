@@ -1,5 +1,6 @@
 import 'package:flutter/cupertino.dart' show CupertinoPageTransitionsBuilder;
 import 'package:flutter/material.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:sshub/core/theme/app_colors.dart';
 
 abstract final class AppTheme {
@@ -70,6 +71,9 @@ abstract final class AppTheme {
       appBarTheme: const AppBarTheme(
         surfaceTintColor: Colors.transparent,
         centerTitle: false,
+      ),
+      actionIconTheme: ActionIconThemeData(
+        backButtonIconBuilder: (context) => const Icon(LucideIcons.chevronLeft),
       ),
       inputDecorationTheme: InputDecorationTheme(
         filled: true,

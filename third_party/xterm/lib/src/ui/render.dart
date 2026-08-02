@@ -298,6 +298,20 @@ class RenderTerminal extends RenderBox with RelayoutWhenSystemFontsChangeMixin {
     }
   }
 
+  /// Extends a selection from a fixed [base] cell to the cell under [to]. The
+  /// base is an absolute buffer cell, so it stays put while the view scrolls
+  /// during a drag, unlike [selectCharacters] which recomputes both ends.
+  void selectCharactersTo(CellOffset base, Offset to) {
+    var toPosition = getCellOffset(to);
+    if (toPosition.x >= base.x) {
+      toPosition = CellOffset(toPosition.x + 1, toPosition.y);
+    }
+    _controller.setSelection(
+      _terminal.buffer.createAnchorFromOffset(base),
+      _terminal.buffer.createAnchorFromOffset(toPosition),
+    );
+  }
+
   /// Send a mouse event at [offset] with [button] being currently in [buttonState].
   bool mouseEvent(
     TerminalMouseButton button,

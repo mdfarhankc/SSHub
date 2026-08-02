@@ -1,7 +1,11 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:xterm/xterm.dart';
+
+import 'package:sshub/core/theme/app_theme.dart';
 
 class TerminalSearchMatch {
   final int line;
@@ -16,6 +20,12 @@ class TerminalSearchController extends ChangeNotifier {
   TerminalSearchController(this._terminal);
   final Terminal _terminal;
 
+  // Scanning the whole scrollback on every keystroke is wasteful, so the query
+  // settles briefly before the scan runs.
+  static const _debounce = Duration(milliseconds: 150);
+  Timer? _debounceTimer;
+  String _query = '';
+
   List<TerminalSearchMatch> _matches = const [];
   int _index = 0;
 
@@ -26,10 +36,16 @@ class TerminalSearchController extends ChangeNotifier {
       _matches.isEmpty ? null : _matches[_index];
 
   void run(String query) {
+    _debounceTimer?.cancel();
     if (query.isEmpty) {
       clear();
       return;
     }
+    _query = query;
+    _debounceTimer = Timer(_debounce, () => _scan(query));
+  }
+
+  void _scan(String query) {
     final needle = query.toLowerCase();
     final found = <TerminalSearchMatch>[];
     final lines = _terminal.buffer.lines;
@@ -46,22 +62,39 @@ class TerminalSearchController extends ChangeNotifier {
     notifyListeners();
   }
 
+  // Runs a pending scan now so Enter acts on the latest query, not a stale one.
+  void _flush() {
+    if (_debounceTimer?.isActive ?? false) {
+      _debounceTimer!.cancel();
+      _scan(_query);
+    }
+  }
+
   void next() {
+    _flush();
     if (_matches.isEmpty) return;
     _index = (_index + 1) % _matches.length;
     notifyListeners();
   }
 
   void previous() {
+    _flush();
     if (_matches.isEmpty) return;
     _index = (_index - 1 + _matches.length) % _matches.length;
     notifyListeners();
   }
 
   void clear() {
+    _debounceTimer?.cancel();
     _matches = const [];
     _index = 0;
     notifyListeners();
+  }
+
+  @override
+  void dispose() {
+    _debounceTimer?.cancel();
+    super.dispose();
   }
 }
 
@@ -93,13 +126,18 @@ class TerminalSearchBar extends StatelessWidget {
     final scheme = theme.colorScheme;
 
     return Material(
-      color: scheme.surfaceContainerHigh,
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+      color: Colors.transparent,
+      child: Container(
+        decoration: BoxDecoration(
+          color: scheme.surface,
+          borderRadius: BorderRadius.circular(AppTheme.radiusLg),
+          border: Border.all(color: scheme.outlineVariant),
+        ),
+        padding: const EdgeInsets.fromLTRB(12, 4, 4, 4),
         child: Row(
           children: [
             Icon(LucideIcons.search, size: 18, color: scheme.onSurfaceVariant),
-            const SizedBox(width: 8),
+            const SizedBox(width: 10),
             Expanded(
               child: CallbackShortcuts(
                 bindings: {
@@ -114,7 +152,11 @@ class TerminalSearchBar extends StatelessWidget {
                   style: theme.textTheme.bodyMedium,
                   decoration: const InputDecoration(
                     isDense: true,
+                    contentPadding: EdgeInsets.symmetric(vertical: 8),
                     border: InputBorder.none,
+                    enabledBorder: InputBorder.none,
+                    focusedBorder: InputBorder.none,
+                    filled: false,
                     hintText: "Find in terminal",
                   ),
                   onChanged: onChanged,
@@ -122,47 +164,105 @@ class TerminalSearchBar extends StatelessWidget {
                 ),
               ),
             ),
+            const SizedBox(width: 8),
             ListenableBuilder(
               listenable: controller,
               builder: (context, _) {
                 final hasMatches = controller.hasMatches;
-                final count = hasMatches
-                    ? "${controller.index + 1}/${controller.matches.length}"
-                    : "0/0";
+                final hasQuery = textController.text.isNotEmpty;
+                final noResults = hasQuery && !hasMatches;
+                final pillColor = noResults
+                    ? scheme.errorContainer
+                    : scheme.surfaceContainerHighest;
+                final textColor = noResults
+                    ? scheme.onErrorContainer
+                    : scheme.onSurfaceVariant;
+                final label = hasMatches
+                    ? "${controller.index + 1} of ${controller.matches.length}"
+                    : "No results";
                 return Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Text(
-                      count,
-                      style: theme.textTheme.bodySmall?.copyWith(
-                        color: scheme.onSurfaceVariant,
+                    // No pill until there is something to count.
+                    if (hasQuery) ...[
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 10,
+                          vertical: 4,
+                        ),
+                        decoration: BoxDecoration(
+                          color: pillColor,
+                          borderRadius: BorderRadius.circular(999),
+                        ),
+                        child: Text(
+                          label,
+                          style: theme.textTheme.labelSmall?.copyWith(
+                            fontWeight: FontWeight.w600,
+                            color: textColor,
+                          ),
+                        ),
                       ),
-                    ),
-                    IconButton(
+                      const SizedBox(width: 6),
+                    ],
+                    _NavButton(
+                      icon: LucideIcons.chevronUp,
                       tooltip: "Previous (Shift+Enter)",
-                      visualDensity: VisualDensity.compact,
-                      icon: const Icon(LucideIcons.chevronUp, size: 20),
                       onPressed: hasMatches ? onPrevious : null,
                     ),
-                    IconButton(
+                    _NavButton(
+                      icon: LucideIcons.chevronDown,
                       tooltip: "Next (Enter)",
-                      visualDensity: VisualDensity.compact,
-                      icon: const Icon(LucideIcons.chevronDown, size: 20),
                       onPressed: hasMatches ? onNext : null,
                     ),
                   ],
                 );
               },
             ),
-            IconButton(
+            Container(
+              width: 1,
+              height: 22,
+              margin: const EdgeInsets.symmetric(horizontal: 4),
+              color: scheme.outlineVariant,
+            ),
+            _NavButton(
+              icon: LucideIcons.x,
               tooltip: "Close (Esc)",
-              visualDensity: VisualDensity.compact,
-              icon: const Icon(LucideIcons.x, size: 20),
               onPressed: onClose,
             ),
           ],
         ),
       ),
+    );
+  }
+}
+
+// A compact icon button sized for the search bar's controls.
+class _NavButton extends StatelessWidget {
+  final IconData icon;
+  final String tooltip;
+  final VoidCallback? onPressed;
+  const _NavButton({
+    required this.icon,
+    required this.tooltip,
+    required this.onPressed,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final enabled = onPressed != null;
+    return IconButton(
+      tooltip: tooltip,
+      visualDensity: VisualDensity.compact,
+      padding: const EdgeInsets.all(6),
+      constraints: const BoxConstraints(),
+      splashRadius: 20,
+      icon: Icon(
+        icon,
+        size: 18,
+        color: enabled ? scheme.onSurface : scheme.onSurfaceVariant,
+      ),
+      onPressed: onPressed,
     );
   }
 }

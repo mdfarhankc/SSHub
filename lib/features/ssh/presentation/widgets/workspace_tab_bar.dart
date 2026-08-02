@@ -4,6 +4,7 @@ import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import 'package:sshub/core/theme/app_theme.dart';
 import 'package:sshub/core/theme/server_colors.dart';
+import 'package:sshub/core/widgets/app_menu.dart';
 import 'package:sshub/features/sftp/presentation/cubit/sftp_cubit.dart';
 import 'package:sshub/features/sftp/presentation/widgets/sftp_status.dart';
 import 'package:sshub/features/ssh/presentation/cubit/terminal_cubit.dart';
@@ -121,8 +122,6 @@ class _Tab extends StatelessWidget {
   }
 }
 
-enum _TabAction { duplicate, close, closeOthers, closeAll }
-
 // Opens another session to the same server, matching this tab's kind.
 void _duplicate(WorkspaceSessionsCubit sessions, WorkspaceSession session) {
   switch (session.kind) {
@@ -155,48 +154,37 @@ class _TabChrome extends StatelessWidget {
   });
 
   // Right-click on desktop, long-press on touch: both land on the same menu.
-  Future<void> _showMenu(BuildContext context, Offset globalPos) async {
+  Future<void> _showMenu(BuildContext context, Offset globalPos) {
     final sessions = context.read<WorkspaceSessionsCubit>();
     final onlyTab = sessions.state.sessions.length <= 1;
-    final overlay = Overlay.of(context).context.findRenderObject() as RenderBox;
-    final choice = await showMenu<_TabAction>(
+    return showAppMenu(
       context: context,
-      position: RelativeRect.fromRect(
-        globalPos & const Size(40, 40),
-        Offset.zero & overlay.size,
-      ),
-      items: [
-        const PopupMenuItem(
-          value: _TabAction.duplicate,
-          child: _MenuRow(icon: LucideIcons.copyPlus, label: "Duplicate"),
+      globalPosition: globalPos,
+      actions: [
+        ContextMenuAction(
+          icon: LucideIcons.copyPlus,
+          label: "Duplicate",
+          onPressed: () => _duplicate(sessions, session),
         ),
-        const PopupMenuItem(
-          value: _TabAction.close,
-          child: _MenuRow(icon: LucideIcons.x, label: "Close"),
+        ContextMenuAction(
+          icon: LucideIcons.x,
+          label: "Close",
+          onPressed: () => sessions.closeSession(index),
         ),
-        PopupMenuItem(
-          value: _TabAction.closeOthers,
-          enabled: !onlyTab,
-          child: const _MenuRow(icon: LucideIcons.listX, label: "Close others"),
-        ),
-        const PopupMenuItem(
-          value: _TabAction.closeAll,
-          child: _MenuRow(icon: LucideIcons.xCircle, label: "Close all"),
+        // Meaningless with a single tab, so left out rather than disabled.
+        if (!onlyTab)
+          ContextMenuAction(
+            icon: LucideIcons.listX,
+            label: "Close others",
+            onPressed: () => sessions.closeOthers(index),
+          ),
+        ContextMenuAction(
+          icon: LucideIcons.xCircle,
+          label: "Close all",
+          onPressed: sessions.closeAll,
         ),
       ],
     );
-    switch (choice) {
-      case _TabAction.duplicate:
-        _duplicate(sessions, session);
-      case _TabAction.close:
-        sessions.closeSession(index);
-      case _TabAction.closeOthers:
-        sessions.closeOthers(index);
-      case _TabAction.closeAll:
-        sessions.closeAll();
-      case null:
-        break;
-    }
   }
 
   @override
@@ -278,20 +266,6 @@ class _TabChrome extends StatelessWidget {
           ),
         ),
       ),
-    );
-  }
-}
-
-// One row of the tab context menu: an icon and its label.
-class _MenuRow extends StatelessWidget {
-  final IconData icon;
-  final String label;
-  const _MenuRow({required this.icon, required this.label});
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      children: [Icon(icon, size: 18), const SizedBox(width: 12), Text(label)],
     );
   }
 }

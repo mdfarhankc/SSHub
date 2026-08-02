@@ -12,6 +12,7 @@ import 'package:sshub/core/security/secure_platform.dart';
 import 'package:sshub/core/shortcuts/app_shortcuts.dart';
 import 'package:sshub/core/shortcuts/shortcut_actions.dart';
 import 'package:sshub/core/theme/terminal_schemes.dart';
+import 'package:sshub/core/widgets/app_menu.dart';
 import 'package:sshub/core/widgets/app_snack_bar.dart';
 import 'package:sshub/core/widgets/blurred_bottom_sheet.dart';
 import 'package:sshub/features/settings/presentation/cubit/settings_cubit.dart';
@@ -64,7 +65,9 @@ class TerminalSessionViewState extends State<TerminalSessionView> {
   // frame. The bell flash clears itself shortly after it lights up.
   Timer? _copyTimer;
   Timer? _bellTimer;
-  bool _bellFlash = false;
+  // A notifier so a ringing bell repaints only the flash overlay, not the whole
+  // terminal subtree.
+  final _bellFlash = ValueNotifier(false);
   // Search and select-all set the selection in code; those must not auto-copy.
   bool _suppressAutoCopy = false;
 
@@ -115,6 +118,7 @@ class TerminalSessionViewState extends State<TerminalSessionView> {
     _search.dispose();
     _copyTimer?.cancel();
     _bellTimer?.cancel();
+    _bellFlash.dispose();
     _scrollController.dispose();
     _searchController.dispose();
     _searchFocus.dispose();
@@ -127,11 +131,9 @@ class TerminalSessionViewState extends State<TerminalSessionView> {
     final settings = context.read<SettingsCubit>().state.settings;
     if (settings.bellSound) SystemBell.ring();
     if (!settings.bellVisual) return;
-    setState(() => _bellFlash = true);
+    _bellFlash.value = true;
     _bellTimer?.cancel();
-    _bellTimer = Timer(_bellFlashDuration, () {
-      if (mounted) setState(() => _bellFlash = false);
-    });
+    _bellTimer = Timer(_bellFlashDuration, () => _bellFlash.value = false);
   }
 
   // Copies once the selection settles, so a drag does not spam the clipboard.
@@ -193,10 +195,45 @@ class TerminalSessionViewState extends State<TerminalSessionView> {
     if (mounted) showAppSnackBar(context, "Copied to clipboard");
   }
 
+  // Large or multi-line pastes are easy to trigger by accident and can run as
+  // commands, so they are confirmed first.
+  static const _pasteWarnChars = 1000;
+  static const _pasteWarnLines = 4;
+
   Future<void> _paste() async {
     final data = await Clipboard.getData(Clipboard.kTextPlain);
     final text = data?.text;
-    if (text != null && text.isNotEmpty) _terminal.paste(text);
+    if (text == null || text.isEmpty || !mounted) return;
+    final lines = '\n'.allMatches(text).length + 1;
+    if (text.length > _pasteWarnChars || lines > _pasteWarnLines) {
+      final ok = await _confirmLargePaste(text.length, lines);
+      if (!ok || !mounted) return;
+    }
+    _terminal.paste(text);
+  }
+
+  Future<bool> _confirmLargePaste(int chars, int lines) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text("Paste into terminal?"),
+        content: Text(
+          "This will paste $lines lines ($chars characters). Text with line "
+          "breaks can run as commands.",
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: const Text("Cancel"),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(dialogContext, true),
+            child: const Text("Paste"),
+          ),
+        ],
+      ),
+    );
+    return confirmed ?? false;
   }
 
   void _selectAll() {
@@ -350,6 +387,7 @@ class TerminalSessionViewState extends State<TerminalSessionView> {
                 ),
                 padding: const EdgeInsets.all(12),
                 readOnly: true,
+                onCopy: SecurePlatform.copySensitive,
                 textStyle: TerminalStyle(
                   fontSize: settings.terminalFontSize,
                   fontFamily: settings.terminalFontFamily,
@@ -411,8 +449,21 @@ class TerminalSessionViewState extends State<TerminalSessionView> {
         break;
     }
 
-    // Tab cycling and Alt+number jumps stay fixed.
     final modifier = keyboard.isControlPressed || keyboard.isMetaPressed;
+
+    // Ctrl+C copies when text is selected, and only falls through to the shell
+    // as the interrupt when nothing is selected, the way Windows Terminal and
+    // PuTTY behave.
+    if (modifier &&
+        !keyboard.isShiftPressed &&
+        !keyboard.isAltPressed &&
+        event.logicalKey == LogicalKeyboardKey.keyC &&
+        _terminalController.selection != null) {
+      _copySelection();
+      return KeyEventResult.handled;
+    }
+
+    // Tab cycling and Alt+number jumps stay fixed.
     if (modifier && event.logicalKey == LogicalKeyboardKey.tab) {
       final sessions = context.read<WorkspaceSessionsCubit>();
       keyboard.isShiftPressed ? sessions.previous() : sessions.next();
@@ -427,77 +478,49 @@ class TerminalSessionViewState extends State<TerminalSessionView> {
       }
     }
 
-    // Ctrl+C is left to the shell. Copying it instead would swallow the
-    // interrupt whenever a stale selection is lying around.
+    // Everything else, including Ctrl+C with no selection, goes to the shell.
     return KeyEventResult.ignored;
   }
 
-  Future<void> _showContextMenu(BuildContext context, Offset globalPos) async {
-    final overlay = Overlay.of(context).context.findRenderObject() as RenderBox;
-    final hasSelection = _terminalController.selection != null;
-    final choice = await showMenu<String>(
+  // Copy is a no-op with nothing selected, so it stays in the list rather than
+  // being hidden when there is no selection.
+  Future<void> _showContextMenu(BuildContext context, Offset globalPos) {
+    return showAppMenu(
       context: context,
-      position: RelativeRect.fromRect(
-        globalPos & const Size(40, 40),
-        Offset.zero & overlay.size,
-      ),
-      items: const [
-        PopupMenuItem(
-          value: 'copy',
-          child: _MenuRow(
-            icon: LucideIcons.copy,
-            label: "Copy",
-            hint: "Ctrl+Shift+C",
-          ),
+      globalPosition: globalPos,
+      actions: [
+        ContextMenuAction(
+          icon: LucideIcons.copy,
+          label: "Copy",
+          hint: "Ctrl+Shift+C",
+          onPressed: _copySelection,
         ),
-        PopupMenuItem(
-          value: 'paste',
-          child: _MenuRow(
-            icon: LucideIcons.clipboardPaste,
-            label: "Paste",
-            hint: "Ctrl+Shift+V",
-          ),
+        ContextMenuAction(
+          icon: LucideIcons.clipboardPaste,
+          label: "Paste",
+          hint: "Ctrl+Shift+V",
+          onPressed: _paste,
         ),
-        PopupMenuItem(
-          value: 'selectAll',
-          child: _MenuRow(
-            icon: LucideIcons.textSelect,
-            label: "Select all",
-            hint: "Ctrl+Shift+A",
-          ),
+        ContextMenuAction(
+          icon: LucideIcons.textSelect,
+          label: "Select all",
+          hint: "Ctrl+Shift+A",
+          onPressed: _selectAll,
         ),
-        PopupMenuDivider(),
-        PopupMenuItem(
-          value: 'find',
-          child: _MenuRow(
-            icon: LucideIcons.search,
-            label: "Find",
-            hint: "Ctrl+F",
-          ),
+        ContextMenuAction(
+          icon: LucideIcons.search,
+          label: "Find",
+          hint: "Ctrl+F",
+          onPressed: openSearch,
         ),
-        PopupMenuItem(
-          value: 'clear',
-          child: _MenuRow(
-            icon: LucideIcons.brushCleaning,
-            label: "Clear screen",
-            hint: "Ctrl+L",
-          ),
+        ContextMenuAction(
+          icon: LucideIcons.brushCleaning,
+          label: "Clear screen",
+          hint: "Ctrl+L",
+          onPressed: _clear,
         ),
       ],
     );
-    if (choice == 'copy' && !hasSelection) return;
-    switch (choice) {
-      case 'copy':
-        _copySelection();
-      case 'paste':
-        _paste();
-      case 'selectAll':
-        _selectAll();
-      case 'find':
-        openSearch();
-      case 'clear':
-        _clear();
-    }
   }
 
   void openSearch() {
@@ -536,7 +559,26 @@ class TerminalSessionViewState extends State<TerminalSessionView> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final settings = context.watch<SettingsCubit>().state.settings;
+    // Only the terminal-relevant settings are watched, so changing an unrelated
+    // preference does not rebuild every open terminal tab.
+    final (
+      colorScheme,
+      cursorStyle,
+      fontSize,
+      fontFamily,
+      pasteOnRightClick,
+    ) = context.select<SettingsCubit, (String, String, double, String, bool)>((
+      cubit,
+    ) {
+      final s = cubit.state.settings;
+      return (
+        s.terminalColorScheme,
+        s.cursorStyle,
+        s.terminalFontSize,
+        s.terminalFontFamily,
+        s.pasteOnRightClick,
+      );
+    });
     final server = widget.session.server;
     final isDark = theme.brightness == Brightness.dark;
 
@@ -623,16 +665,6 @@ class TerminalSessionViewState extends State<TerminalSessionView> {
             ),
             TerminalConnected() => Column(
               children: [
-                if (_searchOpen)
-                  TerminalSearchBar(
-                    controller: _search,
-                    textController: _searchController,
-                    focusNode: _searchFocus,
-                    onChanged: _search.run,
-                    onNext: _search.next,
-                    onPrevious: _search.previous,
-                    onClose: _closeSearch,
-                  ),
                 Expanded(
                   child: Stack(
                     children: [
@@ -642,29 +674,55 @@ class TerminalSessionViewState extends State<TerminalSessionView> {
                         scrollController: _scrollController,
                         focusNode: _terminalFocus,
                         theme: TerminalSchemes.resolve(
-                          settings.terminalColorScheme,
+                          colorScheme,
                           dark: isDark,
                         ),
                         padding: const EdgeInsets.all(12),
                         autofocus: widget.isActive,
-                        cursorType: _cursorType(settings.cursorStyle),
-                        onSecondaryTapDown: (details, _) =>
-                            settings.pasteOnRightClick
+                        cursorType: _cursorType(cursorStyle),
+                        onCopy: SecurePlatform.copySensitive,
+                        onSecondaryTapDown: (details, _) => pasteOnRightClick
                             ? _paste()
                             : _showContextMenu(context, details.globalPosition),
                         onKeyEvent: (node, event) =>
                             _handleTerminalKey(context, event),
                         textStyle: TerminalStyle(
-                          fontSize: settings.terminalFontSize,
-                          fontFamily: settings.terminalFontFamily,
+                          fontSize: fontSize,
+                          fontFamily: fontFamily,
                         ),
                       ),
-                      if (_bellFlash)
-                        Positioned.fill(
-                          child: IgnorePointer(
-                            child: ColoredBox(
-                              color: theme.colorScheme.onSurface.withValues(
-                                alpha: 0.18,
+                      Positioned.fill(
+                        child: ValueListenableBuilder<bool>(
+                          valueListenable: _bellFlash,
+                          builder: (context, on, _) => on
+                              ? IgnorePointer(
+                                  child: ColoredBox(
+                                    color: theme.colorScheme.onSurface
+                                        .withValues(alpha: 0.18),
+                                  ),
+                                )
+                              : const SizedBox.shrink(),
+                        ),
+                      ),
+                      // Floats over the terminal, top-right, like an editor's
+                      // find widget rather than a full-width bar.
+                      if (_searchOpen)
+                        Positioned(
+                          top: 8,
+                          left: 8,
+                          right: 8,
+                          child: Align(
+                            alignment: Alignment.topRight,
+                            child: ConstrainedBox(
+                              constraints: const BoxConstraints(maxWidth: 380),
+                              child: TerminalSearchBar(
+                                controller: _search,
+                                textController: _searchController,
+                                focusNode: _searchFocus,
+                                onChanged: _search.run,
+                                onNext: _search.next,
+                                onPrevious: _search.previous,
+                                onClose: _closeSearch,
                               ),
                             ),
                           ),
@@ -679,33 +737,6 @@ class TerminalSessionViewState extends State<TerminalSessionView> {
           };
         },
       ),
-    );
-  }
-}
-
-class _MenuRow extends StatelessWidget {
-  final IconData icon;
-  final String label;
-  final String hint;
-  const _MenuRow({required this.icon, required this.label, required this.hint});
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return Row(
-      children: [
-        Icon(icon, size: 18),
-        const SizedBox(width: 12),
-        Text(label),
-        const SizedBox(width: 24),
-        const Spacer(),
-        Text(
-          hint,
-          style: theme.textTheme.bodySmall?.copyWith(
-            color: theme.colorScheme.onSurfaceVariant,
-          ),
-        ),
-      ],
     );
   }
 }
