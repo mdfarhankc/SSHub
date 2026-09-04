@@ -44,8 +44,9 @@ class _SnippetPickerSheetState extends State<SnippetPickerSheet> {
   }
 
   void _use(Snippet snippet, SnippetUse use) {
-    widget.onSelected(snippet, use);
+    // Close the sheet before the callback, which may push its own dialog.
     Navigator.pop(context);
+    widget.onSelected(snippet, use);
   }
 
   @override
