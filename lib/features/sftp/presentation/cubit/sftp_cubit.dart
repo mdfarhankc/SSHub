@@ -72,7 +72,8 @@ class SftpCubit extends Cubit<SftpState> {
       _fail(e.message);
     } on StateError catch (e) {
       _fail(e.message);
-    } catch (_) {
+    } catch (e, st) {
+      appLog("Open SFTP session failed", e, st);
       _fail("Could not open a file session.");
     }
   }
@@ -106,7 +107,8 @@ class SftpCubit extends Cubit<SftpState> {
         for (final e in entries)
           if (e.isDirectory) e,
       ];
-    } catch (_) {
+    } catch (e, st) {
+      appLog("List folder failed", e, st);
       return const [];
     }
   }
@@ -167,9 +169,9 @@ class SftpCubit extends Cubit<SftpState> {
     if (_denied()) return;
     final session = _session;
     if (session == null || _transferBusy()) return;
-    final picked = (await FilePicker.platform.pickFiles(
+    final picked = await FilePicker.pickFile(
       dialogTitle: "Upload to ${state.path}",
-    ))?.files.single;
+    );
     final localPath = picked?.path;
     if (picked == null || localPath == null || isClosed) return;
 
@@ -184,15 +186,16 @@ class SftpCubit extends Cubit<SftpState> {
       return;
     }
 
+    final size = await picked.length();
     final done = await _runTransfer(
       picked.name,
       isUpload: true,
-      total: picked.size,
+      total: size,
       action: () async {
         await session.upload(
           localPath,
           remotePath,
-          onProgress: (bytes) => _tick(bytes, picked.size),
+          onProgress: (bytes) => _tick(bytes, size),
         );
         return null;
       },
