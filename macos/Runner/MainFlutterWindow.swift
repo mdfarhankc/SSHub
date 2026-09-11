@@ -13,6 +13,20 @@ class MainFlutterWindow: NSWindow {
 
     RegisterGeneratedPlugins(registry: flutterViewController)
 
+    let secureChannel = FlutterMethodChannel(
+      name: "sshub/secure_window",
+      binaryMessenger: flutterViewController.engine.binaryMessenger)
+    secureChannel.setMethodCallHandler { [weak self] call, result in
+      guard call.method == "setBlockScreenshots" else {
+        result(FlutterMethodNotImplemented)
+        return
+      }
+      let enabled = (call.arguments as? Bool) ?? false
+      // .none excludes the window from screenshots and screen recordings.
+      self?.sharingType = enabled ? .none : .readOnly
+      result(nil)
+    }
+
     super.awakeFromNib()
   }
 }

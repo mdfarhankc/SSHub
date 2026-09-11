@@ -14,11 +14,21 @@ import 'package:sshub/features/splash/presentation/pages/splash_page.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  final defaultOnError = FlutterError.onError;
+  FlutterError.onError = (details) {
+    // Debug-only Flutter Windows assertion on a bare Alt-down; harmless.
+    if (details.exceptionAsString().contains('no keys are in keysPressed')) {
+      return;
+    }
+    defaultOnError?.call(details);
+  };
+
   setupLocator();
 
   final settings = await sl<SettingsRepository>().load();
-  if (!settings.blockScreenshots) {
-    await SecurePlatform.setBlockScreenshots(false);
+  if (SecurePlatform.canBlockScreenshots) {
+    await SecurePlatform.setBlockScreenshots(settings.blockScreenshots);
   }
   runApp(MyApp(initialSettings: settings));
 }

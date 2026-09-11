@@ -5,6 +5,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 
 import 'package:sshub/core/auth/local_auth_service.dart';
 import 'package:sshub/core/di/service_locator.dart';
+import 'package:sshub/core/security/secure_platform.dart';
 import 'package:sshub/core/widgets/app_snack_bar.dart';
 import 'package:sshub/features/settings/presentation/cubit/settings_cubit.dart';
 import 'package:sshub/features/settings/presentation/widgets/settings_divider.dart';
@@ -40,12 +41,13 @@ class SecuritySection extends StatelessWidget {
             onChanged: (value) => _toggleLock(context, cubit, auth, value),
           ),
         ),
-        if (Platform.isAndroid) ...[
+        if (SecurePlatform.canBlockScreenshots) ...[
           const SettingsDivider(),
           SettingsRow(
             title: "Block screenshots",
-            subtitle:
-                "Hide SSHub from screenshots and the recent apps preview.",
+            subtitle: Platform.isAndroid
+                ? "Hide SSHub from screenshots and the recent apps preview."
+                : "Hide SSHub from screenshots and screen recording.",
             keepInline: true,
             control: Switch(
               value: settings.blockScreenshots,
@@ -59,7 +61,8 @@ class SecuritySection extends StatelessWidget {
             title: "Auto-lock",
             subtitle: "Re-lock after this long away or idle.",
             control: SettingsDropdown<int>(
-              value: _autoLockOptions.any((o) => o.$1 == settings.autoLockMinutes)
+              value:
+                  _autoLockOptions.any((o) => o.$1 == settings.autoLockMinutes)
                   ? settings.autoLockMinutes
                   : 0,
               options: _autoLockOptions,

@@ -1,6 +1,7 @@
 #include "flutter_window.h"
 
 #include <optional>
+#include <variant>
 
 #include "flutter/generated_plugin_registrant.h"
 
@@ -25,6 +26,30 @@ bool FlutterWindow::OnCreate() {
     return false;
   }
   RegisterPlugins(flutter_controller_->engine());
+
+  secure_channel_ =
+      std::make_unique<flutter::MethodChannel<flutter::EncodableValue>>(
+          flutter_controller_->engine()->messenger(), "sshub/secure_window",
+          &flutter::StandardMethodCodec::GetInstance());
+  secure_channel_->SetMethodCallHandler(
+      [this](const flutter::MethodCall<flutter::EncodableValue>& call,
+             std::unique_ptr<flutter::MethodResult<flutter::EncodableValue>>
+                 result) {
+        if (call.method_name() != "setBlockScreenshots") {
+          result->NotImplemented();
+          return;
+        }
+        const auto* enabled = std::get_if<bool>(call.arguments());
+        const HWND hwnd = GetHandle();
+        if (hwnd != nullptr) {
+          const bool on = enabled != nullptr && *enabled;
+          // WDA_MONITOR renders the window as a solid black box in captures, so
+          // it reads clearly as blocked rather than being silently excluded.
+          SetWindowDisplayAffinity(hwnd, on ? WDA_MONITOR : WDA_NONE);
+        }
+        result->Success();
+      });
+
   SetChildContent(flutter_controller_->view()->GetNativeWindow());
 
   flutter_controller_->engine()->SetNextFrameCallback([&]() {
@@ -40,6 +65,8 @@ bool FlutterWindow::OnCreate() {
 }
 
 void FlutterWindow::OnDestroy() {
+  // Release the channel before the engine it messages through.
+  secure_channel_ = nullptr;
   if (flutter_controller_) {
     flutter_controller_ = nullptr;
   }
