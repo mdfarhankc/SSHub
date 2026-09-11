@@ -1,10 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
-
 import 'package:sshub/core/theme/app_theme.dart';
-import 'package:sshub/core/widgets/blurred_bottom_sheet.dart';
 import 'package:sshub/core/theme/server_colors.dart';
+import 'package:sshub/core/widgets/blurred_bottom_sheet.dart';
 import 'package:sshub/features/ssh/domain/entities/ssh_server.dart';
 import 'package:sshub/features/ssh/presentation/bloc/server_list_bloc.dart';
 import 'package:sshub/features/ssh/presentation/cubit/workspace_session.dart';

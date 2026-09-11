@@ -1,13 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
-import 'package:url_launcher/url_launcher.dart';
-
 import 'package:sshub/core/app_info.dart';
+import 'package:sshub/core/logging/app_log.dart';
 import 'package:sshub/core/theme/app_theme.dart';
 import 'package:sshub/core/widgets/app_snack_bar.dart';
 import 'package:sshub/features/settings/presentation/widgets/settings_divider.dart';
 import 'package:sshub/features/settings/presentation/widgets/settings_group.dart';
 import 'package:sshub/features/settings/presentation/widgets/update_check_tile.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 class AboutSection extends StatelessWidget {
   const AboutSection({super.key});
@@ -19,7 +19,8 @@ class AboutSection extends StatelessWidget {
       if (!ok && context.mounted) {
         showAppSnackBar(context, "Could not open link", success: false);
       }
-    } catch (_) {
+    } catch (e, st) {
+      appLog("Open link failed", e, st);
       if (context.mounted) {
         showAppSnackBar(context, "Could not open link", success: false);
       }

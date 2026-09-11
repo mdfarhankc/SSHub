@@ -10,6 +10,7 @@ import 'package:sshub/features/settings/presentation/widgets/passphrase_dialog.d
 import 'package:sshub/features/settings/presentation/widgets/settings_group.dart';
 import 'package:sshub/features/snippets/presentation/bloc/snippet_list_bloc.dart';
 import 'package:sshub/features/ssh/presentation/bloc/server_list_bloc.dart';
+import 'package:sshub/features/workflows/presentation/bloc/workflow_list_bloc.dart';
 
 class BackupSection extends StatelessWidget {
   const BackupSection({super.key});
@@ -49,6 +50,7 @@ class BackupSection extends StatelessWidget {
       case BackupStatus.imported:
         context.read<ServerListBloc>().add(ServerListLoaded());
         context.read<SnippetListBloc>().add(SnippetListLoaded());
+        context.read<WorkflowListBloc>().add(WorkflowListLoaded());
         showAppSnackBar(context, "Backup restored");
       case BackupStatus.failure:
         showAppSnackBar(

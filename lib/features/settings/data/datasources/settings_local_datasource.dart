@@ -27,6 +27,7 @@ class SettingsLocalDatasource implements SettingsDatasource {
     try {
       return AppSettingsModel.fromJson(jsonDecode(raw) as Map<String, dynamic>);
     } on FormatException catch (e) {
+      appLog("Settings parse failed", e);
       appLog("Settings file is not valid JSON, using defaults", e);
       return const AppSettingsModel();
     }

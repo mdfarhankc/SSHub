@@ -10,6 +10,8 @@ import 'package:sshub/features/snippets/presentation/bloc/snippet_list_bloc.dart
 import 'package:sshub/features/ssh/data/datasources/known_hosts_datasource.dart';
 import 'package:sshub/features/ssh/domain/repositories/ssh_repository.dart';
 import 'package:sshub/features/ssh/presentation/bloc/server_list_bloc.dart';
+import 'package:sshub/features/workflows/domain/repositories/workflow_repository.dart';
+import 'package:sshub/features/workflows/presentation/bloc/workflow_list_bloc.dart';
 
 class DangerZoneSection extends StatelessWidget {
   const DangerZoneSection({super.key});
@@ -20,8 +22,9 @@ class DangerZoneSection extends StatelessWidget {
       builder: (dialogContext) => AlertDialog(
         title: const Text("Clear all data?"),
         content: const Text(
-          "Servers, stored passwords and keys, snippets, and remembered host "
-          "keys will be permanently deleted. Your settings are kept.",
+          "Servers, stored passwords and keys, snippets, workflows, and "
+          "remembered host keys will be permanently deleted. Your settings "
+          "are kept.",
         ),
         actions: [
           TextButton(
@@ -47,10 +50,12 @@ class DangerZoneSection extends StatelessWidget {
     // the same host and port would be trusted without a prompt.
     await sl<SshRepository>().clearAll();
     await sl<SnippetRepository>().clearAll();
+    await sl<WorkflowRepository>().clearAll();
     await sl<KnownHostsDatasource>().clear();
     if (!context.mounted) return;
     context.read<ServerListBloc>().add(ServerListLoaded());
     context.read<SnippetListBloc>().add(SnippetListLoaded());
+    context.read<WorkflowListBloc>().add(WorkflowListLoaded());
     showAppSnackBar(context, "All data cleared");
   }
 

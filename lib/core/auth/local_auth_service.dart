@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'package:local_auth/local_auth.dart';
+import 'package:sshub/core/logging/app_log.dart';
 
 // unavailable means the device has no lock to check against, which callers must
 // not treat as a pass.
@@ -35,6 +36,7 @@ class LocalAuthService {
       );
       return ok ? AuthResult.success : AuthResult.failed;
     } on LocalAuthException catch (e) {
+      appLog("Local auth error", e);
       switch (e.code) {
         case LocalAuthExceptionCode.noCredentialsSet:
         case LocalAuthExceptionCode.noBiometricsEnrolled:

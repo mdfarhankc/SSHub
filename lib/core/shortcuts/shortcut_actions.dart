@@ -16,6 +16,7 @@ enum ShortcutAction {
   closeTab,
   find,
   snippets,
+  workflows,
   copySelection,
   pasteClipboard,
   selectAll,
@@ -185,6 +186,13 @@ const kShortcutDefs = <ShortcutDef>[
     category: "Terminal",
     group: ShortcutGroup.workspace,
     defaultBinding: KeyBinding(LogicalKeyboardKey.keyS, shift: true),
+  ),
+  ShortcutDef(
+    action: ShortcutAction.workflows,
+    label: "Open workflow picker",
+    category: "Terminal",
+    group: ShortcutGroup.workspace,
+    defaultBinding: KeyBinding(LogicalKeyboardKey.keyR, shift: true),
   ),
   ShortcutDef(
     action: ShortcutAction.copySelection,

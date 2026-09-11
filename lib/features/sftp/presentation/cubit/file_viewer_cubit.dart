@@ -4,6 +4,7 @@ import 'dart:typed_data';
 import 'package:equatable/equatable.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
+import 'package:sshub/core/logging/app_log.dart';
 import 'package:sshub/features/sftp/domain/entities/remote_file.dart';
 import 'package:sshub/features/sftp/domain/repositories/sftp_repository.dart';
 import 'package:sshub/features/ssh/domain/repositories/ssh_connection_repository.dart';
@@ -38,6 +39,7 @@ class FileViewerCubit extends Cubit<FileViewerState> {
         ),
       );
     } on SshConnectionException catch (e) {
+      appLog("Open file failed", e);
       if (!isClosed) {
         emit(
           FileViewerState(

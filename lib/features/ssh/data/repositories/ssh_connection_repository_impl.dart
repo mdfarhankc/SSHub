@@ -3,6 +3,7 @@ import 'dart:convert';
 
 import 'package:dartssh2/dartssh2.dart';
 
+import 'package:sshub/core/logging/app_log.dart';
 import 'package:sshub/features/ssh/data/datasources/ssh_client_factory.dart';
 import 'package:sshub/features/ssh/domain/entities/ssh_server.dart';
 import 'package:sshub/features/ssh/domain/repositories/ssh_connection_repository.dart';
@@ -29,7 +30,8 @@ class SshConnectionRepositoryImpl implements SshConnectionRepository {
         pty: const SSHPtyConfig(width: 80, height: 25),
       );
       return _DartSshSessionHandle(client, session);
-    } catch (_) {
+    } catch (e, st) {
+      appLog("SSH session build failed", e, st);
       // The client owns a socket and a keepalive timer, and the handle that
       // would have closed them was never built.
       client.close();

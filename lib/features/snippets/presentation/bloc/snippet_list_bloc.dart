@@ -1,6 +1,7 @@
 import 'package:equatable/equatable.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
+import 'package:sshub/core/logging/app_log.dart';
 import 'package:sshub/features/snippets/domain/entities/snippet.dart';
 import 'package:sshub/features/snippets/domain/repositories/snippet_repository.dart';
 
@@ -29,6 +30,7 @@ class SnippetListBloc extends Bloc<SnippetListEvent, SnippetListState> {
         state.copyWith(status: SnippetListStatus.success, snippets: snippets),
       );
     } catch (e) {
+      appLog("Load snippets failed", e);
       emit(state.copyWith(status: SnippetListStatus.failure));
     }
   }
@@ -41,6 +43,7 @@ class SnippetListBloc extends Bloc<SnippetListEvent, SnippetListState> {
       await _repository.addSnippet(event.snippet);
       emit(state.copyWith(snippets: [...state.snippets, event.snippet]));
     } catch (e) {
+      appLog("Add snippet failed", e);
       emit(state.copyWith(errorMessage: "Could not add snippet"));
     }
   }
@@ -60,6 +63,7 @@ class SnippetListBloc extends Bloc<SnippetListEvent, SnippetListState> {
         ),
       );
     } catch (e) {
+      appLog("Update snippet failed", e);
       emit(state.copyWith(errorMessage: "Could not update snippet"));
     }
   }
@@ -76,6 +80,7 @@ class SnippetListBloc extends Bloc<SnippetListEvent, SnippetListState> {
         ),
       );
     } catch (e) {
+      appLog("Delete snippet failed", e);
       emit(state.copyWith(errorMessage: "Could not delete snippet"));
     }
   }
@@ -89,6 +94,7 @@ class SnippetListBloc extends Bloc<SnippetListEvent, SnippetListState> {
     try {
       await _repository.reorderSnippets(event.snippets);
     } catch (e) {
+      appLog("Reorder snippets failed", e);
       emit(state.copyWith(errorMessage: "Could not save the new order"));
     }
   }

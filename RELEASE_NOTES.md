@@ -1,3 +1,20 @@
+## SSHub 4.4.0
+
+This release adds workflows, a way to run a command and answer the prompts that follow in a single tap, and moves the app onto the latest Flutter and dependencies.
+
+New
+
+- Workflows: save a sequence that sends a command and replies to the prompts it triggers. A git pull can send the command, then fill in the username and password on its own. Each step can carry {{host}}, {{user}} and {{port}} for the current server, or {{prompt:Label}} to ask for a value when it runs. A step marked secret is hidden and asks to unlock before running. Open the picker in a terminal with Ctrl+Shift+R, and manage workflows from the home screen
+
+Improvements
+
+- Updated to the latest Flutter and dependencies
+
+Fixes
+
+- A command snippet that asks for a value did not run when picked from the terminal. It runs now
+- Simplified the home tag filter to All and your tags
+
 ## SSHub 4.3.0
 
 This release adds server tags, a jump-to-path file browser and one consistent menu across the app, along with the security and performance fixes from a full audit.

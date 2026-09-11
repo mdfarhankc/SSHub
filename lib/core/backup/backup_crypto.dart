@@ -3,6 +3,7 @@ import 'dart:math';
 import 'dart:typed_data';
 
 import 'package:cryptography/cryptography.dart';
+import 'package:sshub/core/logging/app_log.dart';
 
 class BackupException implements Exception {
   final String message;
@@ -37,7 +38,8 @@ abstract final class BackupCrypto {
     final Map<String, dynamic> json;
     try {
       json = jsonDecode(fileContent) as Map<String, dynamic>;
-    } catch (_) {
+    } catch (e, st) {
+      appLog("Backup parse failed", e, st);
       throw const BackupException("Not a valid SSHub backup file.");
     }
     if (json['app'] != 'sshub') {
@@ -96,7 +98,8 @@ abstract final class BackupCrypto {
       return utf8.decode(await _cipher.decrypt(box, secretKey: key));
     } on SecretBoxAuthenticationError {
       throw const BackupException("Wrong passphrase or corrupted file.");
-    } catch (_) {
+    } catch (e, st) {
+      appLog("Backup decrypt failed", e, st);
       throw const BackupException("Could not read backup file.");
     }
   }

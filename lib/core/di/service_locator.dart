@@ -1,5 +1,4 @@
 import 'package:get_it/get_it.dart';
-
 import 'package:sshub/core/auth/local_auth_service.dart';
 import 'package:sshub/core/update/update_service.dart';
 import 'package:sshub/features/settings/data/datasources/settings_datasource.dart';
@@ -26,6 +25,10 @@ import 'package:sshub/features/ssh/data/repositories/ssh_repository_impl.dart';
 import 'package:sshub/features/ssh/domain/repositories/ssh_connection_repository.dart';
 import 'package:sshub/features/ssh/domain/repositories/ssh_repository.dart';
 import 'package:sshub/features/ssh/domain/usecases/connect_to_server.dart';
+import 'package:sshub/features/workflows/data/datasources/workflow_datasource.dart';
+import 'package:sshub/features/workflows/data/datasources/workflow_local_datasource.dart';
+import 'package:sshub/features/workflows/data/repositories/workflow_repository_impl.dart';
+import 'package:sshub/features/workflows/domain/repositories/workflow_repository.dart';
 
 final sl = GetIt.instance;
 
@@ -40,6 +43,9 @@ void setupLocator() {
   );
   sl.registerLazySingleton<SnippetDatasource>(
     () => const SnippetLocalDatasource(),
+  );
+  sl.registerLazySingleton<WorkflowDatasource>(
+    () => const WorkflowLocalDatasource(),
   );
   sl.registerLazySingleton<ReachabilityChecker>(
     () => const ReachabilityChecker(),
@@ -57,8 +63,11 @@ void setupLocator() {
   sl.registerLazySingleton<SnippetRepository>(
     () => SnippetRepositoryImpl(sl()),
   );
+  sl.registerLazySingleton<WorkflowRepository>(
+    () => WorkflowRepositoryImpl(sl()),
+  );
   sl.registerLazySingleton<BackupRepository>(
-    () => BackupRepositoryImpl(sl(), sl(), sl()),
+    () => BackupRepositoryImpl(sl(), sl(), sl(), sl()),
   );
   sl.registerLazySingleton<SftpRepository>(() => SftpRepositoryImpl(sl()));
 

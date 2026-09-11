@@ -4,8 +4,8 @@ import 'dart:io';
 import 'package:equatable/equatable.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-
 import 'package:sshub/core/backup/backup_crypto.dart';
+import 'package:sshub/core/logging/app_log.dart';
 import 'package:sshub/features/settings/domain/repositories/backup_repository.dart';
 import 'package:sshub/features/settings/presentation/cubit/settings_cubit.dart';
 import 'package:sshub/features/settings/presentation/widgets/export_options_dialog.dart';
@@ -28,7 +28,7 @@ class BackupCubit extends Cubit<BackupState> {
         includeSnippets: options.includeSnippets,
         passphrase: options.passphrase,
       );
-      final path = await FilePicker.platform.saveFile(
+      final uri = await FilePicker.saveFile(
         dialogTitle: "Save SSHub backup",
         fileName: options.passphrase != null
             ? "sshub-backup.json"
@@ -37,16 +37,17 @@ class BackupCubit extends Cubit<BackupState> {
         allowedExtensions: ["json"],
         bytes: utf8.encode(content),
       );
-      if (path == null) {
+      if (uri == null) {
         emit(const BackupState());
         return;
       }
       // saveFile already writes the bytes on mobile; desktop hands back a path.
       if (!Platform.isAndroid && !Platform.isIOS) {
-        await File(path).writeAsString(content);
+        await File(uri.toFilePath()).writeAsString(content);
       }
       emit(const BackupState(status: BackupStatus.exported));
-    } catch (_) {
+    } catch (e, st) {
+      appLog("Backup export failed", e, st);
       emit(
         const BackupState(
           status: BackupStatus.failure,
@@ -57,15 +58,13 @@ class BackupCubit extends Cubit<BackupState> {
   }
 
   Future<void> pickAndImport() async {
-    final result = await FilePicker.platform.pickFiles(
+    final result = await FilePicker.pickFiles(
       dialogTitle: "Select SSHub backup",
       type: FileType.custom,
       allowedExtensions: ["json"],
-      withData: true,
     );
-    final bytes = result?.files.single.bytes;
-    if (bytes == null) return;
-    final content = utf8.decode(bytes);
+    if (result.isEmpty) return;
+    final content = utf8.decode(await result.first.readAsBytes());
 
     try {
       if (BackupCrypto.isEncrypted(content)) {
@@ -104,7 +103,8 @@ class BackupCubit extends Cubit<BackupState> {
       emit(const BackupState(status: BackupStatus.imported));
     } on BackupException catch (e) {
       emit(BackupState(status: BackupStatus.failure, message: e.message));
-    } catch (_) {
+    } catch (e, st) {
+      appLog("Backup import failed", e, st);
       emit(
         const BackupState(
           status: BackupStatus.failure,

@@ -3,9 +3,8 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
-import 'package:xterm/xterm.dart';
-
 import 'package:sshub/core/theme/app_theme.dart';
+import 'package:xterm/xterm.dart';
 
 class TerminalSearchMatch {
   final int line;

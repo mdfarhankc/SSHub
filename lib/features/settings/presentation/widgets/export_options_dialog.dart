@@ -82,8 +82,8 @@ class _ExportOptionsDialogState extends State<ExportOptionsDialog> {
                 ),
                 _toggle(
                   icon: LucideIcons.zap,
-                  title: "Snippets",
-                  subtitle: "Saved tokens and commands",
+                  title: "Snippets & workflows",
+                  subtitle: "Saved tokens, commands and workflows",
                   value: _snippets,
                   onChanged: (v) => setState(() => _snippets = v),
                 ),
@@ -119,12 +119,12 @@ class _ExportOptionsDialogState extends State<ExportOptionsDialog> {
                           controller: _pass,
                           name: "Passphrase",
                           icon: LucideIcons.asterisk,
-                          hint: "At least 12 characters",
+                          hint: "At least 3 characters",
                           obscureText: true,
                           validator: (v) {
                             if (v == null || v.isEmpty) return "Required";
-                            if (v.length < 12) {
-                              return "Use at least 12 characters";
+                            if (v.length < 3) {
+                              return "Use at least 3 characters";
                             }
                             return null;
                           },

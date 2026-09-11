@@ -1,8 +1,7 @@
 import 'dart:ui';
 
-import 'package:xterm/ui.dart';
-
 import 'package:sshub/core/theme/app_terminal_theme.dart';
+import 'package:xterm/ui.dart';
 
 // Named terminal palettes. "Default" follows the app's light/dark theme; the
 // rest are fixed, well-known schemes that look the same in any app theme.

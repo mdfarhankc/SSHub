@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:equatable/equatable.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
+import 'package:sshub/core/logging/app_log.dart';
 import 'package:sshub/features/ssh/domain/entities/ssh_server.dart';
 import 'package:sshub/features/ssh/domain/repositories/ssh_connection_repository.dart';
 import 'package:sshub/features/ssh/domain/usecases/connect_to_server.dart';
@@ -23,6 +24,10 @@ class TerminalCubit extends Cubit<TerminalState> {
   SshSessionHandle? _handle;
   StreamSubscription<String>? _outputSub;
   String _lastError = "Connection failed.";
+
+  // Extra listeners on the shell output, used by the workflow runner to watch
+  // for prompts. Separate from the terminal so they see the same bytes.
+  final _outputObservers = <void Function(String)>[];
 
   // isClosed only flips once close() has finished awaiting, so a connection
   // landing mid-dispose would still look live.
@@ -68,20 +73,39 @@ class TerminalCubit extends Cubit<TerminalState> {
       });
       emit(TerminalConnected(handle));
       return true;
-    } on SshConnectionException catch (e) {
+    } on SshConnectionException catch (e, st) {
+      appLog("Terminal connect failed: ${e.message}", e, st);
       _lastError = e.message;
       return false;
-    } catch (_) {
+    } catch (e, st) {
+      appLog("Terminal connect failed (unexpected)", e, st);
       _lastError = "Connection failed.";
       return false;
     }
   }
 
   void _attach(SshSessionHandle handle) {
-    _outputSub = handle.output.listen(terminal.write);
+    _outputSub = handle.output.listen((data) {
+      terminal.write(data);
+      for (final observe in List.of(_outputObservers)) {
+        observe(data);
+      }
+    });
     terminal.onOutput = handle.write;
     terminal.onResize = handle.resize;
   }
+
+  bool get isConnected => _handle != null && state is TerminalConnected;
+
+  // Sends raw bytes to the shell, for the workflow runner. Callers add the
+  // carriage return themselves.
+  void sendInput(String data) => _handle?.write(data);
+
+  void addOutputObserver(void Function(String) observer) =>
+      _outputObservers.add(observer);
+
+  void removeOutputObserver(void Function(String) observer) =>
+      _outputObservers.remove(observer);
 
   void _detach() {
     _outputSub?.cancel();

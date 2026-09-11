@@ -2,6 +2,7 @@ import 'dart:convert';
 
 import 'package:http/http.dart' as http;
 import 'package:package_info_plus/package_info_plus.dart';
+import 'package:sshub/core/logging/app_log.dart';
 
 class UpdateInfo {
   final String currentVersion;
@@ -41,7 +42,8 @@ class UpdateService {
           "User-Agent": "SSHub",
         },
       );
-    } catch (_) {
+    } catch (e, st) {
+      appLog("Update check failed", e, st);
       throw const UpdateException("No internet connection.");
     }
 

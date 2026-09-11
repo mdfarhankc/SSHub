@@ -5,10 +5,12 @@ import {
   Archive,
   FolderOpen,
   Layers,
+  Workflow,
+  Zap,
   type LucideIcon,
 } from "lucide-react";
 
-export const VERSION = "4.3.0";
+export const VERSION = "4.4.0";
 export const GITHUB_URL = "https://github.com/mdfarhankc/SSHub";
 export const RELEASES_URL = `${GITHUB_URL}/releases/latest`;
 
@@ -41,6 +43,18 @@ export const FEATURES: Feature[] = [
     body: "A full xterm terminal with copy, paste, select all, and find-in-scrollback. Not a cut-down shell.",
   },
   {
+    icon: Workflow,
+    label: "automation",
+    title: "Command workflows",
+    body: "Chain a command with the prompt replies it needs, like a git pull that answers its own username and password, and run the whole thing in one tap.",
+  },
+  {
+    icon: Zap,
+    label: "reuse",
+    title: "Snippets",
+    body: "Save tokens, credentials and commands, then insert, run or copy them into any session, with placeholders filled from the current server.",
+  },
+  {
     icon: KeyRound,
     label: "auth",
     title: "Password or SSH key",
@@ -66,7 +80,6 @@ export const EXTRAS = [
   "Auto-reconnect with backoff",
   "Server tags and filtering",
   "Color-coded servers",
-  "Snippets",
   "Keyboard shortcuts",
   "App lock",
   "Light and dark themes",

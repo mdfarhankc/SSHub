@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:xterm/ui.dart';
-
 import 'package:sshub/core/theme/terminal_schemes.dart';
+import 'package:xterm/ui.dart';
 
 // A non-interactive sample of the terminal, so the effect of the theme, font
 // and size is visible without opening a session. Not the xterm engine, just

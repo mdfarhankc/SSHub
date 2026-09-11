@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'package:sshub/core/logging/app_log.dart';
 
 // Plain TCP connect probe, not a full SSH handshake.
 class ReachabilityChecker {
@@ -13,7 +14,8 @@ class ReachabilityChecker {
       final socket = await Socket.connect(host, port, timeout: timeout);
       socket.destroy();
       return true;
-    } catch (_) {
+    } catch (e, st) {
+      appLog("Reachability check failed", e, st);
       return false;
     }
   }

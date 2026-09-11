@@ -4,6 +4,7 @@ import 'dart:typed_data';
 
 import 'package:dartssh2/dartssh2.dart';
 
+import 'package:sshub/core/logging/app_log.dart';
 import 'package:sshub/features/ssh/data/datasources/known_hosts_datasource.dart';
 import 'package:sshub/features/ssh/domain/entities/ssh_server.dart';
 import 'package:sshub/features/ssh/domain/repositories/ssh_connection_repository.dart';
@@ -50,25 +51,34 @@ class SshClientFactory {
         );
       }
       return client;
-    } on SSHHostkeyError {
+    } on SSHHostkeyError catch (e, st) {
+      appLog("SSH host key rejected for ${server.host}", e, st);
       throw const SshConnectionException(
         "The server's host key changed since the last connection. This could "
         "be a man-in-the-middle attack, so the connection was refused. If you "
         "rebuilt or reinstalled this server, use Forget host key from the "
         "server's menu, then connect again.",
       );
-    } on SSHAuthFailError {
+    } on SSHAuthFailError catch (e, st) {
+      appLog("SSH auth failed for ${server.username}@${server.host}", e, st);
       throw SshConnectionException(
         server.authType == AuthType.key
             ? "The server rejected the key for ${server.username}."
             : "Authentication failed. Check the username and password.",
       );
-    } on SocketException {
+    } on SocketException catch (e, st) {
+      appLog("SSH socket error for ${server.host}:${server.port}", e, st);
       throw SshConnectionException(
         "Could not reach ${server.host}:${server.port}.",
       );
-    } on TimeoutException {
+    } on TimeoutException catch (e, st) {
+      appLog("SSH connect timed out for ${server.host}", e, st);
       throw SshConnectionException("Connection to ${server.host} timed out.");
+    } on SshConnectionException {
+      rethrow;
+    } catch (e, st) {
+      appLog("SSH connect failed for ${server.host}:${server.port}", e, st);
+      throw SshConnectionException("Could not connect: $e");
     }
   }
 

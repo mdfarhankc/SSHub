@@ -9,13 +9,21 @@ import 'package:sshub/features/snippets/data/datasources/snippet_datasource.dart
 import 'package:sshub/features/snippets/data/models/snippet_model.dart';
 import 'package:sshub/features/ssh/data/datasources/server_datasource.dart';
 import 'package:sshub/features/ssh/data/models/ssh_server_model.dart';
+import 'package:sshub/features/workflows/data/datasources/workflow_datasource.dart';
+import 'package:sshub/features/workflows/data/models/workflow_model.dart';
 
 class BackupRepositoryImpl implements BackupRepository {
   final ServerDatasource _serverDs;
   final SettingsDatasource _settingsDs;
   final SnippetDatasource _snippetDs;
+  final WorkflowDatasource _workflowDs;
 
-  const BackupRepositoryImpl(this._serverDs, this._settingsDs, this._snippetDs);
+  const BackupRepositoryImpl(
+    this._serverDs,
+    this._settingsDs,
+    this._snippetDs,
+    this._workflowDs,
+  );
 
   @override
   Future<String> export({
@@ -42,6 +50,8 @@ class BackupRepositoryImpl implements BackupRepository {
     if (includeSnippets) {
       final snippets = await _snippetDs.load();
       payload['snippets'] = [for (final s in snippets) s.toJson()];
+      final workflows = await _workflowDs.load();
+      payload['workflows'] = [for (final w in workflows) w.toJson()];
     }
 
     if (includeSettings) {
@@ -101,6 +111,19 @@ class BackupRepositoryImpl implements BackupRepository {
         byId[model.id] = model;
       }
       await _snippetDs.save(byId.values.toList());
+    }
+
+    if (data['workflows'] != null) {
+      final imported = [
+        for (final e in data['workflows'] as List) e as Map<String, dynamic>,
+      ];
+      final existing = await _workflowDs.load();
+      final byId = {for (final w in existing) w.id: w};
+      for (final json in imported) {
+        final model = WorkflowModel.fromJson(json);
+        byId[model.id] = model;
+      }
+      await _workflowDs.save(byId.values.toList());
     }
 
     if (data['settings'] != null) {

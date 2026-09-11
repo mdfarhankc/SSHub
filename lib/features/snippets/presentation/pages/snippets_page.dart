@@ -95,7 +95,6 @@ class _SnippetsPageState extends State<SnippetsPage> {
       for (final s in all)
         if (s.type == type) s,
     ];
-    if (newIndex > oldIndex) newIndex -= 1;
     sub.insert(newIndex, sub.removeAt(oldIndex));
     var i = 0;
     final rebuilt = [for (final s in all) s.type == type ? sub[i++] : s];
@@ -222,7 +221,7 @@ class _SnippetsPageState extends State<SnippetsPage> {
                   padding: const EdgeInsets.only(bottom: 88),
                   buildDefaultDragHandles: false,
                   itemCount: shown.length,
-                  onReorder: (oldIndex, newIndex) =>
+                  onReorderItem: (oldIndex, newIndex) =>
                       _reorderWithinType(type, oldIndex, newIndex),
                   proxyDecorator: (child, _, _) =>
                       Material(color: Colors.transparent, child: child),

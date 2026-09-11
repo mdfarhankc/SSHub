@@ -6,8 +6,8 @@ import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:sshub/core/auth/reveal_guard.dart';
-import 'package:sshub/core/widgets/blurred_bottom_sheet.dart';
 import 'package:sshub/core/widgets/app_form_sheet.dart';
+import 'package:sshub/core/widgets/blurred_bottom_sheet.dart';
 import 'package:sshub/core/widgets/section_header.dart';
 import 'package:sshub/core/widgets/tag_input.dart';
 import 'package:sshub/features/settings/domain/entities/app_settings.dart';
@@ -127,9 +127,10 @@ class _ServerDialogState extends State<ServerDialog> {
       : controller.text;
 
   Future<void> _importKeyFile() async {
-    final result = await FilePicker.platform.pickFiles(withData: true);
-    final bytes = result?.files.single.bytes;
-    if (bytes == null || !mounted) return;
+    final result = await FilePicker.pickFiles();
+    if (result.isEmpty) return;
+    final bytes = await result.first.readAsBytes();
+    if (!mounted) return;
     setState(() => _privateKey.text = utf8.decode(bytes));
   }
 

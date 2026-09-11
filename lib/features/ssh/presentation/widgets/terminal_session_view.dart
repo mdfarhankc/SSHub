@@ -5,12 +5,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
-
 import 'package:sshub/core/auth/reveal_guard.dart';
 import 'package:sshub/core/platform/system_bell.dart';
 import 'package:sshub/core/security/secure_platform.dart';
 import 'package:sshub/core/shortcuts/app_shortcuts.dart';
 import 'package:sshub/core/shortcuts/shortcut_actions.dart';
+import 'package:sshub/core/theme/app_theme.dart';
 import 'package:sshub/core/theme/terminal_schemes.dart';
 import 'package:sshub/core/widgets/app_menu.dart';
 import 'package:sshub/core/widgets/app_snack_bar.dart';
@@ -27,6 +27,9 @@ import 'package:sshub/features/ssh/presentation/cubit/workspace_sessions_cubit.d
 import 'package:sshub/features/ssh/presentation/widgets/server_picker_sheet.dart';
 import 'package:sshub/features/ssh/presentation/widgets/terminal_key_bar.dart';
 import 'package:sshub/features/ssh/presentation/widgets/terminal_search.dart';
+import 'package:sshub/features/workflows/domain/entities/workflow.dart';
+import 'package:sshub/features/workflows/presentation/widgets/workflow_picker_sheet.dart';
+import 'package:sshub/features/workflows/presentation/workflow_runner.dart';
 import 'package:xterm/xterm.dart' hide TerminalState;
 
 // One tab's body. The session owns the terminal and its scrollback, so this
@@ -70,6 +73,8 @@ class TerminalSessionViewState extends State<TerminalSessionView> {
   final _bellFlash = ValueNotifier(false);
   // Search and select-all set the selection in code; those must not auto-copy.
   bool _suppressAutoCopy = false;
+
+  late final WorkflowRunner _workflowRunner = WorkflowRunner(widget.session);
 
   Terminal get _terminal => widget.session.terminal;
   TerminalController get _terminalController =>
@@ -119,6 +124,7 @@ class TerminalSessionViewState extends State<TerminalSessionView> {
     _copyTimer?.cancel();
     _bellTimer?.cancel();
     _bellFlash.dispose();
+    _workflowRunner.dispose();
     _scrollController.dispose();
     _searchController.dispose();
     _searchFocus.dispose();
@@ -261,6 +267,85 @@ class TerminalSessionViewState extends State<TerminalSessionView> {
       showDragHandle: true,
       builder: (_) => SnippetPickerSheet(onSelected: _useSnippet),
     );
+  }
+
+  void showWorkflows() {
+    showBlurredBottomSheet(
+      context: context,
+      showDragHandle: true,
+      builder: (_) => WorkflowPickerSheet(onSelected: _runWorkflow),
+    );
+  }
+
+  // Resolves each step's placeholders, gates a workflow that carries a secret,
+  // then runs it: send, wait for the expected prompt, send the reply.
+  Future<void> _runWorkflow(Workflow workflow) async {
+    if (!widget.session.isConnected) {
+      if (mounted) {
+        showAppSnackBar(context, "Connect the session first", success: false);
+      }
+      return;
+    }
+    final server = widget.session.server;
+
+    final prompts = <String>[];
+    for (final step in workflow.steps) {
+      for (final label in snippetPrompts(step.send)) {
+        if (!prompts.contains(label)) prompts.add(label);
+      }
+    }
+    var answers = const <String, String>{};
+    if (prompts.isNotEmpty) {
+      final result = await SnippetPromptDialog.show(
+        context,
+        workflow.label,
+        prompts,
+      );
+      if (result == null || !mounted) return;
+      answers = result;
+    }
+
+    if (workflow.hasSecret) {
+      final locked = context
+          .read<SettingsCubit>()
+          .state
+          .settings
+          .lockSnippetReveal;
+      final allowed = await context.confirmReveal(
+        locked: locked,
+        reason: "Run ${workflow.label}",
+      );
+      if (!allowed || !mounted) return;
+    }
+
+    final ctx = SnippetContext(
+      host: server.host,
+      user: server.username,
+      port: server.port,
+    );
+    final steps = [
+      for (final step in workflow.steps)
+        (
+          expect: step.expect,
+          send: resolveSnippet(step.send, context: ctx, answers: answers),
+        ),
+    ];
+
+    final result = await _workflowRunner.run(workflow.label, steps);
+    if (!mounted) return;
+    switch (result) {
+      case WorkflowResult.timedOut:
+        showAppSnackBar(
+          context,
+          "Workflow stopped: a prompt did not appear in time",
+          success: false,
+        );
+      case WorkflowResult.notConnected:
+        showAppSnackBar(context, "Connect the session first", success: false);
+      case WorkflowResult.completed:
+      case WorkflowResult.cancelled:
+        break;
+    }
   }
 
   // Resolves placeholders, gates secrets, then inserts, runs or copies. Typing
@@ -406,6 +491,7 @@ class TerminalSessionViewState extends State<TerminalSessionView> {
   // The rebindable actions the terminal handles itself, since it holds focus.
   static const _terminalActions = {
     ShortcutAction.snippets,
+    ShortcutAction.workflows,
     ShortcutAction.newTab,
     ShortcutAction.closeTab,
     ShortcutAction.copySelection,
@@ -426,6 +512,9 @@ class TerminalSessionViewState extends State<TerminalSessionView> {
     switch (matchShortcut(event, overrides, _terminalActions)) {
       case ShortcutAction.snippets:
         showSnippets();
+        return KeyEventResult.handled;
+      case ShortcutAction.workflows:
+        showWorkflows();
         return KeyEventResult.handled;
       case ShortcutAction.newTab:
         ServerPickerSheet.openSession(context);
@@ -727,6 +816,20 @@ class TerminalSessionViewState extends State<TerminalSessionView> {
                             ),
                           ),
                         ),
+                      Positioned(
+                        left: 8,
+                        right: 8,
+                        bottom: 8,
+                        child: ValueListenableBuilder<WorkflowRunProgress?>(
+                          valueListenable: _workflowRunner.progress,
+                          builder: (context, progress, _) => progress == null
+                              ? const SizedBox.shrink()
+                              : _WorkflowBanner(
+                                  progress: progress,
+                                  onCancel: _workflowRunner.cancel,
+                                ),
+                        ),
+                      ),
                     ],
                   ),
                 ),
@@ -736,6 +839,70 @@ class TerminalSessionViewState extends State<TerminalSessionView> {
             ),
           };
         },
+      ),
+    );
+  }
+}
+
+// Shows over the terminal while a workflow runs, with a Cancel.
+class _WorkflowBanner extends StatelessWidget {
+  final WorkflowRunProgress progress;
+  final VoidCallback onCancel;
+  const _WorkflowBanner({required this.progress, required this.onCancel});
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
+    final step = "${progress.step + 1}/${progress.total}";
+    final detail = progress.waiting
+        ? "Waiting for the prompt ($step)"
+        : "Sending ($step)";
+    return Material(
+      color: Colors.transparent,
+      child: Container(
+        decoration: BoxDecoration(
+          color: scheme.surface,
+          borderRadius: BorderRadius.circular(AppTheme.radiusLg),
+          border: Border.all(color: scheme.outlineVariant),
+        ),
+        padding: const EdgeInsets.fromLTRB(14, 8, 6, 8),
+        child: Row(
+          children: [
+            SizedBox(
+              width: 16,
+              height: 16,
+              child: CircularProgressIndicator(
+                strokeWidth: 2,
+                color: scheme.primary,
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    progress.label,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: theme.textTheme.bodyMedium?.copyWith(
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  Text(
+                    detail,
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: scheme.onSurfaceVariant,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            TextButton(onPressed: onCancel, child: const Text("Cancel")),
+          ],
+        ),
       ),
     );
   }

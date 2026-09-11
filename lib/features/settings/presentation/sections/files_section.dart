@@ -96,7 +96,7 @@ class FilesSection extends StatelessWidget {
   }
 
   Future<void> _choose(BuildContext context, SettingsCubit cubit) async {
-    final picked = await FilePicker.platform.getDirectoryPath(
+    final picked = await FilePicker.getDirectoryPath(
       dialogTitle: "Choose a download folder",
     );
     if (picked == null) return;

@@ -234,6 +234,12 @@ class _WorkspacePageState extends State<WorkspacePage> {
                     icon: const Icon(LucideIcons.zap),
                     onPressed: () => key.currentState?.showSnippets(),
                   ),
+                  IconButton(
+                    visualDensity: VisualDensity.compact,
+                    tooltip: "Workflows (Ctrl+Shift+R)",
+                    icon: const Icon(LucideIcons.workflow),
+                    onPressed: () => key.currentState?.showWorkflows(),
+                  ),
                 ],
                 Container(
                   margin: const EdgeInsets.only(left: 4, right: 8),
