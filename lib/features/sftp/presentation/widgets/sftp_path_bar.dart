@@ -79,16 +79,53 @@ class _SftpPathBarState extends State<SftpPathBar> {
     _currentParent = parent;
     await _ensureListed(dir);
     if (!mounted || !_editing) return;
-    final matches = [
-      for (final name in _cachedDirs)
-        if (name.toLowerCase().startsWith(partial)) name,
-    ];
-    setState(() => _suggestions = matches.take(10).toList());
+    setState(() => _suggestions = _rankMatches(partial));
     if (_suggestions.isEmpty) {
       _portal.hide();
     } else if (!_portal.isShowing) {
       _portal.show();
     }
+  }
+
+  // Ranks folders so the closest match leads: exact, then a prefix, then a match
+  // that starts a word (after _ - . or space), then anywhere in the name. Ties
+  // break on match position, then the shorter name, then alphabetically.
+  List<String> _rankMatches(String query) {
+    final ranked = <({String name, int rank, int pos})>[];
+    for (final name in _cachedDirs) {
+      final match = _match(name.toLowerCase(), query);
+      if (match == null) continue;
+      ranked.add((name: name, rank: match.rank, pos: match.pos));
+    }
+    ranked.sort((a, b) {
+      if (a.rank != b.rank) return a.rank.compareTo(b.rank);
+      if (a.pos != b.pos) return a.pos.compareTo(b.pos);
+      if (a.name.length != b.name.length) {
+        return a.name.length.compareTo(b.name.length);
+      }
+      return a.name.compareTo(b.name);
+    });
+    return [for (final r in ranked.take(10)) r.name];
+  }
+
+  ({int rank, int pos})? _match(String name, String query) {
+    if (query.isEmpty) return (rank: 4, pos: 0);
+    if (name == query) return (rank: 0, pos: 0);
+    ({int rank, int pos})? best;
+    for (var i = name.indexOf(query); i != -1; i = name.indexOf(query, i + 1)) {
+      final int rank;
+      if (i == 0) {
+        rank = 1;
+      } else {
+        final prev = name[i - 1];
+        rank = (prev == '_' || prev == '-' || prev == '.' || prev == ' ')
+            ? 2
+            : 3;
+      }
+      if (best == null || rank < best.rank) best = (rank: rank, pos: i);
+      if (rank == 1) break;
+    }
+    return best;
   }
 
   Future<void> _ensureListed(String dir) async {
