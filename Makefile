@@ -1,10 +1,19 @@
 # SSHub developer tasks. Run `make` to list them.
 #
-# Needs GNU Make and a POSIX shell. On Windows use Git Bash, not cmd or
-# PowerShell, or the recipes will not parse.
+# Needs GNU Make and a POSIX shell. On Windows the recipes are run through Git
+# Bash (pinned below), so `make` works from PowerShell and cmd too.
 #
 # The build recipes mirror .github/workflows/release.yml on purpose: a build
 # that breaks in CI should break here the same way.
+
+# Recipes are POSIX shell. On Windows, force Git Bash so they parse whatever the
+# calling terminal is, and never WSL's bash (System32), which mangles Windows
+# paths. Override GIT_BASH if Git is installed somewhere other than the default.
+ifeq ($(OS),Windows_NT)
+  GIT_BASH ?= C:/Program Files/Git/bin/bash.exe
+  SHELL := $(GIT_BASH)
+  .SHELLFLAGS := -c
+endif
 
 ISCC ?= C:/Program Files (x86)/Inno Setup 6/ISCC.exe
 
@@ -57,12 +66,20 @@ build-windows: ## Build the Windows release
 	flutter build windows --release
 
 installer: build-windows ## Build Windows and compile the installer into dist/
-	@test -f "$(ISCC)" || { \
-		echo "ISCC.exe not found at: $(ISCC)"; \
-		echo "Install Inno Setup 6, or point at it: make installer ISCC=/path/to/ISCC.exe"; \
+	@iscc="$(ISCC)"; \
+	if [ ! -f "$$iscc" ]; then \
+		for c in \
+			"$$LOCALAPPDATA/Programs/Inno Setup 6/ISCC.exe" \
+			"/c/Program Files (x86)/Inno Setup 6/ISCC.exe" \
+			"/c/Program Files/Inno Setup 6/ISCC.exe"; do \
+			if [ -f "$$c" ]; then iscc="$$c"; break; fi; \
+		done; \
+	fi; \
+	if [ ! -f "$$iscc" ]; then \
+		echo "ISCC.exe not found. Install Inno Setup 6, or: make installer ISCC=/path/to/ISCC.exe"; \
 		exit 1; \
-	}
-	"$(ISCC)" windows/packaging/sshub.iss
+	fi; \
+	"$$iscc" windows/packaging/sshub.iss
 
 portable: build-windows ## Zip the Windows release as the portable build
 	@mkdir -p dist
