@@ -119,6 +119,13 @@ class SftpCubit extends Cubit<SftpState> {
     _settings.updateSftpShowHidden(value);
   }
 
+  void toggleSearch() {
+    final on = !state.searching;
+    emit(state.copyWith(searching: on, searchQuery: on ? state.searchQuery : ''));
+  }
+
+  void setSearch(String query) => emit(state.copyWith(searchQuery: query));
+
   void toggleGridView() {
     final value = !state.gridView;
     emit(state.copyWith(gridView: value));
@@ -402,6 +409,8 @@ class SftpCubit extends Cubit<SftpState> {
       final entries = await session.list(path);
       // A newer folder was opened while this one was still loading.
       if (isClosed || _loadingPath != path) return;
+      // Moving to another folder drops the search; a refresh keeps it.
+      final navigated = path != state.path;
       emit(
         state.copyWith(
           status: SftpStatus.ready,
@@ -409,6 +418,8 @@ class SftpCubit extends Cubit<SftpState> {
           entries: entries,
           busy: false,
           clearMessages: true,
+          searching: navigated ? false : null,
+          searchQuery: navigated ? '' : null,
         ),
       );
     } on SshConnectionException catch (e) {

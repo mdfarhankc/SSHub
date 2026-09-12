@@ -25,6 +25,14 @@ List<Widget> buildSftpActions(
       onPressed: cubit.toggleGridView,
     ),
     IconButton(
+      tooltip: state.searching ? "Close search" : "Search this folder",
+      icon: Icon(
+        LucideIcons.search,
+        color: state.searching ? scheme.primary : null,
+      ),
+      onPressed: cubit.toggleSearch,
+    ),
+    IconButton(
       tooltip: state.readOnly ? "Read-only mode is on" : "Changes are allowed",
       icon: Icon(
         state.readOnly ? LucideIcons.lock : LucideIcons.lockOpen,

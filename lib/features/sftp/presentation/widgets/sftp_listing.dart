@@ -18,18 +18,21 @@ class SftpListing extends StatelessWidget {
     final entries = state.visibleEntries;
 
     if (entries.isEmpty) {
+      final searching = state.searchQuery.trim().isNotEmpty;
       return CenteredMessage(
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
             Icon(
-              LucideIcons.folderOpen,
+              searching ? LucideIcons.searchX : LucideIcons.folderOpen,
               size: 56,
               color: scheme.onSurfaceVariant,
             ),
             const SizedBox(height: 16),
             Text(
-              state.entries.isEmpty
+              searching
+                  ? "No files match your search"
+                  : state.entries.isEmpty
                   ? "This folder is empty"
                   : "Only hidden files here",
               style: theme.textTheme.titleSmall,

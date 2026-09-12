@@ -59,6 +59,9 @@ class SftpState extends Equatable {
   final bool readOnly;
   final bool busy;
   final SftpTransfer? transfer;
+  // Whether the search field is open, and the text filtering the listing.
+  final bool searching;
+  final String searchQuery;
 
   const SftpState({
     this.status = SftpStatus.connecting,
@@ -71,16 +74,21 @@ class SftpState extends Equatable {
     this.readOnly = true,
     this.busy = false,
     this.transfer,
+    this.searching = false,
+    this.searchQuery = "",
   });
 
   bool get isRoot => path == '/';
 
-  List<RemoteFile> get visibleEntries => showHidden
-      ? entries
-      : [
-          for (final e in entries)
-            if (!e.isHidden) e,
-        ];
+  List<RemoteFile> get visibleEntries {
+    final query = searchQuery.trim().toLowerCase();
+    return [
+      for (final e in entries)
+        if ((showHidden || !e.isHidden) &&
+            (query.isEmpty || e.name.toLowerCase().contains(query)))
+          e,
+    ];
+  }
 
   SftpState copyWith({
     SftpStatus? status,
@@ -95,6 +103,8 @@ class SftpState extends Equatable {
     bool? busy,
     SftpTransfer? transfer,
     bool clearTransfer = false,
+    bool? searching,
+    String? searchQuery,
   }) => SftpState(
     status: status ?? this.status,
     path: path ?? this.path,
@@ -106,6 +116,8 @@ class SftpState extends Equatable {
     readOnly: readOnly ?? this.readOnly,
     busy: busy ?? this.busy,
     transfer: clearTransfer ? null : (transfer ?? this.transfer),
+    searching: searching ?? this.searching,
+    searchQuery: searchQuery ?? this.searchQuery,
   );
 
   @override
@@ -120,5 +132,7 @@ class SftpState extends Equatable {
     readOnly,
     busy,
     transfer,
+    searching,
+    searchQuery,
   ];
 }

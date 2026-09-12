@@ -6,6 +6,7 @@ import 'package:sshub/core/widgets/app_snack_bar.dart';
 import 'package:sshub/features/sftp/presentation/cubit/sftp_cubit.dart';
 import 'package:sshub/features/sftp/presentation/widgets/centered_message.dart';
 import 'package:sshub/features/sftp/presentation/widgets/sftp_listing.dart';
+import 'package:sshub/features/sftp/presentation/widgets/sftp_search_field.dart';
 import 'package:sshub/features/sftp/presentation/widgets/transfer_bar.dart';
 
 // One file browser tab's body. The session lives in the workspace cubit; this
@@ -88,6 +89,8 @@ class SftpSessionView extends StatelessWidget {
             SftpStatus.ready => Column(
               children: [
                 if (state.busy) const LinearProgressIndicator(minHeight: 3),
+                if (state.searching)
+                  SftpSearchField(cubit: cubit, state: state),
                 Expanded(
                   // The listing on screen belongs to the previous folder until
                   // the new one lands, so it fades rather than looking current.
