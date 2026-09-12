@@ -5,6 +5,7 @@ import 'package:sshub/core/widgets/context_menu_area.dart';
 import 'package:sshub/features/sftp/domain/entities/remote_file.dart';
 import 'package:sshub/features/sftp/presentation/cubit/sftp_cubit.dart';
 import 'package:sshub/features/sftp/presentation/widgets/delete_confirm_dialog.dart';
+import 'package:sshub/features/sftp/presentation/widgets/file_permissions_dialog.dart';
 import 'package:sshub/features/sftp/presentation/widgets/name_prompt_dialog.dart';
 
 // The actions for one remote file, shared by the list and grid tiles so both
@@ -28,6 +29,11 @@ List<ContextMenuAction> fileMenuActions(
       onPressed: () => _rename(context, file, cubit),
     ),
     ContextMenuAction(
+      icon: LucideIcons.shieldCheck,
+      label: "Permissions",
+      onPressed: () => _permissions(context, file, cubit),
+    ),
+    ContextMenuAction(
       icon: LucideIcons.trash2,
       label: "Delete",
       destructive: true,
@@ -35,6 +41,22 @@ List<ContextMenuAction> fileMenuActions(
     ),
   ],
 ];
+
+Future<void> _permissions(
+  BuildContext context,
+  RemoteFile file,
+  SftpCubit cubit,
+) async {
+  final edit = await FilePermissionsDialog.show(context, file, cubit);
+  if (edit == null) return;
+  if (edit.permissions != file.permissions) {
+    await cubit.changePermissions(file, edit.permissions);
+  }
+  // Separate call so a permission change still lands even if chown is denied.
+  if (edit.uid != file.uid || edit.gid != file.gid) {
+    await cubit.changeOwner(file, uid: edit.uid, gid: edit.gid);
+  }
+}
 
 Future<void> _rename(
   BuildContext context,

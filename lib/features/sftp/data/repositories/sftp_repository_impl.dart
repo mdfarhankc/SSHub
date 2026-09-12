@@ -137,6 +137,78 @@ class _DartSftpSession implements SftpSession {
       _wrap(() => _sftp.rename(from, to));
 
   @override
+  Future<void> setPermissions(String path, int permissions) => _wrap(
+    () => _sftp.setStat(
+      path,
+      SftpFileAttrs(mode: SftpFileMode.value(permissions & 0x1FF)),
+    ),
+  );
+
+  // Fetched once per session from the server's passwd/group databases. Empty
+  // after a failed lookup, so an SFTP-only server is not retried every time.
+  Map<int, String>? _uidNames;
+  Map<int, String>? _gidNames;
+
+  @override
+  Future<({String owner, String group})> ownerNames(RemoteFile file) async {
+    await _ensureOwnerMaps();
+    String resolve(int? id, Map<int, String>? names) => id == null
+        ? "unknown"
+        : (names?[id] ?? id.toString());
+    return (
+      owner: resolve(file.uid, _uidNames),
+      group: resolve(file.gid, _gidNames),
+    );
+  }
+
+  @override
+  Future<({Map<int, String> users, Map<int, String> groups})>
+  ownerOptions() async {
+    await _ensureOwnerMaps();
+    return (
+      users: _uidNames ?? const <int, String>{},
+      groups: _gidNames ?? const <int, String>{},
+    );
+  }
+
+  @override
+  Future<void> setOwner(String path, {int? uid, int? gid}) => _wrap(
+    // Only root may change ownership; a normal session gets permission denied.
+    () => _sftp.setStat(path, SftpFileAttrs(userID: uid, groupID: gid)),
+  );
+
+  Future<void> _ensureOwnerMaps() async {
+    if (_uidNames != null) return;
+    _uidNames = await _idNameMap(
+      'getent passwd 2>/dev/null || cat /etc/passwd 2>/dev/null',
+    );
+    _gidNames = await _idNameMap(
+      'getent group 2>/dev/null || cat /etc/group 2>/dev/null',
+    );
+  }
+
+  // Parses colon-separated passwd/group lines (name:x:id:...) into an id->name
+  // map. A restricted or shell-less server just yields an empty map.
+  Future<Map<int, String>> _idNameMap(String command) async {
+    final map = <int, String>{};
+    try {
+      final output = await _client
+          .run(command)
+          .timeout(const Duration(seconds: 5));
+      final text = utf8.decode(output, allowMalformed: true);
+      for (final line in const LineSplitter().convert(text)) {
+        final parts = line.split(':');
+        if (parts.length < 3 || parts[0].isEmpty) continue;
+        final id = int.tryParse(parts[2]);
+        if (id != null) map.putIfAbsent(id, () => parts[0]);
+      }
+    } catch (e, st) {
+      appLog("Owner name lookup failed", e, st);
+    }
+    return map;
+  }
+
+  @override
   Future<void> delete(RemoteFile file) =>
       _wrap(timeout: null, () => _deleteEntry(file));
 
@@ -506,15 +578,20 @@ class _DartSftpSession implements SftpSession {
   RemoteFile _toRemoteFile(String directory, SftpName name) {
     final attr = name.attr;
     final modified = attr.modifyTime;
+    final mode = attr.mode;
     return RemoteFile(
       name: name.filename,
       path: RemotePath.join(directory, name.filename),
       isDirectory: attr.isDirectory,
-      isLink: attr.mode?.type == SftpFileType.symbolicLink,
+      isLink: mode?.type == SftpFileType.symbolicLink,
       size: attr.size ?? 0,
       modified: modified == null
           ? null
           : DateTime.fromMillisecondsSinceEpoch(modified * 1000),
+      // The low nine bits are the rwx permissions; the rest are the file type.
+      permissions: mode == null ? null : mode.value & 0x1FF,
+      uid: attr.userID,
+      gid: attr.groupID,
     );
   }
 

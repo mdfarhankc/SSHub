@@ -160,6 +160,32 @@ class SftpCubit extends Cubit<SftpState> {
     () => _session!.rename(file.path, RemotePath.join(state.path, newName)),
   );
 
+  Future<void> changePermissions(RemoteFile file, int permissions) =>
+      _mutate(() => _session!.setPermissions(file.path, permissions));
+
+  Future<({String owner, String group})> ownerNames(RemoteFile file) async {
+    final session = _session;
+    if (session == null) {
+      return (
+        owner: file.uid?.toString() ?? "unknown",
+        group: file.gid?.toString() ?? "unknown",
+      );
+    }
+    return session.ownerNames(file);
+  }
+
+  Future<({Map<int, String> users, Map<int, String> groups})>
+  ownerOptions() async {
+    final session = _session;
+    if (session == null) {
+      return (users: const <int, String>{}, groups: const <int, String>{});
+    }
+    return session.ownerOptions();
+  }
+
+  Future<void> changeOwner(RemoteFile file, {int? uid, int? gid}) =>
+      _mutate(() => _session!.setOwner(file.path, uid: uid, gid: gid));
+
   Future<void> delete(RemoteFile file) => _mutate(() => _session!.delete(file));
 
   // [confirmOverwrite] is asked before replacing a file that already exists.

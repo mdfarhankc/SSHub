@@ -25,6 +25,19 @@ abstract interface class SftpSession {
 
   Future<void> rename(String from, String to);
 
+  // Sets the Unix permission bits (0-0o777) on the entry at [path].
+  Future<void> setPermissions(String path, int permissions);
+
+  // Resolves the owning user and group of [file] to names, falling back to the
+  // numeric ids when they cannot be looked up.
+  Future<({String owner, String group})> ownerNames(RemoteFile file);
+
+  // The server's known users and groups as id->name maps, for an owner picker.
+  Future<({Map<int, String> users, Map<int, String> groups})> ownerOptions();
+
+  // Changes the owner and/or group of the entry at [path]. Requires root.
+  Future<void> setOwner(String path, {int? uid, int? gid});
+
   Future<void> delete(RemoteFile file);
 
   // Reads at most [maxBytes] from the start of [file]. Bounded because the
