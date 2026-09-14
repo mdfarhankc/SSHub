@@ -56,7 +56,7 @@ class AboutSection extends StatelessWidget {
                     ),
                   ),
                   Text(
-                    "Version $appVersion",
+                    "Version ${AppInfo.version}",
                     style: theme.textTheme.bodySmall?.copyWith(
                       color: scheme.onSurfaceVariant,
                     ),

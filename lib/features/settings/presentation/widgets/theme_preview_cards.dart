@@ -1,13 +1,11 @@
 import 'package:flutter/material.dart';
 
-import 'package:sshub/features/settings/domain/entities/app_settings.dart';
-
 // Three tappable cards, each a small mock of the app in that theme, matching
 // the desktop settings pattern. System shows light and dark split down the
 // middle.
 class ThemePreviewCards extends StatelessWidget {
-  final AppThemeMode value;
-  final ValueChanged<AppThemeMode> onChanged;
+  final ThemeMode value;
+  final ValueChanged<ThemeMode> onChanged;
 
   const ThemePreviewCards({
     super.key,
@@ -32,23 +30,23 @@ class ThemePreviewCards extends StatelessWidget {
   Widget build(BuildContext context) {
     return Row(
       children: [
-        Expanded(child: _card(context, AppThemeMode.system, "System")),
+        Expanded(child: _card(context, ThemeMode.system, "System")),
         const SizedBox(width: 16),
-        Expanded(child: _card(context, AppThemeMode.light, "Light")),
+        Expanded(child: _card(context, ThemeMode.light, "Light")),
         const SizedBox(width: 16),
-        Expanded(child: _card(context, AppThemeMode.dark, "Dark")),
+        Expanded(child: _card(context, ThemeMode.dark, "Dark")),
       ],
     );
   }
 
-  Widget _card(BuildContext context, AppThemeMode mode, String label) {
+  Widget _card(BuildContext context, ThemeMode mode, String label) {
     final scheme = Theme.of(context).colorScheme;
     final selected = value == mode;
     final borderWidth = selected ? 2.5 : 1.0;
     final Widget mock = switch (mode) {
-      AppThemeMode.light => _mock(_light),
-      AppThemeMode.dark => _mock(_dark),
-      AppThemeMode.system => Stack(
+      ThemeMode.light => _mock(_light),
+      ThemeMode.dark => _mock(_dark),
+      ThemeMode.system => Stack(
         children: [
           Positioned.fill(child: _mock(_light)),
           Positioned.fill(

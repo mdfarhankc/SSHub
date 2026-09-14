@@ -1,9 +1,8 @@
 import 'package:equatable/equatable.dart';
-
-enum AppThemeMode { system, light, dark }
+import 'package:flutter/material.dart' show ThemeMode;
 
 class AppSettings extends Equatable {
-  final AppThemeMode themeMode;
+  final ThemeMode themeMode;
   final double terminalFontSize;
   final String terminalFontFamily;
   final String terminalColorScheme;
@@ -86,7 +85,7 @@ class AppSettings extends Equatable {
   });
 
   AppSettings copyWith({
-    AppThemeMode? themeMode,
+    ThemeMode? themeMode,
     double? terminalFontSize,
     String? terminalFontFamily,
     String? terminalColorScheme,

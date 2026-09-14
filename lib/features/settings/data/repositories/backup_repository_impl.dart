@@ -59,11 +59,15 @@ class BackupRepositoryImpl implements BackupRepository {
     }
 
     if (passphrase != null) {
-      return BackupCrypto.encrypt(jsonEncode(payload), passphrase, appVersion);
+      return BackupCrypto.encrypt(
+        jsonEncode(payload),
+        passphrase,
+        AppInfo.version,
+      );
     }
     return const JsonEncoder.withIndent('  ').convert({
       'app': 'sshub',
-      'version': appVersion,
+      'version': AppInfo.version,
       'encrypted': false,
       'data': payload,
     });

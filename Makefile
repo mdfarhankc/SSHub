@@ -49,7 +49,7 @@ pigeon: ## Regenerate the platform bridge from pigeons/
 
 version: ## Print the version from every file that must agree, and fail on drift
 	@pub=$$(grep '^version:' pubspec.yaml | sed 's/version: *//; s/+.*//'); \
-	app=$$(grep -o '"[^"]*"' lib/core/app_info.dart | tr -d '"'); \
+	app=$$(grep -o '"[0-9][^"]*"' lib/core/app_info.dart | tr -d '"'); \
 	iss=$$(grep '^#define MyAppVersion' windows/packaging/sshub.iss | grep -o '"[^"]*"' | tr -d '"'); \
 	web=$$(grep 'export const VERSION' site/src/lib/site.ts | grep -o '"[^"]*"' | tr -d '"'); \
 	notes=$$(head -1 RELEASE_NOTES.md | grep -oE '[0-9]+\.[0-9]+\.[0-9]+'); \

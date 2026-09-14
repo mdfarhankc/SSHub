@@ -1,1 +1,4 @@
-const String appVersion = "4.4.0";
+abstract final class AppInfo {
+  static const String name = "SSHub";
+  static const String version = "4.4.0";
+}

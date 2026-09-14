@@ -1,4 +1,5 @@
 import 'package:equatable/equatable.dart';
+import 'package:flutter/material.dart' show ThemeMode;
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import 'package:sshub/core/logging/app_log.dart';
@@ -22,13 +23,13 @@ class SettingsCubit extends Cubit<SettingsState> {
     }
   }
 
-  void updateThemeMode(AppThemeMode mode) =>
+  void updateThemeMode(ThemeMode mode) =>
       _update(state.settings.copyWith(themeMode: mode));
 
   void toggleThemeMode() => updateThemeMode(
-    state.settings.themeMode == AppThemeMode.dark
-        ? AppThemeMode.light
-        : AppThemeMode.dark,
+    state.settings.themeMode == ThemeMode.dark
+        ? ThemeMode.light
+        : ThemeMode.dark,
   );
 
   // Live while dragging: update the visible value without writing to disk on

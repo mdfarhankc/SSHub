@@ -1,11 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
+import 'package:sshub/core/app_info.dart';
+import 'package:sshub/core/app_startup.dart';
 import 'package:sshub/core/auth/app_lock_gate.dart';
 import 'package:sshub/core/di/service_locator.dart';
 import 'package:sshub/core/providers/app_bloc_providers.dart';
 import 'package:sshub/core/router/app_router.dart';
-import 'package:sshub/core/security/secure_platform.dart';
 import 'package:sshub/core/theme/app_theme.dart';
 import 'package:sshub/features/settings/domain/entities/app_settings.dart';
 import 'package:sshub/features/settings/domain/repositories/settings_repository.dart';
@@ -14,22 +15,11 @@ import 'package:sshub/features/splash/presentation/pages/splash_page.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-
-  final defaultOnError = FlutterError.onError;
-  FlutterError.onError = (details) {
-    // Debug-only Flutter Windows assertion on a bare Alt-down; harmless.
-    if (details.exceptionAsString().contains('no keys are in keysPressed')) {
-      return;
-    }
-    defaultOnError?.call(details);
-  };
-
+  silenceHarmlessKeyAssertion();
   setupLocator();
 
   final settings = await sl<SettingsRepository>().load();
-  if (SecurePlatform.canBlockScreenshots) {
-    await SecurePlatform.setBlockScreenshots(settings.blockScreenshots);
-  }
+  await applyScreenshotBlocking(settings);
   runApp(MyApp(initialSettings: settings));
 }
 
@@ -42,20 +32,16 @@ class MyApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return AppBlocProviders(
       initialSettings: initialSettings,
-      child: BlocSelector<SettingsCubit, SettingsState, AppThemeMode>(
+      child: BlocSelector<SettingsCubit, SettingsState, ThemeMode>(
         selector: (state) => state.settings.themeMode,
         builder: (context, themeMode) {
           return MaterialApp(
             debugShowCheckedModeBanner: false,
             themeAnimationDuration: Duration.zero,
-            title: 'SSHub',
+            title: AppInfo.name,
             theme: AppTheme.light,
             darkTheme: AppTheme.dark,
-            themeMode: switch (themeMode) {
-              AppThemeMode.system => ThemeMode.system,
-              AppThemeMode.light => ThemeMode.light,
-              AppThemeMode.dark => ThemeMode.dark,
-            },
+            themeMode: themeMode,
             onGenerateRoute: AppRouter.onGenerateRoute,
             initialRoute: SplashPage.route,
             builder: (context, child) =>

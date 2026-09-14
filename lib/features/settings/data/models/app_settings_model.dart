@@ -1,3 +1,5 @@
+import 'package:flutter/material.dart' show ThemeMode;
+
 import 'package:sshub/features/settings/domain/entities/app_settings.dart';
 
 class AppSettingsModel extends AppSettings {
@@ -33,8 +35,7 @@ class AppSettingsModel extends AppSettings {
     Map<String, dynamic> json,
   ) => AppSettingsModel(
     themeMode:
-        AppThemeMode.values.asNameMap()[json['themeMode']] ??
-        AppThemeMode.system,
+        ThemeMode.values.asNameMap()[json['themeMode']] ?? ThemeMode.system,
     terminalFontSize: (json['terminalFontSize'] as num?)?.toDouble() ?? 14,
     terminalFontFamily:
         json['terminalFontFamily'] as String? ?? 'JetBrains Mono',
