@@ -236,6 +236,52 @@ class SftpCubit extends Cubit<SftpState> {
     if (done && !isClosed) await refresh();
   }
 
+  // Uploads a whole local folder into the current directory.
+  Future<void> uploadFolder({
+    Future<bool> Function(String name)? confirmOverwrite,
+  }) async {
+    if (_denied()) return;
+    final session = _session;
+    if (session == null || _transferBusy()) return;
+    final localPath = await FilePicker.getDirectoryPath(
+      dialogTitle: "Upload folder to ${state.path}",
+    );
+    if (localPath == null || isClosed) return;
+
+    final name = _localName(localPath);
+    final remotePath = RemotePath.join(state.path, name);
+    try {
+      if (await session.exists(remotePath)) {
+        final replace = await confirmOverwrite?.call(name) ?? false;
+        if (!replace || isClosed) return;
+      }
+    } on SshConnectionException catch (e) {
+      if (!isClosed) emit(state.copyWith(errorMessage: e.message));
+      return;
+    }
+
+    // Size is unknown up front, so the bar shows an indeterminate transfer.
+    final done = await _runTransfer(
+      name,
+      isUpload: true,
+      total: 0,
+      action: () async {
+        await session.uploadDirectory(
+          localPath,
+          state.path,
+          onProgress: (bytes) => _tick(bytes, 0),
+        );
+        return "Uploaded to $remotePath";
+      },
+    );
+    if (done && !isClosed) await refresh();
+  }
+
+  String _localName(String path) {
+    final trimmed = path.replaceAll('\\', '/').replaceAll(RegExp(r'/+$'), '');
+    return trimmed.substring(trimmed.lastIndexOf('/') + 1);
+  }
+
   void cancelTransfer() {
     if (state.transfer == null) return;
     _session?.cancelTransfer();

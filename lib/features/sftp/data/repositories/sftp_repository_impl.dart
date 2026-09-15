@@ -531,11 +531,27 @@ class _DartSftpSession implements SftpSession {
   static const _ignoredDirs = {'__pycache__', '.git'};
   static const _ignoredExtensions = {'.pyc', '.pyo'};
 
-  bool _isIgnoredEntry(RemoteFile entry) {
-    if (entry.isDirectory) return _ignoredDirs.contains(entry.name);
-    final dot = entry.name.lastIndexOf('.');
+  bool _isIgnoredEntry(RemoteFile entry) =>
+      _isIgnoredName(entry.name, entry.isDirectory);
+
+  bool _isIgnoredName(String name, bool isDirectory) {
+    if (isDirectory) return _ignoredDirs.contains(name);
+    final dot = name.lastIndexOf('.');
     if (dot <= 0) return false;
-    return _ignoredExtensions.contains(entry.name.substring(dot).toLowerCase());
+    return _ignoredExtensions.contains(name.substring(dot).toLowerCase());
+  }
+
+  // The exclude patterns as plain tar arguments, for the local archiver on
+  // upload. The remote archiver on download builds them into a shell string.
+  List<String> _tarExcludeArgs() => [
+    for (final dir in _ignoredDirs) '--exclude=*/$dir',
+    for (final ext in _ignoredExtensions) '--exclude=*$ext',
+  ];
+
+  // Last path segment, handling both Windows and POSIX local separators.
+  String _baseName(String path) {
+    final trimmed = path.replaceAll('\\', '/').replaceAll(RegExp(r'/+$'), '');
+    return trimmed.substring(trimmed.lastIndexOf('/') + 1);
   }
 
   @override
@@ -568,6 +584,177 @@ class _DartSftpSession implements SftpSession {
       if (cancelled) await _sftp.remove(remotePath).catchError((_) {});
     }
   });
+
+  @override
+  Future<void> uploadDirectory(
+    String localPath,
+    String remoteDir, {
+    void Function(int bytes)? onProgress,
+  }) => _wrap(timeout: null, () async {
+    _cancelled = false;
+    // One local tar streamed into the server saturates the link; the per-file
+    // walk is the fallback when either side has no tar.
+    if (await _localTarAvailable()) {
+      try {
+        return await _uploadViaTar(localPath, remoteDir, onProgress);
+      } on SftpCancelled {
+        rethrow;
+      } catch (e, st) {
+        appLog("Tar upload failed, using per-file transfer", e, st);
+      }
+    }
+    return _uploadViaSftp(localPath, remoteDir, onProgress);
+  });
+
+  // Streams a local gzip tar into the server's tar, which extracts it under
+  // remoteDir. A stop kills the pipe and is reported as a cancel.
+  Future<void> _uploadViaTar(
+    String localPath,
+    String remoteDir,
+    void Function(int bytes)? onProgress,
+  ) async {
+    final directory = Directory(localPath);
+    final parent = directory.parent.path;
+    final base = _baseName(localPath);
+
+    // Archive relative to the process directory, not tar's -C: a Windows path
+    // is parsed differently by GNU tar and bsdtar, but the OS sets it the same.
+    final producer = await Process.start('tar', [
+      '-c',
+      '-z',
+      '-f',
+      '-',
+      ..._tarExcludeArgs(),
+      '--',
+      base,
+    ], workingDirectory: parent);
+
+    final SSHSession session;
+    try {
+      session = await _client.execute(
+        'tar -x -z -f - -C ${_shellQuote(remoteDir)}',
+      );
+    } catch (_) {
+      producer.kill();
+      rethrow;
+    }
+
+    var sent = 0;
+    final producerError = StringBuffer();
+    final producerErr = producer.stderr
+        .transform(utf8.decoder)
+        .listen(producerError.write);
+    final remoteError = StringBuffer();
+    final remoteErr = session.stderr
+        .cast<List<int>>()
+        .transform(utf8.decoder)
+        .listen(remoteError.write);
+    final remoteOut = session.stdout.listen((_) {});
+
+    _onCancel = () {
+      producer.kill();
+      session.close();
+    };
+
+    try {
+      await session.stdin.addStream(
+        producer.stdout.cast<Uint8List>().map((chunk) {
+          sent += chunk.length;
+          onProgress?.call(sent);
+          return chunk;
+        }),
+      );
+      await session.stdin.close();
+      final localExit = await producer.exitCode;
+      await session.done;
+      if (_cancelled) throw const SftpCancelled();
+      if (localExit != 0) {
+        final detail = producerError.toString().trim();
+        throw SshConnectionException(
+          detail.isEmpty ? "Could not read the local folder." : detail,
+        );
+      }
+      final remoteExit = session.exitCode ?? 0;
+      if (remoteExit != 0) {
+        final detail = remoteError.toString().trim();
+        throw SshConnectionException(
+          detail.isEmpty ? "The server could not save the folder." : detail,
+        );
+      }
+    } catch (_) {
+      if (_cancelled) throw const SftpCancelled();
+      rethrow;
+    } finally {
+      _onCancel = null;
+      await producerErr.cancel();
+      await remoteErr.cancel();
+      await remoteOut.cancel();
+      producer.kill();
+      session.close();
+    }
+  }
+
+  // Recreates the local folder on the server one file at a time, skipping build
+  // caches. Files upload concurrently to hide per-file round trips.
+  Future<void> _uploadViaSftp(
+    String localPath,
+    String remoteDir,
+    void Function(int bytes)? onProgress,
+  ) async {
+    final root = RemotePath.join(remoteDir, _baseName(localPath));
+    var sent = 0;
+    final gate = _ConcurrencyGate(_maxConcurrentFiles);
+    final pending = <Future<void>>[];
+
+    Future<void> uploadOne(File local, String remotePath) async {
+      final remote = await _sftp.open(
+        remotePath,
+        mode:
+            SftpFileOpenMode.create |
+            SftpFileOpenMode.write |
+            SftpFileOpenMode.truncate,
+      );
+      try {
+        final source = local.openRead().cast<Uint8List>().map((chunk) {
+          _throwIfCancelled();
+          sent += chunk.length;
+          onProgress?.call(sent);
+          return chunk;
+        });
+        await remote.write(source).done;
+      } finally {
+        await remote.close();
+      }
+    }
+
+    Future<void> walk(Directory localDir, String remotePath) async {
+      _throwIfCancelled();
+      await _sftp.mkdir(remotePath).catchError((_) {});
+      await for (final entity in localDir.list(followLinks: false)) {
+        _throwIfCancelled();
+        final name = _baseName(entity.path);
+        final isDir = entity is Directory;
+        if (_isIgnoredName(name, isDir) ||
+            !RemotePath.isSafeLocalSegment(name)) {
+          continue;
+        }
+        final target = RemotePath.join(remotePath, name);
+        if (isDir) {
+          await walk(entity, target);
+        } else if (entity is File) {
+          pending.add(gate.run(() => uploadOne(entity, target)));
+        }
+      }
+    }
+
+    try {
+      await walk(Directory(localPath), root);
+      await Future.wait(pending);
+    } catch (_) {
+      await Future.wait(pending).catchError((_) => <void>[]);
+      rethrow;
+    }
+  }
 
   @override
   Future<void> close() async {

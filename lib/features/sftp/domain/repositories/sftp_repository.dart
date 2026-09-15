@@ -66,6 +66,14 @@ abstract interface class SftpSession {
     void Function(int bytes)? onProgress,
   });
 
+  // Uploads the local folder at [localPath] into [remoteDir], creating a folder
+  // of the same name under it.
+  Future<void> uploadDirectory(
+    String localPath,
+    String remoteDir, {
+    void Function(int bytes)? onProgress,
+  });
+
   Future<void> close();
 }
 

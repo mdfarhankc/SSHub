@@ -55,6 +55,15 @@ List<Widget> buildSftpActions(
               )
             : null,
       ),
+      IconButton(
+        tooltip: "Upload a folder",
+        icon: const Icon(LucideIcons.folderUp),
+        onPressed: state.transfer == null
+            ? () => cubit.uploadFolder(
+                confirmOverwrite: (name) => _confirmOverwrite(context, name),
+              )
+            : null,
+      ),
     ],
     IconButton(
       tooltip: "Refresh",
