@@ -25,16 +25,11 @@ class TerminalPreview extends StatelessWidget {
     // line height match exactly.
     final style = TerminalStyle(fontSize: fontSize, fontFamily: fontFamily);
     final base = style.toTextStyle(color: t.foreground);
-    TextStyle colored(Color c) => style.toTextStyle(color: c);
 
-    TextSpan prompt() => TextSpan(
-      children: [
-        TextSpan(text: "deploy@prod-web-01", style: colored(t.green)),
-        TextSpan(text: ":", style: base),
-        TextSpan(text: "~", style: colored(t.blue)),
-        TextSpan(text: r"$ ", style: base),
-      ],
-    );
+    // Plain text on the scheme's background, the two things SSHub actually
+    // controls. Any colour beyond this comes from what the server prints, so the
+    // preview does not imply it.
+    TextSpan prompt() => TextSpan(text: r"root@prod-web-01:~# ", style: base);
 
     final lines = <TextSpan>[
       TextSpan(
@@ -43,23 +38,15 @@ class TerminalPreview extends StatelessWidget {
           TextSpan(text: "ls", style: base),
         ],
       ),
-      TextSpan(
-        children: [
-          TextSpan(text: "config.yaml  ", style: base),
-          TextSpan(text: "deploy.log  ", style: base),
-          TextSpan(text: "releases  ", style: colored(t.brightBlue)),
-          TextSpan(text: "src", style: colored(t.brightBlue)),
-        ],
-      ),
+      TextSpan(text: "config.yaml  deploy.log  releases  src", style: base),
       TextSpan(
         children: [
           prompt(),
-          TextSpan(text: "git status", style: base),
+          TextSpan(text: "cat config.yaml", style: base),
         ],
       ),
-      TextSpan(text: "On branch main", style: base),
-      TextSpan(text: "  modified:   app.py", style: colored(t.red)),
-      TextSpan(text: "  new file:   deploy.sh", style: colored(t.green)),
+      TextSpan(text: "env: production", style: base),
+      TextSpan(text: "region: ap-south-1", style: base),
       TextSpan(children: [prompt(), _cursor(t, fontSize)]),
     ];
 
