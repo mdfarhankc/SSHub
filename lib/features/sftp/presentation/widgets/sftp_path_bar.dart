@@ -21,6 +21,9 @@ class _SftpPathBarState extends State<SftpPathBar> {
   final _focus = FocusNode();
   final _portal = OverlayPortalController();
   final _link = LayerLink();
+  final _scroll = ScrollController();
+
+  static const _itemExtent = 44.0;
 
   bool _editing = false;
   double _fieldWidth = 0;
@@ -29,6 +32,7 @@ class _SftpPathBarState extends State<SftpPathBar> {
   String? _cachedDir;
   List<String> _cachedDirs = const [];
   List<String> _suggestions = const [];
+  int _highlighted = -1;
   int _reqToken = 0;
 
   @override
@@ -42,6 +46,7 @@ class _SftpPathBarState extends State<SftpPathBar> {
     _focus.removeListener(_onFocusChange);
     _focus.dispose();
     _controller.dispose();
+    _scroll.dispose();
     super.dispose();
   }
 
@@ -79,11 +84,57 @@ class _SftpPathBarState extends State<SftpPathBar> {
     _currentParent = parent;
     await _ensureListed(dir);
     if (!mounted || !_editing) return;
-    setState(() => _suggestions = _rankMatches(partial));
+    setState(() {
+      _suggestions = _rankMatches(partial);
+      // Typing resets the highlight, so Enter still submits the typed path
+      // until the user arrows into the list.
+      _highlighted = -1;
+    });
     if (_suggestions.isEmpty) {
       _portal.hide();
     } else if (!_portal.isShowing) {
       _portal.show();
+    }
+  }
+
+  void _moveHighlight(int delta) {
+    if (_suggestions.isEmpty) return;
+    final len = _suggestions.length;
+    setState(() {
+      _highlighted = _highlighted < 0
+          ? (delta > 0 ? 0 : len - 1)
+          : (((_highlighted + delta) % len) + len) % len;
+    });
+    WidgetsBinding.instance.addPostFrameCallback((_) => _scrollToHighlighted());
+  }
+
+  void _onEnter() {
+    if (_portal.isShowing &&
+        _highlighted >= 0 &&
+        _highlighted < _suggestions.length) {
+      _applySuggestion(_suggestions[_highlighted]);
+    } else {
+      _submit();
+    }
+  }
+
+  void _scrollToHighlighted() {
+    if (!_scroll.hasClients || _highlighted < 0) return;
+    final target = _highlighted * _itemExtent;
+    final viewport = _scroll.position.viewportDimension;
+    final offset = _scroll.offset;
+    double? to;
+    if (target < offset) {
+      to = target;
+    } else if (target + _itemExtent > offset + viewport) {
+      to = target + _itemExtent - viewport;
+    }
+    if (to != null) {
+      _scroll.animateTo(
+        to.clamp(0.0, _scroll.position.maxScrollExtent),
+        duration: const Duration(milliseconds: 120),
+        curve: Curves.easeOut,
+      );
     }
   }
 
@@ -221,6 +272,10 @@ class _SftpPathBarState extends State<SftpPathBar> {
     return CallbackShortcuts(
       bindings: {
         const SingleActivator(LogicalKeyboardKey.escape): _focus.unfocus,
+        const SingleActivator(LogicalKeyboardKey.arrowDown): () =>
+            _moveHighlight(1),
+        const SingleActivator(LogicalKeyboardKey.arrowUp): () =>
+            _moveHighlight(-1),
       },
       child: TextField(
         controller: _controller,
@@ -241,7 +296,8 @@ class _SftpPathBarState extends State<SftpPathBar> {
           focusedBorder: border,
         ),
         onChanged: _onChanged,
-        onSubmitted: (_) => _submit(),
+        // Enter applies the arrowed-to suggestion, else jumps to the typed path.
+        onSubmitted: (_) => _onEnter(),
       ),
     );
   }
@@ -267,37 +323,44 @@ class _SftpPathBarState extends State<SftpPathBar> {
               child: ConstrainedBox(
                 constraints: const BoxConstraints(maxHeight: 240),
                 child: ListView.builder(
+                  controller: _scroll,
                   shrinkWrap: true,
                   padding: EdgeInsets.zero,
+                  itemExtent: _itemExtent,
                   itemCount: _suggestions.length,
                   itemBuilder: (context, index) {
                     final name = _suggestions[index];
-                    return InkWell(
-                      onTap: () => _applySuggestion(name),
-                      child: Padding(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 12,
-                          vertical: 10,
-                        ),
-                        child: Row(
-                          children: [
-                            Icon(
-                              LucideIcons.folder,
-                              size: 16,
-                              color: scheme.onSurfaceVariant,
-                            ),
-                            const SizedBox(width: 10),
-                            Expanded(
-                              child: Text(
-                                name,
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                                style: theme.textTheme.bodySmall?.copyWith(
-                                  fontFamily: AppTheme.mono,
+                    return ColoredBox(
+                      color: index == _highlighted
+                          ? scheme.primary.withValues(alpha: 0.12)
+                          : Colors.transparent,
+                      child: InkWell(
+                        onTap: () => _applySuggestion(name),
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 12,
+                            vertical: 10,
+                          ),
+                          child: Row(
+                            children: [
+                              Icon(
+                                LucideIcons.folder,
+                                size: 16,
+                                color: scheme.onSurfaceVariant,
+                              ),
+                              const SizedBox(width: 10),
+                              Expanded(
+                                child: Text(
+                                  name,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: theme.textTheme.bodySmall?.copyWith(
+                                    fontFamily: AppTheme.mono,
+                                  ),
                                 ),
                               ),
-                            ),
-                          ],
+                            ],
+                          ),
                         ),
                       ),
                     );
