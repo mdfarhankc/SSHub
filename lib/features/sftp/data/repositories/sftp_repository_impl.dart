@@ -313,6 +313,7 @@ class _DartSftpSession implements SftpSession {
         await _deleteLocalDir(localPath);
         rethrow;
       } catch (e, st) {
+        // A stall lands here too, so it retries over the per-file path.
         appLog("Tar download failed, using per-file transfer", e, st);
         await _deleteLocalDir(localPath);
       }
@@ -434,13 +435,22 @@ class _DartSftpSession implements SftpSession {
     // never stall tar.
     final drain = extractor.stdout.listen((_) {});
     // tar writes -v names to stderr while the archive is on stdout, so this is
-    // the live file feed for progress.
+    // the live file feed for progress, and where a hostile member is caught.
+    var hostile = false;
     final names = extractor.stderr
         .transform(utf8.decoder)
         .transform(const LineSplitter())
         .listen((line) {
           final name = line.trim();
           if (name.isEmpty) return;
+          // A member with .. or an absolute path could write outside the
+          // download folder. Flag it only: killing the extractor mid-stream can
+          // stall the pipe. The archive is refused once it drains, and the
+          // caller falls back to the per-file path, which validates every entry.
+          if (_isUnsafeMember(name)) {
+            hostile = true;
+            return;
+          }
           extracted++;
           lastName = name.endsWith('/')
               ? name.substring(0, name.length - 1).split('/').last
@@ -452,26 +462,67 @@ class _DartSftpSession implements SftpSession {
         .transform(utf8.decoder)
         .listen(remoteError.write);
 
-    // A stop kills the pipe now, rather than waiting for the next chunk. Any
-    // failure while cancelled is reported as a cancel, so the caller stops
-    // instead of falling back to the per-file download.
-    _onCancel = () {
-      extractor.kill();
+    // Cancel and the stall watchdog abort through this: the stream await never
+    // ends on its own while the remote tar is blocked, so racing it against an
+    // abort signal is what actually breaks the wait and frees the slot.
+    final aborter = Completer<void>();
+    void abort() {
+      if (!aborter.isCompleted) aborter.complete();
       session.close();
-    };
+      extractor.kill();
+    }
 
-    try {
-      await extractor.stdin.addStream(
-        session.stdout.map((chunk) {
+    // Reading the remote stdout at full speed keeps the exec channel flowing;
+    // coupling it to the slower local tar with addStream backpressure is what
+    // stalls a large module part way. The watchdog still guards a real stall.
+    var stalled = false;
+    Timer? watchdog;
+    void bumpWatchdog() {
+      watchdog?.cancel();
+      watchdog = Timer(_stallTimeout, () {
+        stalled = true;
+        abort();
+      });
+    }
+
+    _onCancel = abort;
+
+    int? localExit;
+    StreamSubscription<Uint8List>? reader;
+    Future<void> pipe() async {
+      final streamed = Completer<void>();
+      reader = session.stdout.listen(
+        (chunk) {
+          bumpWatchdog();
           received += chunk.length;
           onProgress?.call(extracted, received, lastName);
-          return chunk;
-        }),
+          // A chunk can still arrive just after an abort killed the process.
+          try {
+            extractor.stdin.add(chunk);
+          } catch (_) {}
+        },
+        onError: (Object e, StackTrace st) {
+          if (!streamed.isCompleted) streamed.completeError(e, st);
+        },
+        onDone: () {
+          if (!streamed.isCompleted) streamed.complete();
+        },
+        cancelOnError: true,
       );
+      await streamed.future;
       await extractor.stdin.close();
-      final localExit = await extractor.exitCode;
+      localExit = await extractor.exitCode;
       await session.done;
+    }
+
+    bumpWatchdog();
+    try {
+      // Whichever finishes first wins; an abort leaves pipe() to unwind on its
+      // own after the channel and process are torn down.
+      await Future.any([pipe(), aborter.future]);
       if (_cancelled) throw const SftpCancelled();
+      if (stalled) throw const SshConnectionException(_stalledMessage);
+      if (hostile) throw const SshConnectionException(_unsafeArchive);
       final remoteExit = session.exitCode ?? 0;
       if (remoteExit != 0) {
         final detail = remoteError.toString().trim();
@@ -485,9 +536,13 @@ class _DartSftpSession implements SftpSession {
       return 0;
     } catch (_) {
       if (_cancelled) throw const SftpCancelled();
+      if (stalled) throw const SshConnectionException(_stalledMessage);
+      if (hostile) throw const SshConnectionException(_unsafeArchive);
       rethrow;
     } finally {
+      watchdog?.cancel();
       _onCancel = null;
+      await reader?.cancel();
       await drain.cancel();
       await names.cancel();
       await remoteErr.cancel();
@@ -528,7 +583,7 @@ class _DartSftpSession implements SftpSession {
     }
   }
 
-  static const _ignoredDirs = {'__pycache__', '.git'};
+  static const _ignoredDirs = {'__pycache__'};
   static const _ignoredExtensions = {'.pyc', '.pyo'};
 
   bool _isIgnoredEntry(RemoteFile entry) =>
@@ -552,6 +607,23 @@ class _DartSftpSession implements SftpSession {
   String _baseName(String path) {
     final trimmed = path.replaceAll('\\', '/').replaceAll(RegExp(r'/+$'), '');
     return trimmed.substring(trimmed.lastIndexOf('/') + 1);
+  }
+
+  static const _unsafeArchive =
+      "The server sent an unsafe archive, so the download was blocked.";
+
+  // How long a streamed transfer may receive no data before it is treated as
+  // stalled and stopped.
+  static const _stallTimeout = Duration(seconds: 45);
+  static const _stalledMessage = "The transfer stalled and was stopped.";
+
+  // An archive member that is absolute or steps up with .. could land outside
+  // the download folder, so it is treated as hostile. A Linux archive never has
+  // a Windows drive prefix, so that is not checked, to avoid misreading a
+  // diagnostic line.
+  bool _isUnsafeMember(String name) {
+    if (name.startsWith('/') || name.startsWith(r'\')) return true;
+    return name.split(RegExp(r'[\\/]')).contains('..');
   }
 
   @override
