@@ -119,12 +119,12 @@ class _ExportOptionsDialogState extends State<ExportOptionsDialog> {
                           controller: _pass,
                           name: "Passphrase",
                           icon: LucideIcons.asterisk,
-                          hint: "At least 3 characters",
+                          hint: "At least 8 characters",
                           obscureText: true,
                           validator: (v) {
                             if (v == null || v.isEmpty) return "Required";
-                            if (v.length < 3) {
-                              return "Use at least 3 characters";
+                            if (v.length < 8) {
+                              return "Use at least 8 characters";
                             }
                             return null;
                           },

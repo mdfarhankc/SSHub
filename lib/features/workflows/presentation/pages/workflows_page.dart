@@ -135,8 +135,13 @@ class _WorkflowTileState extends State<_WorkflowTile> {
   String get _subtitle {
     final count = workflow.steps.length;
     final steps = "$count ${count == 1 ? 'step' : 'steps'}";
-    final first = workflow.steps.isEmpty ? '' : workflow.steps.first.send;
-    return first.isEmpty ? steps : "$steps  ·  $first";
+    if (workflow.steps.isEmpty) return steps;
+    final first = workflow.steps.first;
+    // Never show a secret step's value; fall back to its title, or just count.
+    final label = first.title.trim().isNotEmpty
+        ? first.title.trim()
+        : (first.secret ? '' : first.send);
+    return label.isEmpty ? steps : "$steps  ·  $label";
   }
 
   @override
