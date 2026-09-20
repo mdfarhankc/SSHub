@@ -11,7 +11,7 @@ SSHub is a fast, minimal SSH client for the desktop, built with Flutter. Save yo
 - Host key verification: SSHub remembers each server's fingerprint per key type and refuses to connect if it changes, with a deliberate "forget host key" action for servers you rebuilt
 - Full in-app terminal powered by `dartssh2` + `xterm`, with copy / paste, select all, and find-in-scrollback
 - Tabbed sessions: up to ten servers open at once, each keeping its own scrollback, with keyboard switching
-- SFTP file browser: browse in a list or a grid, upload, download, rename, delete and create folders, over its own connection
+- SFTP file browser: browse in a list or a grid, upload and download files or whole folders, rename, delete, create folders, search the current folder, edit permissions and ownership, and multi-select for batch download and delete, over its own connection
 - Jump to any folder by typing its path in the file browser, with folder-name autocomplete
 - Read-only mode, on by default, so the file browser cannot change anything on the server until you unlock it
 - Built-in file viewer for text files, with binary detection and a size cap
@@ -28,13 +28,9 @@ SSHub is a fast, minimal SSH client for the desktop, built with Flutter. Save yo
 
 ### Planned
 
-- Downloading and uploading whole folders
 - Editing a remote file in place
-- Selecting multiple files for batch actions
 - A transfer queue, so more than one transfer can run at a time
 - Resuming an interrupted transfer instead of starting over
-- Viewing and changing file permissions
-- Searching within a folder
 
 ## Platforms
 

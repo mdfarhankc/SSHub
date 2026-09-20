@@ -1,3 +1,27 @@
+## SSHub 4.5.0
+
+This release rounds out the file browser: edit permissions and ownership, search a folder, upload a whole folder, and select many files at once. It also fixes a stall that could hang a large folder download.
+
+New
+
+- Edit a file or folder's Unix permissions from a simple read/write/execute grid, with the octal value shown live. The dialog also shows the owner and group, and lets you change them where you have the rights (changing ownership needs root)
+- Search the current folder: open the search bar, type, and the listing filters by name as you go
+- Upload a whole folder, streamed as one archive the same way folder download works, with a per-file fallback for servers without tar
+- Select several files and folders at once, then download or delete them in one go. A batch download reports its result as a single success and a single error message rather than one per item
+
+Improvements
+
+- Navigate the path bar's folder suggestions with the arrow keys and pick one with Enter, not just the mouse
+- A Browse files button on each server card opens the file browser in one tap, without the menu
+- The backup passphrase now requires at least 8 characters
+
+Fixes
+
+- A large folder download could stall part way and then refuse to cancel, holding up every later transfer. The download no longer stalls, Cancel always works, and a stalled transfer now recovers on its own
+- A workflow's first step could show a secret value in the workflows list. Secret steps are never shown now
+- Folder downloads reject an archive that tries to write outside the chosen folder, and no longer skip .git
+- Rapid workflow edits could drop a saved workflow. Saves are serialised now
+
 ## SSHub 4.4.0
 
 This release adds workflows, a way to run a command and answer the prompts that follow in a single tap, and moves the app onto the latest Flutter and dependencies.

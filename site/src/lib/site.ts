@@ -10,7 +10,7 @@ import {
   type LucideIcon,
 } from "lucide-react";
 
-export const VERSION = "4.4.0";
+export const VERSION = "4.5.0";
 export const GITHUB_URL = "https://github.com/mdfarhankc/SSHub";
 export const RELEASES_URL = `${GITHUB_URL}/releases/latest`;
 
@@ -28,7 +28,7 @@ export const FEATURES: Feature[] = [
     icon: FolderOpen,
     label: "files",
     title: "Built-in file browser",
-    body: "Browse, upload, download and open files over SFTP, in a list or a grid. No second app, no separate login.",
+    body: "Browse, search and open files over SFTP, upload and download whole folders, edit permissions and ownership, and multi-select for batch actions. No second app, no separate login.",
   },
   {
     icon: Layers,
@@ -87,13 +87,9 @@ export const EXTRAS = [
 ] as const;
 
 export const ROADMAP = [
-  "Folder upload and download",
   "In-place remote file editing",
-  "Multi-select and batch actions",
   "A transfer queue",
   "Resume interrupted transfers",
-  "File permissions editing",
-  "Search within a folder",
 ] as const;
 
 export type CompareValue = "yes" | "no" | "partial";
