@@ -98,6 +98,9 @@ class SftpCubit extends Cubit<SftpState> {
     if (target != state.path) await _load(target);
   }
 
+  // Opportunistic listing for the path-bar autocomplete. A folder that cannot
+  // be read just yields no suggestions, so the failure is swallowed quietly
+  // rather than logged on every keystroke into an inaccessible path.
   Future<List<RemoteFile>> listFolder(String path) async {
     final session = _session;
     if (session == null) return const [];
@@ -107,8 +110,7 @@ class SftpCubit extends Cubit<SftpState> {
         for (final e in entries)
           if (e.isDirectory) e,
       ];
-    } catch (e, st) {
-      appLog("List folder failed", e, st);
+    } catch (_) {
       return const [];
     }
   }
@@ -125,6 +127,64 @@ class SftpCubit extends Cubit<SftpState> {
   }
 
   void setSearch(String query) => emit(state.copyWith(searchQuery: query));
+
+  void enterSelection() => emit(state.copyWith(selecting: true));
+
+  void exitSelection() =>
+      emit(state.copyWith(selecting: false, selected: const <String>{}));
+
+  void toggleSelected(String path) {
+    final next = Set<String>.of(state.selected);
+    if (!next.remove(path)) next.add(path);
+    emit(state.copyWith(selected: next));
+  }
+
+  void selectAllVisible() => emit(
+    state.copyWith(selected: {for (final e in state.visibleEntries) e.path}),
+  );
+
+  List<RemoteFile> _selectedEntries() => [
+    for (final e in state.entries)
+      if (state.selected.contains(e.path)) e,
+  ];
+
+  Future<void> downloadSelected() async {
+    final targets = _selectedEntries();
+    exitSelection();
+    _inBatch = true;
+    _batchOk = 0;
+    _batchFailed.clear();
+    try {
+      // One transfer runs at a time, so the items download in sequence.
+      for (final file in targets) {
+        if (isClosed) return;
+        await download(file);
+      }
+    } finally {
+      _inBatch = false;
+    }
+    if (isClosed) return;
+    final failed = _batchFailed;
+    final notice = _batchOk > 0
+        ? "Downloaded $_batchOk ${_batchOk == 1 ? 'item' : 'items'}"
+        : null;
+    final error = failed.isEmpty
+        ? null
+        : (failed.length <= 3
+              ? "Could not download ${failed.join(', ')}"
+              : "Could not download ${failed.length} items");
+    emit(state.copyWith(noticeMessage: notice, errorMessage: error));
+  }
+
+  Future<void> deleteSelected() {
+    final targets = _selectedEntries();
+    exitSelection();
+    return _mutate(() async {
+      for (final file in targets) {
+        await _session!.delete(file);
+      }
+    });
+  }
 
   void toggleGridView() {
     final value = !state.gridView;
@@ -287,6 +347,12 @@ class SftpCubit extends Cubit<SftpState> {
     _session?.cancelTransfer();
   }
 
+  // While a batch runs, each item's result is collected rather than toasted, so
+  // the caller can show one success and one error message at the end.
+  bool _inBatch = false;
+  int _batchOk = 0;
+  final _batchFailed = <String>[];
+
   // The one transfer slot is freed here whatever the body does, so an
   // unexpected failure cannot leave the browser refusing every later transfer.
   Future<bool> _runTransfer(
@@ -316,13 +382,22 @@ class SftpCubit extends Cubit<SftpState> {
       error = "The transfer could not be completed.";
     }
     if (!isClosed) {
-      emit(
-        state.copyWith(
-          clearTransfer: true,
-          noticeMessage: notice,
-          errorMessage: error,
-        ),
-      );
+      if (_inBatch) {
+        if (error != null) {
+          _batchFailed.add(name);
+        } else if (completed) {
+          _batchOk++;
+        }
+        emit(state.copyWith(clearTransfer: true));
+      } else {
+        emit(
+          state.copyWith(
+            clearTransfer: true,
+            noticeMessage: notice,
+            errorMessage: error,
+          ),
+        );
+      }
     }
     return completed;
   }
@@ -466,6 +541,8 @@ class SftpCubit extends Cubit<SftpState> {
           clearMessages: true,
           searching: navigated ? false : null,
           searchQuery: navigated ? '' : null,
+          selecting: navigated ? false : null,
+          selected: navigated ? const <String>{} : null,
         ),
       );
     } on SshConnectionException catch (e) {

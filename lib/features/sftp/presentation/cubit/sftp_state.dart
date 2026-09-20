@@ -62,6 +62,9 @@ class SftpState extends Equatable {
   // Whether the search field is open, and the text filtering the listing.
   final bool searching;
   final String searchQuery;
+  // Whether selection mode is on, and the paths currently ticked.
+  final bool selecting;
+  final Set<String> selected;
 
   const SftpState({
     this.status = SftpStatus.connecting,
@@ -76,6 +79,8 @@ class SftpState extends Equatable {
     this.transfer,
     this.searching = false,
     this.searchQuery = "",
+    this.selecting = false,
+    this.selected = const <String>{},
   });
 
   bool get isRoot => path == '/';
@@ -105,6 +110,8 @@ class SftpState extends Equatable {
     bool clearTransfer = false,
     bool? searching,
     String? searchQuery,
+    bool? selecting,
+    Set<String>? selected,
   }) => SftpState(
     status: status ?? this.status,
     path: path ?? this.path,
@@ -118,6 +125,8 @@ class SftpState extends Equatable {
     transfer: clearTransfer ? null : (transfer ?? this.transfer),
     searching: searching ?? this.searching,
     searchQuery: searchQuery ?? this.searchQuery,
+    selecting: selecting ?? this.selecting,
+    selected: selected ?? this.selected,
   );
 
   @override
@@ -134,5 +143,7 @@ class SftpState extends Equatable {
     transfer,
     searching,
     searchQuery,
+    selecting,
+    selected,
   ];
 }

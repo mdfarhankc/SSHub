@@ -29,23 +29,39 @@ class _FileTileState extends State<FileTile> {
     final theme = Theme.of(context);
     final scheme = theme.colorScheme;
     final canWrite = context.select<SftpCubit, bool>((c) => !c.state.readOnly);
+    final selecting = context.select<SftpCubit, bool>((c) => c.state.selecting);
+    final selected = context.select<SftpCubit, bool>(
+      (c) => c.state.selected.contains(file.path),
+    );
 
     return ContextMenuArea(
       key: _menuKey,
       borderRadius: BorderRadius.circular(AppTheme.radiusMd),
-      actions: fileMenuActions(context, file, widget.cubit, canWrite: canWrite),
+      // No lifted menu while selecting; a tap toggles the tick instead.
+      actions: selecting
+          ? const []
+          : fileMenuActions(context, file, widget.cubit, canWrite: canWrite),
       // A solid surface so the lifted copy has a backing over the blur.
       child: Material(
-        color: scheme.surface,
+        color: selected
+            ? scheme.primary.withValues(alpha: 0.12)
+            : scheme.surface,
         child: ListTile(
-          leading: Icon(
-            file.isLink
-                ? LucideIcons.link
-                : file.isDirectory
-                ? LucideIcons.folder
-                : LucideIcons.file,
-            color: file.isDirectory ? scheme.primary : scheme.onSurfaceVariant,
-          ),
+          leading: selecting
+              ? Checkbox(
+                  value: selected,
+                  onChanged: (_) => widget.cubit.toggleSelected(file.path),
+                )
+              : Icon(
+                  file.isLink
+                      ? LucideIcons.link
+                      : file.isDirectory
+                      ? LucideIcons.folder
+                      : LucideIcons.file,
+                  color: file.isDirectory
+                      ? scheme.primary
+                      : scheme.onSurfaceVariant,
+                ),
           title: Text(
             file.name,
             maxLines: 1,
@@ -62,13 +78,17 @@ class _FileTileState extends State<FileTile> {
               color: scheme.onSurfaceVariant,
             ),
           ),
-          onTap: () => openRemoteFile(context, file, widget.cubit),
-          trailing: IconButton(
-            tooltip: "File options",
-            visualDensity: VisualDensity.compact,
-            icon: const Icon(LucideIcons.ellipsis, size: 22),
-            onPressed: () => _menuKey.currentState?.open(),
-          ),
+          onTap: selecting
+              ? () => widget.cubit.toggleSelected(file.path)
+              : () => openRemoteFile(context, file, widget.cubit),
+          trailing: selecting
+              ? null
+              : IconButton(
+                  tooltip: "File options",
+                  visualDensity: VisualDensity.compact,
+                  icon: const Icon(LucideIcons.ellipsis, size: 22),
+                  onPressed: () => _menuKey.currentState?.open(),
+                ),
         ),
       ),
     );

@@ -33,6 +33,14 @@ List<Widget> buildSftpActions(
       onPressed: cubit.toggleSearch,
     ),
     IconButton(
+      tooltip: state.selecting ? "Cancel selection" : "Select files",
+      icon: Icon(
+        LucideIcons.listChecks,
+        color: state.selecting ? scheme.primary : null,
+      ),
+      onPressed: state.selecting ? cubit.exitSelection : cubit.enterSelection,
+    ),
+    IconButton(
       tooltip: state.readOnly ? "Read-only mode is on" : "Changes are allowed",
       icon: Icon(
         state.readOnly ? LucideIcons.lock : LucideIcons.lockOpen,

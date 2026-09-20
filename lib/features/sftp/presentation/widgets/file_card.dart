@@ -29,22 +29,36 @@ class _FileCardState extends State<FileCard> {
     final theme = Theme.of(context);
     final scheme = theme.colorScheme;
     final canWrite = context.select<SftpCubit, bool>((c) => !c.state.readOnly);
+    final selecting = context.select<SftpCubit, bool>((c) => c.state.selecting);
+    final selected = context.select<SftpCubit, bool>(
+      (c) => c.state.selected.contains(file.path),
+    );
     final radius = BorderRadius.circular(AppTheme.radiusLg);
 
     return ContextMenuArea(
       key: _menuKey,
       borderRadius: radius,
-      actions: fileMenuActions(context, file, widget.cubit, canWrite: canWrite),
+      // No lifted menu while selecting; a tap toggles the tick instead.
+      actions: selecting
+          ? const []
+          : fileMenuActions(context, file, widget.cubit, canWrite: canWrite),
       child: Material(
-        color: scheme.surfaceContainerLow,
+        color: selected
+            ? scheme.primary.withValues(alpha: 0.12)
+            : scheme.surfaceContainerLow,
         borderRadius: radius,
         child: InkWell(
-          onTap: () => openRemoteFile(context, file, widget.cubit),
+          onTap: selecting
+              ? () => widget.cubit.toggleSelected(file.path)
+              : () => openRemoteFile(context, file, widget.cubit),
           borderRadius: radius,
           child: Container(
             decoration: BoxDecoration(
               borderRadius: radius,
-              border: Border.all(color: scheme.outlineVariant),
+              border: Border.all(
+                color: selected ? scheme.primary : scheme.outlineVariant,
+                width: selected ? 2 : 1,
+              ),
             ),
             padding: const EdgeInsets.fromLTRB(12, 8, 4, 12),
             child: Column(
@@ -55,18 +69,31 @@ class _FileCardState extends State<FileCard> {
                   height: 30,
                   child: Align(
                     alignment: Alignment.centerRight,
-                    child: IconButton(
-                      tooltip: "File options",
-                      visualDensity: VisualDensity.compact,
-                      padding: const EdgeInsets.all(6),
-                      constraints: const BoxConstraints(),
-                      icon: Icon(
-                        LucideIcons.ellipsis,
-                        size: 18,
-                        color: scheme.onSurfaceVariant,
-                      ),
-                      onPressed: () => _menuKey.currentState?.open(),
-                    ),
+                    child: selecting
+                        ? Padding(
+                            padding: const EdgeInsets.all(6),
+                            child: Icon(
+                              selected
+                                  ? LucideIcons.circleCheck
+                                  : LucideIcons.circle,
+                              size: 18,
+                              color: selected
+                                  ? scheme.primary
+                                  : scheme.onSurfaceVariant,
+                            ),
+                          )
+                        : IconButton(
+                            tooltip: "File options",
+                            visualDensity: VisualDensity.compact,
+                            padding: const EdgeInsets.all(6),
+                            constraints: const BoxConstraints(),
+                            icon: Icon(
+                              LucideIcons.ellipsis,
+                              size: 18,
+                              color: scheme.onSurfaceVariant,
+                            ),
+                            onPressed: () => _menuKey.currentState?.open(),
+                          ),
                   ),
                 ),
                 Icon(
