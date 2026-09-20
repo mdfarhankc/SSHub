@@ -249,6 +249,12 @@ class _ServerCardState extends State<ServerCard> {
                               ],
                             ),
                           ),
+                          IconButton(
+                            tooltip: "Browse files",
+                            visualDensity: VisualDensity.compact,
+                            icon: const Icon(LucideIcons.folderOpen, size: 20),
+                            onPressed: _browseFiles,
+                          ),
                           _buildMenuButton(),
                         ],
                       ),
