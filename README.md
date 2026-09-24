@@ -15,6 +15,7 @@ SSHub is a fast, minimal SSH client for the desktop, built with Flutter. Save yo
 - Jump to any folder by typing its path in the file browser, with folder-name autocomplete
 - Read-only mode, on by default, so the file browser cannot change anything on the server until you unlock it
 - Built-in file viewer for text files, with binary detection and a size cap
+- Live server info panel: CPU, memory, swap, storage and GPU usage over SSH, with a compact strip above the terminal and file browser and a full process list on demand
 - Auto-reconnect: dropped connections retry on their own before reporting a failure
 - Snippets: save reusable commands or credentials and paste them into any session
 - Keyboard shortcuts for common actions, with an in-app cheat sheet

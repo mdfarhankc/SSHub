@@ -1,3 +1,14 @@
+## SSHub 4.6.0
+
+This release adds a live server info panel that reads a server's resource use over SSH: CPU, memory, swap, storage and, where present, GPU, along with the processes using the most CPU.
+
+New
+
+- A server info panel showing live CPU usage and load, memory and swap, storage per mount, and GPU where nvidia-smi is available, plus the OS, kernel and uptime. Open it from a server card's menu, or from the info button while a terminal or file browser is open
+- On wide screens a compact live stats strip sits above the terminal and file browser; on a phone it is hidden and the info button opens the full panel instead
+- View all processes on a server, sorted by CPU and showing actual memory use, loaded on demand with a Load more button rather than polled
+- The panel pauses while the app is in the background and reconnects on its own with a growing back-off if the connection drops, showing a reconnecting note while it retries
+
 ## SSHub 4.5.0
 
 This release rounds out the file browser: edit permissions and ownership, search a folder, upload a whole folder, and select many files at once. It also fixes a stall that could hang a large folder download.

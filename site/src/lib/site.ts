@@ -7,10 +7,11 @@ import {
   Layers,
   Workflow,
   Zap,
+  Activity,
   type LucideIcon,
 } from "lucide-react";
 
-export const VERSION = "4.5.0";
+export const VERSION = "4.6.0";
 export const GITHUB_URL = "https://github.com/mdfarhankc/SSHub";
 export const RELEASES_URL = `${GITHUB_URL}/releases/latest`;
 
@@ -29,6 +30,12 @@ export const FEATURES: Feature[] = [
     label: "files",
     title: "Built-in file browser",
     body: "Browse, search and open files over SFTP, upload and download whole folders, edit permissions and ownership, and multi-select for batch actions. No second app, no separate login.",
+  },
+  {
+    icon: Activity,
+    label: "monitor",
+    title: "Live server info",
+    body: "See a server's CPU, memory, swap, storage and GPU use at a glance, right above the terminal or file browser, with the busiest processes and a full process list on demand.",
   },
   {
     icon: Layers,
