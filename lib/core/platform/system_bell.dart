@@ -5,10 +5,6 @@ import 'package:flutter/services.dart';
 
 import 'package:sshub/core/security/secure_platform.g.dart';
 
-// Native terminal bell. Each OS beeps its own way through the symbols its
-// Flutter embedder already loads, so nothing extra has to be bundled or linked.
-// Every path is guarded; a failed lookup falls back to the framework sound
-// rather than throwing into the terminal.
 abstract final class SystemBell {
   static final _api = SecurePlatformApi();
 
