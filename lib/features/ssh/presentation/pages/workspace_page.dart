@@ -18,6 +18,8 @@ import 'package:sshub/features/ssh/presentation/widgets/server_picker_sheet.dart
 import 'package:sshub/features/ssh/presentation/widgets/status_dot.dart';
 import 'package:sshub/features/ssh/presentation/widgets/terminal_session_view.dart';
 import 'package:sshub/features/ssh/presentation/widgets/workspace_tab_bar.dart';
+import 'package:sshub/features/stats/presentation/widgets/server_stats_bar.dart';
+import 'package:sshub/features/stats/presentation/widgets/server_stats_sheet.dart';
 
 // Hosts every open tab, terminal or file browser. Sessions live in
 // WorkspaceSessionsCubit, so they keep running while this page is popped; the
@@ -159,7 +161,16 @@ class _WorkspacePageState extends State<WorkspacePage> {
                       ),
                     ],
                   ),
-                  actions: [_actionsFor(context, active)],
+                  actions: [
+                    IconButton(
+                      tooltip: "Server info",
+                      visualDensity: VisualDensity.compact,
+                      icon: const Icon(LucideIcons.activity),
+                      onPressed: () =>
+                          ServerStatsSheet.show(context, active.server),
+                    ),
+                    _actionsFor(context, active),
+                  ],
                   bottom: PreferredSize(
                     preferredSize: Size.fromHeight(
                       WorkspaceTabBar.height +
@@ -180,12 +191,27 @@ class _WorkspacePageState extends State<WorkspacePage> {
                 ),
                 // IndexedStack keeps every session mounted, so switching tabs
                 // does not tear down a view or lose its scroll position.
-                body: IndexedStack(
-                  index: state.activeIndex,
-                  sizing: StackFit.expand,
+                body: Column(
                   children: [
-                    for (final session in state.sessions)
-                      _viewFor(session, session == active),
+                    // The live strip only fits a wide screen; on a phone the
+                    // app-bar info button opens the full sheet instead.
+                    if (MediaQuery.sizeOf(context).width >= 600)
+                      ServerStatsBar(
+                        key: ValueKey('stats-${active.server.id}'),
+                        server: active.server,
+                      ),
+                    Expanded(
+                      // IndexedStack keeps every session mounted, so switching
+                      // tabs does not tear down a view or lose its scroll.
+                      child: IndexedStack(
+                        index: state.activeIndex,
+                        sizing: StackFit.expand,
+                        children: [
+                          for (final session in state.sessions)
+                            _viewFor(session, session == active),
+                        ],
+                      ),
+                    ),
                   ],
                 ),
               ),

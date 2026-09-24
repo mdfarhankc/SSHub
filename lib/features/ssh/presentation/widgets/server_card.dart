@@ -14,6 +14,7 @@ import 'package:sshub/features/ssh/presentation/bloc/server_list_bloc.dart';
 import 'package:sshub/features/ssh/presentation/cubit/workspace_sessions_cubit.dart';
 import 'package:sshub/features/ssh/presentation/pages/workspace_page.dart';
 import 'package:sshub/features/ssh/presentation/widgets/server_dialog.dart';
+import 'package:sshub/features/stats/presentation/widgets/server_stats_sheet.dart';
 
 class ServerCard extends StatefulWidget {
   final SshServer server;
@@ -149,6 +150,11 @@ class _ServerCardState extends State<ServerCard> {
           icon: LucideIcons.folderOpen,
           label: "Browse Files",
           onPressed: _browseFiles,
+        ),
+        ContextMenuAction(
+          icon: LucideIcons.activity,
+          label: "Server info",
+          onPressed: () => ServerStatsSheet.show(context, server),
         ),
         ContextMenuAction(
           icon: LucideIcons.pencil,
