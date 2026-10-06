@@ -1,3 +1,9 @@
+## SSHub 4.6.1
+
+Fixes
+
+- Text selection and Select All stopped working in the terminal after using the clear command. Clearing the screen no longer breaks selection.
+
 ## SSHub 4.6.0
 
 This release adds a live server info panel that reads a server's resource use over SSH: CPU, memory, swap, storage and, where present, GPU, along with the processes using the most CPU.
