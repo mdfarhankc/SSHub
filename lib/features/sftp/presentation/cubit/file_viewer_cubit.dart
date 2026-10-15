@@ -51,6 +51,21 @@ class FileViewerCubit extends Cubit<FileViewerState> {
     }
   }
 
+  // Writes [text] back over the file. Refused for truncated or non-text files,
+  // since only part of a truncated file is held and would overwrite the rest.
+  Future<void> save(String text) async {
+    if (state.status != FileViewerStatus.ready || state.truncated) return;
+    emit(state.copyWith(saving: true, saveError: null));
+    try {
+      await _session.writeBytes(file.path, Uint8List.fromList(utf8.encode(text)));
+      if (isClosed) return;
+      emit(state.copyWith(saving: false, text: text, saveError: null));
+    } on SshConnectionException catch (e) {
+      appLog("Save file failed", e);
+      if (!isClosed) emit(state.copyWith(saving: false, saveError: e.message));
+    }
+  }
+
   // A NUL byte does not occur in UTF-8 text. Only the head is checked.
   static bool _looksBinary(Uint8List bytes) {
     final limit = bytes.length < 8000 ? bytes.length : 8000;

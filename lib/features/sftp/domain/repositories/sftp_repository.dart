@@ -44,6 +44,10 @@ abstract interface class SftpSession {
   // result is held in memory, unlike download, which streams to disk.
   Future<Uint8List> readBytes(RemoteFile file, {required int maxBytes});
 
+  // Overwrites the file at [path] with [bytes], creating it if missing and
+  // truncating any previous content. Used to save an edited text file.
+  Future<void> writeBytes(String path, Uint8List bytes);
+
   // Streams [file] into [localPath] and returns the bytes written. Progress is
   // reported as a running total, not a delta.
   Future<int> download(

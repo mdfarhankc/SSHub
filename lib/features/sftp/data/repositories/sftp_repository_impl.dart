@@ -245,6 +245,24 @@ class _DartSftpSession implements SftpSession {
       });
 
   @override
+  Future<void> writeBytes(String path, Uint8List bytes) => _wrap(
+    timeout: null,
+    () async {
+      final remote = await _sftp.open(
+        path,
+        mode: SftpFileOpenMode.write |
+            SftpFileOpenMode.create |
+            SftpFileOpenMode.truncate,
+      );
+      try {
+        await remote.writeBytes(bytes);
+      } finally {
+        await remote.close();
+      }
+    },
+  );
+
+  @override
   Future<int> download(
     RemoteFile file,
     String localPath, {
