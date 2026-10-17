@@ -8,11 +8,25 @@ class SftpCancelled implements Exception {
   const SftpCancelled();
 }
 
+// Thrown by a transfer the user paused. Unlike a cancel, the partial is kept so
+// the transfer can resume from where it stopped.
+class SftpPaused implements Exception {
+  const SftpPaused();
+}
+
 // A live SFTP channel. Paths are POSIX and absolute. Failures surface as
 // SshConnectionException so the browser reports them like any other SSH error.
 abstract interface class SftpSession {
   // Stops the running transfer at its next chunk or entry.
   void cancelTransfer();
+
+  // Pauses the running transfer, keeping the partial so it can resume. Only
+  // single-file transfers resume; a folder transfer would restart.
+  void pauseTransfer();
+
+  // The size of the remote file at [path] in bytes, or 0 if it is missing. Used
+  // to resume an upload from what already landed.
+  Future<int> fileSize(String path);
 
   // Absolute path of the login directory, the browser's starting point.
   Future<String> home();
@@ -40,6 +54,10 @@ abstract interface class SftpSession {
 
   Future<void> delete(RemoteFile file);
 
+  // Removes the file at [path]. Used to clean up a partial left by a cancelled
+  // paused upload.
+  Future<void> deletePath(String path);
+
   // Reads at most [maxBytes] from the start of [file]. Bounded because the
   // result is held in memory, unlike download, which streams to disk.
   Future<Uint8List> readBytes(RemoteFile file, {required int maxBytes});
@@ -49,10 +67,12 @@ abstract interface class SftpSession {
   Future<void> writeBytes(String path, Uint8List bytes);
 
   // Streams [file] into [localPath] and returns the bytes written. Progress is
-  // reported as a running total, not a delta.
+  // reported as a running total, not a delta. [resumeFrom] continues a paused
+  // download, appending from that byte offset instead of starting over.
   Future<int> download(
     RemoteFile file,
     String localPath, {
+    int resumeFrom = 0,
     void Function(int bytes)? onProgress,
   });
 
@@ -64,9 +84,12 @@ abstract interface class SftpSession {
     void Function(int files, int bytes, String name)? onProgress,
   });
 
+  // [resumeFrom] continues a paused upload, sending from that byte offset onto
+  // the partial already on the server instead of truncating and starting over.
   Future<void> upload(
     String localPath,
     String remotePath, {
+    int resumeFrom = 0,
     void Function(int bytes)? onProgress,
   });
 

@@ -106,10 +106,14 @@ class SftpSessionView extends StatelessWidget {
                     ),
                   ),
                 ),
-                if (state.transfer != null)
+                if (state.transfer != null ||
+                    state.queue.isNotEmpty ||
+                    state.paused.isNotEmpty)
                   TransferBar(
-                    transfer: state.transfer!,
-                    onCancel: cubit.cancelTransfer,
+                    transfer: state.transfer,
+                    queue: state.queue,
+                    paused: state.paused,
+                    cubit: cubit,
                   ),
               ],
             ),

@@ -13,6 +13,9 @@ class SftpTransfer extends Equatable {
 
   final DateTime startedAt;
 
+  // Only single-file transfers can pause and resume; folders cannot.
+  final bool pausable;
+
   const SftpTransfer({
     required this.name,
     required this.isUpload,
@@ -20,6 +23,7 @@ class SftpTransfer extends Equatable {
     required this.total,
     required this.startedAt,
     this.detail,
+    this.pausable = false,
   });
 
   Duration get elapsed => DateTime.now().difference(startedAt);
@@ -35,6 +39,7 @@ class SftpTransfer extends Equatable {
     total: total,
     startedAt: startedAt,
     detail: detail ?? this.detail,
+    pausable: pausable,
   );
 
   @override
@@ -45,7 +50,46 @@ class SftpTransfer extends Equatable {
     total,
     startedAt,
     detail,
+    pausable,
   ];
+}
+
+// A transfer the user paused, kept so it can resume from where it stopped.
+class PausedTransfer extends Equatable {
+  final int id;
+  final String name;
+  final bool isUpload;
+  final int bytesDone;
+  final int total;
+  const PausedTransfer({
+    required this.id,
+    required this.name,
+    required this.isUpload,
+    required this.bytesDone,
+    required this.total,
+  });
+
+  double? get fraction =>
+      total <= 0 ? null : (bytesDone / total).clamp(0.0, 1.0);
+
+  @override
+  List<Object?> get props => [id, name, isUpload, bytesDone, total];
+}
+
+// A transfer waiting its turn. Holds only what the queue list shows; the work
+// to run it lives in the cubit.
+class QueuedTransfer extends Equatable {
+  final int id;
+  final String name;
+  final bool isUpload;
+  const QueuedTransfer({
+    required this.id,
+    required this.name,
+    required this.isUpload,
+  });
+
+  @override
+  List<Object?> get props => [id, name, isUpload];
 }
 
 class SftpState extends Equatable {
@@ -59,6 +103,10 @@ class SftpState extends Equatable {
   final bool readOnly;
   final bool busy;
   final SftpTransfer? transfer;
+  // Transfers waiting behind the active one, drained one at a time.
+  final List<QueuedTransfer> queue;
+  // Transfers the user paused, resumable from where they stopped.
+  final List<PausedTransfer> paused;
   // Whether the search field is open, and the text filtering the listing.
   final bool searching;
   final String searchQuery;
@@ -77,6 +125,8 @@ class SftpState extends Equatable {
     this.readOnly = true,
     this.busy = false,
     this.transfer,
+    this.queue = const [],
+    this.paused = const [],
     this.searching = false,
     this.searchQuery = "",
     this.selecting = false,
@@ -108,6 +158,8 @@ class SftpState extends Equatable {
     bool? busy,
     SftpTransfer? transfer,
     bool clearTransfer = false,
+    List<QueuedTransfer>? queue,
+    List<PausedTransfer>? paused,
     bool? searching,
     String? searchQuery,
     bool? selecting,
@@ -123,6 +175,8 @@ class SftpState extends Equatable {
     readOnly: readOnly ?? this.readOnly,
     busy: busy ?? this.busy,
     transfer: clearTransfer ? null : (transfer ?? this.transfer),
+    queue: queue ?? this.queue,
+    paused: paused ?? this.paused,
     searching: searching ?? this.searching,
     searchQuery: searchQuery ?? this.searchQuery,
     selecting: selecting ?? this.selecting,
@@ -141,6 +195,8 @@ class SftpState extends Equatable {
     readOnly,
     busy,
     transfer,
+    queue,
+    paused,
     searching,
     searchQuery,
     selecting,

@@ -55,6 +55,12 @@ class SftpCubit extends Cubit<SftpState> {
 
   Future<void> connect() async {
     emit(_initial(_settings));
+    // A reconnect starts clean: nothing from the old session stays queued.
+    _queue.clear();
+    _resumers.clear();
+    _connectionLost = false;
+    _doneOk = 0;
+    _doneFailed.clear();
     // Try Again comes back through here, and nothing else closes the previous
     // attempt's connection.
     await _session?.close();
@@ -148,32 +154,14 @@ class SftpCubit extends Cubit<SftpState> {
       if (state.selected.contains(e.path)) e,
   ];
 
-  Future<void> downloadSelected() async {
+  // Queues every selected item; the queue drains them in order and shows one
+  // summary at the end.
+  void downloadSelected() {
     final targets = _selectedEntries();
     exitSelection();
-    _inBatch = true;
-    _batchOk = 0;
-    _batchFailed.clear();
-    try {
-      // One transfer runs at a time, so the items download in sequence.
-      for (final file in targets) {
-        if (isClosed) return;
-        await download(file);
-      }
-    } finally {
-      _inBatch = false;
+    for (final file in targets) {
+      download(file);
     }
-    if (isClosed) return;
-    final failed = _batchFailed;
-    final notice = _batchOk > 0
-        ? "Downloaded $_batchOk ${_batchOk == 1 ? 'item' : 'items'}"
-        : null;
-    final error = failed.isEmpty
-        ? null
-        : (failed.length <= 3
-              ? "Could not download ${failed.join(', ')}"
-              : "Could not download ${failed.length} items");
-    emit(state.copyWith(noticeMessage: notice, errorMessage: error));
   }
 
   Future<void> deleteSelected() {
@@ -196,15 +184,6 @@ class SftpCubit extends Cubit<SftpState> {
     final value = !state.readOnly;
     emit(state.copyWith(readOnly: value));
     _settings.updateSftpReadOnly(value);
-  }
-
-  // One transfer slot: a second would overwrite the first and strand it.
-  bool _transferBusy() {
-    if (state.transfer == null) return false;
-    emit(
-      state.copyWith(errorMessage: "Wait for the current transfer to finish."),
-    );
-    return true;
   }
 
   // Every write passes through here, whichever path reaches it.
@@ -261,7 +240,7 @@ class SftpCubit extends Cubit<SftpState> {
   }) async {
     if (_denied()) return;
     final session = _session;
-    if (session == null || _transferBusy()) return;
+    if (session == null) return;
     final picked = await FilePicker.pickFile(
       dialogTitle: "Upload to ${state.path}",
     );
@@ -280,20 +259,46 @@ class SftpCubit extends Cubit<SftpState> {
     }
 
     final size = await picked.length();
-    final done = await _runTransfer(
-      picked.name,
-      isUpload: true,
-      total: size,
-      action: () async {
-        await session.upload(
-          localPath,
-          remotePath,
-          onProgress: (bytes) => _tick(bytes, size),
+    if (isClosed) return;
+    final id = _nextJobId++;
+    final name = picked.name;
+    var resumeFrom = 0;
+    Future<void> run() async {
+      final outcome = await _runTransfer(
+        name,
+        isUpload: true,
+        total: size,
+        pausable: true,
+        action: () async {
+          await session.upload(
+            localPath,
+            remotePath,
+            resumeFrom: resumeFrom,
+            onProgress: (bytes) => _tick(bytes, size),
+          );
+          return null;
+        },
+      );
+      if (outcome == _Outcome.done && !isClosed) await refresh();
+      if (outcome == _Outcome.paused) {
+        resumeFrom = await session.fileSize(remotePath);
+        _registerPaused(
+          id,
+          name,
+          isUpload: true,
+          done: resumeFrom,
+          total: size,
+          resume: run,
+          discard: () async {
+            try {
+              await session.deletePath(remotePath);
+            } catch (_) {}
+          },
         );
-        return null;
-      },
-    );
-    if (done && !isClosed) await refresh();
+      }
+    }
+
+    _enqueue(QueuedTransfer(id: id, name: name, isUpload: true), run);
   }
 
   // Uploads a whole local folder into the current directory.
@@ -302,7 +307,7 @@ class SftpCubit extends Cubit<SftpState> {
   }) async {
     if (_denied()) return;
     final session = _session;
-    if (session == null || _transferBusy()) return;
+    if (session == null) return;
     final localPath = await FilePicker.getDirectoryPath(
       dialogTitle: "Upload folder to ${state.path}",
     );
@@ -321,20 +326,25 @@ class SftpCubit extends Cubit<SftpState> {
     }
 
     // Size is unknown up front, so the bar shows an indeterminate transfer.
-    final done = await _runTransfer(
-      name,
-      isUpload: true,
-      total: 0,
-      action: () async {
-        await session.uploadDirectory(
-          localPath,
-          state.path,
-          onProgress: (bytes) => _tick(bytes, 0),
+    _enqueue(
+      QueuedTransfer(id: _nextJobId++, name: name, isUpload: true),
+      () async {
+        final outcome = await _runTransfer(
+          name,
+          isUpload: true,
+          total: 0,
+          action: () async {
+            await session.uploadDirectory(
+              localPath,
+              state.path,
+              onProgress: (bytes) => _tick(bytes, 0),
+            );
+            return "Uploaded to $remotePath";
+          },
         );
-        return "Uploaded to $remotePath";
+        if (outcome == _Outcome.done && !isClosed) await refresh();
       },
     );
-    if (done && !isClosed) await refresh();
   }
 
   String _localName(String path) {
@@ -347,96 +357,283 @@ class SftpCubit extends Cubit<SftpState> {
     _session?.cancelTransfer();
   }
 
-  // While a batch runs, each item's result is collected rather than toasted, so
-  // the caller can show one success and one error message at the end.
-  bool _inBatch = false;
-  int _batchOk = 0;
-  final _batchFailed = <String>[];
+  // Pauses the active transfer if it can resume; the job registers itself as
+  // paused once it stops.
+  void pauseActiveTransfer() {
+    if (state.transfer?.pausable != true) return;
+    _session?.pauseTransfer();
+  }
 
-  // The one transfer slot is freed here whatever the body does, so an
-  // unexpected failure cannot leave the browser refusing every later transfer.
-  Future<bool> _runTransfer(
+  void _registerPaused(
+    int id,
+    String name, {
+    required bool isUpload,
+    required int done,
+    required int total,
+    required Future<void> Function() resume,
+    required Future<void> Function() discard,
+  }) {
+    if (isClosed) return;
+    _resumers[id] = _PausedJob(resume, discard);
+    emit(
+      state.copyWith(
+        paused: [
+          ...state.paused,
+          PausedTransfer(
+            id: id,
+            name: name,
+            isUpload: isUpload,
+            bytesDone: done,
+            total: total,
+          ),
+        ],
+      ),
+    );
+  }
+
+  // Puts a paused transfer back on the queue to continue where it stopped.
+  void resume(int id) {
+    final job = _resumers.remove(id);
+    if (job == null) return;
+    final item = state.paused.where((p) => p.id == id).toList();
+    if (item.isEmpty) return;
+    emit(state.copyWith(paused: [for (final p in state.paused) if (p.id != id) p]));
+    _queue.add(
+      _QueuedJob(
+        QueuedTransfer(id: id, name: item.first.name, isUpload: item.first.isUpload),
+        job.resume,
+      ),
+    );
+    _syncQueue();
+    _drain();
+  }
+
+  // Drops a paused transfer and removes the partial it left behind.
+  void cancelPaused(int id) {
+    final job = _resumers.remove(id);
+    emit(state.copyWith(paused: [for (final p in state.paused) if (p.id != id) p]));
+    job?.discard();
+  }
+
+  Future<int> _localSize(String path) async {
+    try {
+      final file = File(path);
+      return await file.exists() ? await file.length() : 0;
+    } catch (_) {
+      return 0;
+    }
+  }
+
+  Future<void> _deleteLocalQuietly(String path) async {
+    try {
+      final file = File(path);
+      if (await file.exists()) await file.delete();
+    } catch (_) {}
+  }
+
+  // Transfers run one at a time: new ones queue behind the active one and the
+  // queue drains on its own. Results are collected and summarised once the
+  // queue empties, rather than toasted per item.
+  final List<_QueuedJob> _queue = [];
+  int _nextJobId = 0;
+  bool _draining = false;
+  int _doneOk = 0;
+  final _doneFailed = <String>[];
+  String? _lastNotice;
+  String? _lastError;
+  // Set when a transfer fails because the connection dropped; stops the drain.
+  bool _connectionLost = false;
+  // Paused transfers, keyed by id, with the work to resume or discard them.
+  final Map<int, _PausedJob> _resumers = {};
+
+  void _enqueue(QueuedTransfer info, Future<void> Function() run) {
+    _queue.add(_QueuedJob(info, run));
+    _syncQueue();
+    _drain();
+  }
+
+  void _syncQueue() {
+    if (!isClosed) {
+      emit(state.copyWith(queue: [for (final j in _queue) j.info]));
+    }
+  }
+
+  // Runs queued jobs in order until the queue empties or the connection drops,
+  // then shows one summary for the whole run.
+  Future<void> _drain() async {
+    if (_draining) return;
+    _draining = true;
+    try {
+      while (!isClosed && !_connectionLost && _queue.isNotEmpty) {
+        final job = _queue.removeAt(0);
+        _syncQueue();
+        await job.run();
+      }
+    } finally {
+      _draining = false;
+    }
+    if (isClosed) return;
+    final dropped = _connectionLost ? _queue.length : 0;
+    if (dropped > 0) {
+      _queue.clear();
+      _syncQueue();
+    }
+    _emitQueueResult(dropped);
+    _doneOk = 0;
+    _doneFailed.clear();
+    _lastNotice = null;
+    _lastError = null;
+    _connectionLost = false;
+  }
+
+  void _emitQueueResult(int dropped) {
+    final failed = _doneFailed;
+    final reported = _doneOk + failed.length;
+    String? notice;
+    String? error;
+    if (reported <= 1 && dropped == 0) {
+      // A lone transfer keeps its own detailed message.
+      notice = _lastNotice;
+      error = _lastError;
+    } else {
+      notice = _doneOk > 0
+          ? "Finished $_doneOk ${_doneOk == 1 ? 'transfer' : 'transfers'}"
+          : null;
+      final parts = <String>[];
+      if (failed.isNotEmpty) {
+        parts.add(failed.length <= 3
+            ? "failed: ${failed.join(', ')}"
+            : "${failed.length} failed");
+      }
+      if (dropped > 0) parts.add("$dropped cancelled, connection lost");
+      error = parts.isEmpty ? null : parts.join('; ');
+    }
+    emit(state.copyWith(noticeMessage: notice, errorMessage: error));
+  }
+
+  void removeQueued(int id) {
+    _queue.removeWhere((j) => j.info.id == id);
+    _syncQueue();
+  }
+
+  void clearQueue() {
+    if (_queue.isEmpty) return;
+    _queue.clear();
+    _syncQueue();
+  }
+
+  // Runs one transfer, driving the active-transfer bar and recording the result
+  // for the queue summary. Only the drain loop calls this. The active slot is
+  // always freed, so a failure cannot strand the queue.
+  Future<_Outcome> _runTransfer(
     String name, {
     required bool isUpload,
     required int total,
+    bool pausable = false,
     required Future<String?> Function() action,
   }) async {
-    _startTransfer(name, isUpload: isUpload, total: total);
+    _startTransfer(name, isUpload: isUpload, total: total, pausable: pausable);
     final startedAt = DateTime.now();
     String? notice;
     String? error;
-    var completed = false;
+    var outcome = _Outcome.failed;
     try {
       notice = await action();
       if (notice != null) {
         notice =
             "$notice in ${formatElapsed(DateTime.now().difference(startedAt))}";
       }
-      completed = true;
+      outcome = _Outcome.done;
+    } on SftpPaused {
+      outcome = _Outcome.paused;
     } on SftpCancelled {
+      outcome = _Outcome.stopped;
       notice = "Transfer stopped.";
     } on SshConnectionException catch (e) {
       error = e.message;
+      _connectionLost = true;
     } catch (e) {
       appLog("Transfer failed", e);
       error = "The transfer could not be completed.";
     }
     if (!isClosed) {
-      if (_inBatch) {
-        if (error != null) {
-          _batchFailed.add(name);
-        } else if (completed) {
-          _batchOk++;
-        }
-        emit(state.copyWith(clearTransfer: true));
-      } else {
-        emit(
-          state.copyWith(
-            clearTransfer: true,
-            noticeMessage: notice,
-            errorMessage: error,
-          ),
-        );
+      if (outcome == _Outcome.done) {
+        _doneOk++;
+      } else if (error != null) {
+        _doneFailed.add(name);
       }
+      // Stopped and paused transfers are not tallied as done or failed.
+      _lastNotice = notice;
+      _lastError = error;
+      emit(state.copyWith(clearTransfer: true));
     }
-    return completed;
+    return outcome;
   }
 
-  Future<void> download(RemoteFile file) async {
-    final session = _session;
-    if (session == null || _transferBusy()) return;
+  void download(RemoteFile file) {
+    if (_session == null) return;
+    final id = _nextJobId++;
+    final info = QueuedTransfer(id: id, name: file.name, isUpload: false);
     if (file.isDirectory) {
-      await _downloadFolder(session, file);
+      _enqueue(info, () async {
+        final session = _session;
+        if (session == null) return;
+        await _downloadFolder(session, file);
+      });
     } else {
-      await _downloadFile(session, file);
+      _enqueue(info, _fileDownloadJob(id, file));
     }
   }
 
-  Future<void> _downloadFile(SftpSession session, RemoteFile file) async {
-    final String localPath;
-    try {
-      localPath = _unusedPath(await _downloadRoot(), file.name);
-    } catch (_) {
-      if (!isClosed) {
-        emit(state.copyWith(errorMessage: "Could not prepare the download."));
+  // A resumable single-file download. The local path is resolved once and
+  // reused, so a resume appends to the same partial; resumeFrom tracks how far
+  // it got.
+  Future<void> Function() _fileDownloadJob(int id, RemoteFile file) {
+    String? localPath;
+    var resumeFrom = 0;
+    Future<void> run() async {
+      final session = _session;
+      if (session == null) return;
+      try {
+        localPath ??= _unusedPath(await _downloadRoot(), file.name);
+      } catch (_) {
+        if (!isClosed) {
+          emit(state.copyWith(errorMessage: "Could not prepare the download."));
+        }
+        return;
       }
-      return;
-    }
-    if (isClosed) return;
-
-    await _runTransfer(
-      file.name,
-      isUpload: false,
-      total: file.size,
-      action: () async {
-        await session.download(
-          file,
-          localPath,
-          onProgress: (bytes) => _tick(bytes, file.size),
+      if (isClosed) return;
+      final path = localPath!;
+      final outcome = await _runTransfer(
+        file.name,
+        isUpload: false,
+        total: file.size,
+        pausable: true,
+        action: () async {
+          await session.download(
+            file,
+            path,
+            resumeFrom: resumeFrom,
+            onProgress: (bytes) => _tick(bytes, file.size),
+          );
+          return "Saved to $path";
+        },
+      );
+      if (outcome == _Outcome.paused) {
+        resumeFrom = await _localSize(path);
+        _registerPaused(
+          id,
+          file.name,
+          isUpload: false,
+          done: resumeFrom,
+          total: file.size,
+          resume: run,
+          discard: () => _deleteLocalQuietly(path),
         );
-        return "Saved to $localPath";
-      },
-    );
+      }
+    }
+
+    return run;
   }
 
   // Reads only, so read-only mode still allows it.
@@ -584,6 +781,7 @@ class SftpCubit extends Cubit<SftpState> {
     String name, {
     required bool isUpload,
     required int total,
+    bool pausable = false,
   }) {
     _lastTick = DateTime.fromMillisecondsSinceEpoch(0);
     emit(
@@ -594,6 +792,7 @@ class SftpCubit extends Cubit<SftpState> {
           transferred: 0,
           total: total,
           startedAt: DateTime.now(),
+          pausable: pausable,
         ),
       ),
     );
@@ -625,4 +824,21 @@ class SftpCubit extends Cubit<SftpState> {
     await _session?.close();
     return super.close();
   }
+}
+
+// A queued transfer: its display info plus the work that runs it.
+class _QueuedJob {
+  final QueuedTransfer info;
+  final Future<void> Function() run;
+  const _QueuedJob(this.info, this.run);
+}
+
+// How a single transfer attempt ended.
+enum _Outcome { done, failed, stopped, paused }
+
+// A paused transfer: the work to continue it, or to clean up its partial.
+class _PausedJob {
+  final Future<void> Function() resume;
+  final Future<void> Function() discard;
+  const _PausedJob(this.resume, this.discard);
 }

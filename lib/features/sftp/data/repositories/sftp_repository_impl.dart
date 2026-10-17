@@ -54,6 +54,7 @@ class _DartSftpSession implements SftpSession {
   // Checked at every chunk and every entry, so a stop lands quickly without
   // tearing down the channel.
   bool _cancelled = false;
+  bool _paused = false;
 
   // Probed once: whether this machine has a tar to extract the streamed archive.
   bool? _localTar;
@@ -72,9 +73,30 @@ class _DartSftpSession implements SftpSession {
     _onCancel?.call();
   }
 
+  @override
+  void pauseTransfer() {
+    _paused = true;
+  }
+
   void _throwIfCancelled() {
     if (_cancelled) throw const SftpCancelled();
   }
+
+  // Cancel wins over pause: a user who stopped a paused-capable transfer still
+  // gets a cancel.
+  void _throwIfStopped() {
+    if (_cancelled) throw const SftpCancelled();
+    if (_paused) throw const SftpPaused();
+  }
+
+  @override
+  Future<int> fileSize(String path) => _wrap(() async {
+    try {
+      return (await _sftp.stat(path)).size ?? 0;
+    } on SftpStatusError {
+      return 0;
+    }
+  });
 
   @override
   Future<String> home() => _wrap(() => _sftp.absolute('.'));
@@ -212,6 +234,9 @@ class _DartSftpSession implements SftpSession {
   Future<void> delete(RemoteFile file) =>
       _wrap(timeout: null, () => _deleteEntry(file));
 
+  @override
+  Future<void> deletePath(String path) => _wrap(() => _sftp.remove(path));
+
   // rmdir needs an empty dir. Symlinks unlinked, never followed.
   Future<void> _deleteEntry(RemoteFile file) async {
     if (file.isLink || !file.isDirectory) {
@@ -266,16 +291,25 @@ class _DartSftpSession implements SftpSession {
   Future<int> download(
     RemoteFile file,
     String localPath, {
+    int resumeFrom = 0,
     void Function(int bytes)? onProgress,
   }) => _wrap(timeout: null, () async {
     _cancelled = false;
+    _paused = false;
     try {
-      return await _copyToLocal(file.path, localPath, onProgress: onProgress);
+      return await _copyToLocal(
+        file.path,
+        localPath,
+        resumeFrom: resumeFrom,
+        pausable: true,
+        onProgress: onProgress,
+      );
     } on SftpCancelled {
       // A truncated file is indistinguishable from a whole one.
       await _deleteLocal(localPath);
       rethrow;
     }
+    // A pause leaves the partial in place so a resume can append to it.
   });
 
   // Consuming read() with await for pauses its request pipeline every chunk,
@@ -284,21 +318,31 @@ class _DartSftpSession implements SftpSession {
   Future<int> _copyToLocal(
     String remotePath,
     String localPath, {
+    int resumeFrom = 0,
+    bool pausable = false,
     int? length,
     void Function(int bytes)? onProgress,
   }) async {
-    final sink = File(localPath).openWrite();
+    final sink = File(localPath).openWrite(
+      mode: resumeFrom > 0 ? FileMode.writeOnlyAppend : FileMode.writeOnly,
+    );
     try {
-      return await _sftp.download(
+      final read = await _sftp.download(
         remotePath,
         sink,
         // Known from the listing, which saves a stat round trip per file.
         length: length,
+        offset: resumeFrom,
         onProgress: (bytes) {
-          _throwIfCancelled();
-          onProgress?.call(bytes);
+          if (pausable) {
+            _throwIfStopped();
+          } else {
+            _throwIfCancelled();
+          }
+          onProgress?.call(resumeFrom + bytes);
         },
       );
+      return resumeFrom + read;
     } finally {
       await sink.close();
     }
@@ -321,6 +365,7 @@ class _DartSftpSession implements SftpSession {
     void Function(int files, int bytes, String name)? onProgress,
   }) => _wrap(timeout: null, () async {
     _cancelled = false;
+    _paused = false;
     // Streaming one tar over the shell saturates the link, where copying
     // hundreds of small files one by one is bound by round-trip latency. Fall
     // back to the per-file walk when the server or this machine has no tar.
@@ -648,29 +693,44 @@ class _DartSftpSession implements SftpSession {
   Future<void> upload(
     String localPath,
     String remotePath, {
+    int resumeFrom = 0,
     void Function(int bytes)? onProgress,
   }) => _wrap(timeout: null, () async {
     _cancelled = false;
+    _paused = false;
     final remote = await _sftp.open(
       remotePath,
-      mode:
-          SftpFileOpenMode.create |
-          SftpFileOpenMode.write |
-          SftpFileOpenMode.truncate,
+      // Resuming keeps the partial already on the server; a fresh upload
+      // truncates any old file.
+      mode: resumeFrom > 0
+          ? (SftpFileOpenMode.create | SftpFileOpenMode.write)
+          : (SftpFileOpenMode.create |
+                SftpFileOpenMode.write |
+                SftpFileOpenMode.truncate),
     );
     var cancelled = false;
     try {
-      final source = File(localPath).openRead().cast<Uint8List>().map((chunk) {
-        _throwIfCancelled();
-        return chunk;
-      });
-      await remote.write(source, onProgress: onProgress).done;
+      final source = File(localPath)
+          .openRead(resumeFrom)
+          .cast<Uint8List>()
+          .map((chunk) {
+            _throwIfStopped();
+            return chunk;
+          });
+      await remote
+          .write(
+            source,
+            offset: resumeFrom,
+            onProgress: (total) => onProgress?.call(resumeFrom + total),
+          )
+          .done;
     } on SftpCancelled {
       cancelled = true;
       rethrow;
     } finally {
       await remote.close();
-      // The half-written file would otherwise stand in for the real one.
+      // On cancel the half-written file would stand in for the real one. A
+      // pause keeps it so a resume can append the rest.
       if (cancelled) await _sftp.remove(remotePath).catchError((_) {});
     }
   });
@@ -682,6 +742,7 @@ class _DartSftpSession implements SftpSession {
     void Function(int bytes)? onProgress,
   }) => _wrap(timeout: null, () async {
     _cancelled = false;
+    _paused = false;
     // One local tar streamed into the server saturates the link; the per-file
     // walk is the fallback when either side has no tar.
     if (await _localTarAvailable()) {
