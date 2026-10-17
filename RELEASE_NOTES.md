@@ -1,3 +1,13 @@
+## SSHub 4.7.0
+
+This release makes the file browser far more capable: edit a text file in place, queue up many transfers at once, and pause and resume a transfer.
+
+New
+
+- Edit a text file right in the viewer and save it back over SFTP. Editing is blocked for binary and over-size files and respects read-only mode, and a file's original line endings are kept
+- A transfer queue: start as many downloads and uploads as you like and they run one after another instead of being refused while one is busy. A Transfers sheet lists the active, paused and queued items, with controls to stop, remove or clear them
+- Pause and resume a single-file download or upload. A paused transfer keeps its partial and continues from where it stopped rather than starting over; a cancelled one has its partial cleaned up. Folder transfers still run start to finish
+
 ## SSHub 4.6.1
 
 Fixes
