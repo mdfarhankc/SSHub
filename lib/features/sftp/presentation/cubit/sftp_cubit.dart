@@ -58,7 +58,7 @@ class SftpCubit extends Cubit<SftpState> {
     // A reconnect starts clean: nothing from the old session stays queued.
     _queue.clear();
     _resumers.clear();
-    _connectionLost = false;
+    _abortRetries = false;
     _doneOk = 0;
     _doneFailed.clear();
     // Try Again comes back through here, and nothing else closes the previous
@@ -262,43 +262,44 @@ class SftpCubit extends Cubit<SftpState> {
     if (isClosed) return;
     final id = _nextJobId++;
     final name = picked.name;
-    var resumeFrom = 0;
-    Future<void> run() async {
-      final outcome = await _runTransfer(
-        name,
+    // First try truncates and starts fresh; a resume continues from whatever
+    // already landed on the server.
+    var started = false;
+    _enqueue(
+      QueuedTransfer(id: id, name: name, isUpload: true),
+      () => _runResumable(
+        id: id,
+        name: name,
         isUpload: true,
         total: size,
-        pausable: true,
-        action: () async {
-          await session.upload(
+        offset: () async {
+          if (!started) return 0;
+          final s = _session;
+          if (s == null) return 0;
+          try {
+            return await s.fileSize(remotePath);
+          } catch (_) {
+            return 0;
+          }
+        },
+        attempt: (from) async {
+          started = true;
+          await _session!.upload(
             localPath,
             remotePath,
-            resumeFrom: resumeFrom,
+            resumeFrom: from,
             onProgress: (bytes) => _tick(bytes, size),
           );
           return null;
         },
-      );
-      if (outcome == _Outcome.done && !isClosed) await refresh();
-      if (outcome == _Outcome.paused) {
-        resumeFrom = await session.fileSize(remotePath);
-        _registerPaused(
-          id,
-          name,
-          isUpload: true,
-          done: resumeFrom,
-          total: size,
-          resume: run,
-          discard: () async {
-            try {
-              await session.deletePath(remotePath);
-            } catch (_) {}
-          },
-        );
-      }
-    }
-
-    _enqueue(QueuedTransfer(id: id, name: name, isUpload: true), run);
+        discard: () async {
+          try {
+            await _session?.deletePath(remotePath);
+          } catch (_) {}
+        },
+        onDone: () => refresh(),
+      ),
+    );
   }
 
   // Uploads a whole local folder into the current directory.
@@ -328,22 +329,20 @@ class SftpCubit extends Cubit<SftpState> {
     // Size is unknown up front, so the bar shows an indeterminate transfer.
     _enqueue(
       QueuedTransfer(id: _nextJobId++, name: name, isUpload: true),
-      () async {
-        final outcome = await _runTransfer(
-          name,
-          isUpload: true,
-          total: 0,
-          action: () async {
-            await session.uploadDirectory(
-              localPath,
-              state.path,
-              onProgress: (bytes) => _tick(bytes, 0),
-            );
-            return "Uploaded to $remotePath";
-          },
-        );
-        if (outcome == _Outcome.done && !isClosed) await refresh();
-      },
+      () => _runOnceAndTally(
+        name,
+        isUpload: true,
+        total: 0,
+        action: () async {
+          await session.uploadDirectory(
+            localPath,
+            state.path,
+            onProgress: (bytes) => _tick(bytes, 0),
+          );
+          return "Uploaded to $remotePath";
+        },
+        onDone: () => refresh(),
+      ),
     );
   }
 
@@ -354,6 +353,8 @@ class SftpCubit extends Cubit<SftpState> {
 
   void cancelTransfer() {
     if (state.transfer == null) return;
+    // Also drops a transfer that is between retries, waiting to resume.
+    _abortRetries = true;
     _session?.cancelTransfer();
   }
 
@@ -431,6 +432,131 @@ class SftpCubit extends Cubit<SftpState> {
     } catch (_) {}
   }
 
+  // Opens a fresh session after a drop and swaps it in, so a resumed transfer
+  // and the browser both use the live connection. Quiet on failure; the next
+  // attempt will fail and the transfer eventually gives up.
+  Future<void> _recoverSession() async {
+    if (isClosed) return;
+    final old = _session;
+    try {
+      final fresh = await _openSession(server);
+      if (_disposing || isClosed) {
+        await fresh.close();
+        return;
+      }
+      _session = fresh;
+      await old?.close();
+    } catch (_) {}
+  }
+
+  // Shows a brief reconnecting state and waits, widening the gap each try, so a
+  // flaky link is not hammered. Returns false if the user stopped meanwhile.
+  Future<bool> _waitBeforeRetry(
+    String name, {
+    required bool isUpload,
+    required int done,
+    required int total,
+    required int tries,
+  }) async {
+    if (isClosed || _consumeAbort()) return false;
+    emit(
+      state.copyWith(
+        transfer: SftpTransfer(
+          name: name,
+          isUpload: isUpload,
+          transferred: done,
+          total: total,
+          startedAt: DateTime.now(),
+          detail: "Reconnecting, will resume...",
+        ),
+      ),
+    );
+    final seconds = (1 << tries).clamp(2, 8);
+    await Future.delayed(Duration(seconds: seconds));
+    if (!isClosed) emit(state.copyWith(clearTransfer: true));
+    return !isClosed && !_consumeAbort();
+  }
+
+  // Runs a single-file transfer that resumes from its partial on failure,
+  // reconnecting only when the connection dropped, and falls back to a manual
+  // resume after a few tries so nothing is lost. offset() returns the bytes
+  // already done; attempt(from) runs one try from that offset.
+  Future<void> _runResumable({
+    required int id,
+    required String name,
+    required bool isUpload,
+    required int total,
+    required Future<int> Function() offset,
+    required Future<String?> Function(int from) attempt,
+    required Future<void> Function() discard,
+    Future<void> Function()? onDone,
+  }) async {
+    Future<void> run() async {
+      _consumeAbort();
+      var tries = 0;
+      while (true) {
+        if (isClosed) return;
+        if (_session == null) {
+          await _recoverSession();
+          if (_session == null) {
+            _doneFailed.add(name);
+            _registerPaused(id, name,
+                isUpload: isUpload,
+                done: await offset(),
+                total: total,
+                resume: run,
+                discard: discard);
+            return;
+          }
+        }
+        final from = await offset();
+        final outcome = await _runTransfer(
+          name,
+          isUpload: isUpload,
+          total: total,
+          pausable: true,
+          action: () => attempt(from),
+        );
+        switch (outcome) {
+          case _Outcome.done:
+            _doneOk++;
+            if (onDone != null && !isClosed) await onDone();
+            return;
+          case _Outcome.stopped:
+            return;
+          case _Outcome.paused:
+            _registerPaused(id, name,
+                isUpload: isUpload,
+                done: await offset(),
+                total: total,
+                resume: run,
+                discard: discard);
+            return;
+          case _Outcome.failed:
+          case _Outcome.disconnected:
+            tries++;
+            if (tries >= _maxTransferTries) {
+              _doneFailed.add(name);
+              _registerPaused(id, name,
+                  isUpload: isUpload,
+                  done: await offset(),
+                  total: total,
+                  resume: run,
+                  discard: discard);
+              return;
+            }
+            if (outcome == _Outcome.disconnected) await _recoverSession();
+            if (!await _waitBeforeRetry(name,
+                isUpload: isUpload, done: from, total: total, tries: tries)) {
+              return;
+            }
+        }
+      }
+    }
+
+    await run();
+  }
+
   // Transfers run one at a time: new ones queue behind the active one and the
   // queue drains on its own. Results are collected and summarised once the
   // queue empties, rather than toasted per item.
@@ -441,10 +567,22 @@ class SftpCubit extends Cubit<SftpState> {
   final _doneFailed = <String>[];
   String? _lastNotice;
   String? _lastError;
-  // Set when a transfer fails because the connection dropped; stops the drain.
-  bool _connectionLost = false;
   // Paused transfers, keyed by id, with the work to resume or discard them.
   final Map<int, _PausedJob> _resumers = {};
+
+  // A failed single-file transfer retries itself, resuming from its partial and
+  // reconnecting only when the connection actually dropped, before giving up.
+  static const _maxTransferTries = 5;
+  // Set by Stop so a transfer waiting to retry gives up at once.
+  bool _abortRetries = false;
+
+  bool _consumeAbort() {
+    if (_abortRetries) {
+      _abortRetries = false;
+      return true;
+    }
+    return false;
+  }
 
   void _enqueue(QueuedTransfer info, Future<void> Function() run) {
     _queue.add(_QueuedJob(info, run));
@@ -458,13 +596,13 @@ class SftpCubit extends Cubit<SftpState> {
     }
   }
 
-  // Runs queued jobs in order until the queue empties or the connection drops,
-  // then shows one summary for the whole run.
+  // Runs queued jobs in order until the queue empties, then shows one summary
+  // for the whole run. Each job recovers from its own failures.
   Future<void> _drain() async {
     if (_draining) return;
     _draining = true;
     try {
-      while (!isClosed && !_connectionLost && _queue.isNotEmpty) {
+      while (!isClosed && _queue.isNotEmpty) {
         final job = _queue.removeAt(0);
         _syncQueue();
         await job.run();
@@ -473,25 +611,19 @@ class SftpCubit extends Cubit<SftpState> {
       _draining = false;
     }
     if (isClosed) return;
-    final dropped = _connectionLost ? _queue.length : 0;
-    if (dropped > 0) {
-      _queue.clear();
-      _syncQueue();
-    }
-    _emitQueueResult(dropped);
+    _emitQueueResult();
     _doneOk = 0;
     _doneFailed.clear();
     _lastNotice = null;
     _lastError = null;
-    _connectionLost = false;
   }
 
-  void _emitQueueResult(int dropped) {
+  void _emitQueueResult() {
     final failed = _doneFailed;
     final reported = _doneOk + failed.length;
     String? notice;
     String? error;
-    if (reported <= 1 && dropped == 0) {
+    if (reported <= 1) {
       // A lone transfer keeps its own detailed message.
       notice = _lastNotice;
       error = _lastError;
@@ -499,16 +631,36 @@ class SftpCubit extends Cubit<SftpState> {
       notice = _doneOk > 0
           ? "Finished $_doneOk ${_doneOk == 1 ? 'transfer' : 'transfers'}"
           : null;
-      final parts = <String>[];
-      if (failed.isNotEmpty) {
-        parts.add(failed.length <= 3
-            ? "failed: ${failed.join(', ')}"
-            : "${failed.length} failed");
-      }
-      if (dropped > 0) parts.add("$dropped cancelled, connection lost");
-      error = parts.isEmpty ? null : parts.join('; ');
+      error = failed.isEmpty
+          ? null
+          : (failed.length <= 3
+                ? "failed: ${failed.join(', ')}"
+                : "${failed.length} failed");
     }
     emit(state.copyWith(noticeMessage: notice, errorMessage: error));
+  }
+
+  // Runs a non-resumable transfer (a folder) once and tallies its result for
+  // the queue summary.
+  Future<void> _runOnceAndTally(
+    String name, {
+    required bool isUpload,
+    required int total,
+    required Future<String?> Function() action,
+    Future<void> Function()? onDone,
+  }) async {
+    final outcome = await _runTransfer(
+      name,
+      isUpload: isUpload,
+      total: total,
+      action: action,
+    );
+    if (outcome == _Outcome.done) {
+      _doneOk++;
+      if (onDone != null && !isClosed) await onDone();
+    } else if (outcome == _Outcome.failed || outcome == _Outcome.disconnected) {
+      _doneFailed.add(name);
+    }
   }
 
   void removeQueued(int id) {
@@ -550,19 +702,15 @@ class SftpCubit extends Cubit<SftpState> {
       outcome = _Outcome.stopped;
       notice = "Transfer stopped.";
     } on SshConnectionException catch (e) {
+      outcome = _Outcome.disconnected;
       error = e.message;
-      _connectionLost = true;
     } catch (e) {
       appLog("Transfer failed", e);
       error = "The transfer could not be completed.";
     }
+    // The job that owns this transfer tallies the final result after any
+    // retries; here only the last message is kept and the slot is freed.
     if (!isClosed) {
-      if (outcome == _Outcome.done) {
-        _doneOk++;
-      } else if (error != null) {
-        _doneFailed.add(name);
-      }
-      // Stopped and paused transfers are not tallied as done or failed.
       _lastNotice = notice;
       _lastError = error;
       emit(state.copyWith(clearTransfer: true));
@@ -586,54 +734,36 @@ class SftpCubit extends Cubit<SftpState> {
   }
 
   // A resumable single-file download. The local path is resolved once and
-  // reused, so a resume appends to the same partial; resumeFrom tracks how far
-  // it got.
+  // reused, so a resume appends to the same partial; the offset is read back
+  // from the partial's size each try.
   Future<void> Function() _fileDownloadJob(int id, RemoteFile file) {
     String? localPath;
-    var resumeFrom = 0;
-    Future<void> run() async {
-      final session = _session;
-      if (session == null) return;
-      try {
+    Future<String> path() async =>
         localPath ??= _unusedPath(await _downloadRoot(), file.name);
-      } catch (_) {
-        if (!isClosed) {
-          emit(state.copyWith(errorMessage: "Could not prepare the download."));
+    return () => _runResumable(
+      id: id,
+      name: file.name,
+      isUpload: false,
+      total: file.size,
+      offset: () async {
+        try {
+          return await _localSize(await path());
+        } catch (_) {
+          return 0;
         }
-        return;
-      }
-      if (isClosed) return;
-      final path = localPath!;
-      final outcome = await _runTransfer(
-        file.name,
-        isUpload: false,
-        total: file.size,
-        pausable: true,
-        action: () async {
-          await session.download(
-            file,
-            path,
-            resumeFrom: resumeFrom,
-            onProgress: (bytes) => _tick(bytes, file.size),
-          );
-          return "Saved to $path";
-        },
-      );
-      if (outcome == _Outcome.paused) {
-        resumeFrom = await _localSize(path);
-        _registerPaused(
-          id,
-          file.name,
-          isUpload: false,
-          done: resumeFrom,
-          total: file.size,
-          resume: run,
-          discard: () => _deleteLocalQuietly(path),
+      },
+      attempt: (from) async {
+        final target = await path();
+        await _session!.download(
+          file,
+          target,
+          resumeFrom: from,
+          onProgress: (bytes) => _tick(bytes, file.size),
         );
-      }
-    }
-
-    return run;
+        return "Saved to $target";
+      },
+      discard: () async => _deleteLocalQuietly(await path()),
+    );
   }
 
   // Reads only, so read-only mode still allows it.
@@ -650,7 +780,7 @@ class SftpCubit extends Cubit<SftpState> {
     if (isClosed) return;
 
     // Size is unknown until the walk ends.
-    await _runTransfer(
+    await _runOnceAndTally(
       folder.name,
       isUpload: false,
       total: 0,
@@ -833,8 +963,10 @@ class _QueuedJob {
   const _QueuedJob(this.info, this.run);
 }
 
-// How a single transfer attempt ended.
-enum _Outcome { done, failed, stopped, paused }
+// How a single transfer attempt ended. A disconnect is a failure that warrants
+// reconnecting before the next try; a plain failure is retried on the same
+// connection.
+enum _Outcome { done, failed, disconnected, stopped, paused }
 
 // A paused transfer: the work to continue it, or to clean up its partial.
 class _PausedJob {
