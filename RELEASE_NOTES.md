@@ -1,3 +1,16 @@
+## SSHub 4.8.0
+
+This release adds pick-list choices to workflow and snippet prompts, and makes a transfer recover on its own after a connection drop.
+
+New
+
+- A workflow step or snippet prompt can now offer choices. Write {{prompt:command|pull,push,status}} and running it shows those as options to pick, with free text still allowed
+
+Improvements
+
+- A single-file download or upload that fails now resumes from where it stopped and retries on its own, reconnecting only when the connection actually dropped, instead of starting over or giving up
+- The home screen no longer shows a scrollbar
+
 ## SSHub 4.7.0
 
 This release makes the file browser far more capable: edit a text file in place, queue up many transfers at once, and pause and resume a transfer.

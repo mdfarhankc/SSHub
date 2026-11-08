@@ -12,13 +12,14 @@ SSHub is a fast, minimal SSH client for the desktop, built with Flutter. Save yo
 - Full in-app terminal powered by `dartssh2` + `xterm`, with copy / paste, select all, and find-in-scrollback
 - Tabbed sessions: up to ten servers open at once, each keeping its own scrollback, with keyboard switching
 - SFTP file browser: browse in a list or a grid, upload and download files or whole folders, rename, delete, create folders, search the current folder, edit permissions and ownership, and multi-select for batch download and delete, over its own connection
-- Transfer queue: queue up many uploads and downloads to run in turn, and pause or resume a single-file transfer from where it stopped
+- Transfer queue: queue up many uploads and downloads to run in turn, pause or resume a single-file transfer from where it stopped, and recover from a dropped connection on its own
 - Jump to any folder by typing its path in the file browser, with folder-name autocomplete
 - Read-only mode, on by default, so the file browser cannot change anything on the server until you unlock it
 - Built-in file viewer and editor for text files: view or edit in place and save back over SFTP, with binary detection and a size cap
 - Live server info panel: CPU, memory, swap, storage and GPU usage over SSH, with a compact strip above the terminal and file browser and a full process list on demand
 - Auto-reconnect: dropped connections retry on their own before reporting a failure
-- Snippets: save reusable commands or credentials and paste them into any session
+- Snippets: save reusable commands or credentials and paste them into any session, with fill-in placeholders that can offer a list of choices
+- Workflows: run a command and its prompt replies in a single tap, with fill-in values that can offer choices to pick from
 - Keyboard shortcuts for common actions, with an in-app cheat sheet
 - App lock with biometric / system unlock
 - Encrypted backup export and import to move your data between machines
@@ -30,7 +31,6 @@ SSHub is a fast, minimal SSH client for the desktop, built with Flutter. Save yo
 
 ### Planned
 
-- Auto-resuming a transfer after a dropped connection
 - Running more than one transfer at the same time
 
 ## Platforms
