@@ -177,6 +177,9 @@ class _HomePageState extends State<HomePage> {
                   return RefreshIndicator(
                     onRefresh: () => _refresh(context),
                     child: CustomScrollView(
+                      scrollBehavior: ScrollConfiguration.of(
+                        context,
+                      ).copyWith(scrollbars: false),
                       physics: const AlwaysScrollableScrollPhysics(),
                       slivers: [
                         SliverAppBar(
