@@ -285,7 +285,8 @@ class _PlaceholderHint extends StatelessWidget {
         Expanded(
           child: Text(
             "A step sends its text, then Enter. Use {{host}}, {{user}}, {{port}} "
-            "for the current server, or {{prompt:Label}} to ask when it runs.",
+            "for the current server, or {{prompt:Label}} to ask when it runs. "
+            "Add choices with {{prompt:command|pull,push,status}}.",
             style: theme.textTheme.bodySmall?.copyWith(
               color: scheme.onSurfaceVariant,
             ),

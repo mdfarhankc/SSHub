@@ -172,7 +172,8 @@ class _PlaceholderHint extends StatelessWidget {
         Expanded(
           child: Text(
             "Insert {{host}}, {{user}} or {{port}} for the current session, or "
-            "{{prompt:Label}} to ask when used.",
+            "{{prompt:Label}} to ask when used. Add choices with "
+            "{{prompt:branch|main,develop}}.",
             style: theme.textTheme.bodySmall?.copyWith(
               color: scheme.onSurfaceVariant,
             ),

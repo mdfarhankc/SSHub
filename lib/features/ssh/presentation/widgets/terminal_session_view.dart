@@ -288,10 +288,11 @@ class TerminalSessionViewState extends State<TerminalSessionView> {
     }
     final server = widget.session.server;
 
-    final prompts = <String>[];
+    final prompts = <SnippetPrompt>[];
+    final seenPrompts = <String>{};
     for (final step in workflow.steps) {
-      for (final label in snippetPrompts(step.send)) {
-        if (!prompts.contains(label)) prompts.add(label);
+      for (final prompt in snippetPrompts(step.send)) {
+        if (seenPrompts.add(prompt.label)) prompts.add(prompt);
       }
     }
     var answers = const <String, String>{};
