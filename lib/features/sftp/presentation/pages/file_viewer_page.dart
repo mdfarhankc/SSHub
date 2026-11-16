@@ -118,7 +118,9 @@ class _FileViewerPageState extends State<FileViewerPage> {
           canPop: !_dirty,
           onPopInvokedWithResult: (didPop, _) async {
             if (didPop) return;
-            if (await _confirmDiscard() && mounted) Navigator.pop(context);
+            if (await _confirmDiscard() && context.mounted) {
+              Navigator.pop(context);
+            }
           },
           child: Scaffold(
             appBar: AppBar(

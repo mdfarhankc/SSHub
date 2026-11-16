@@ -70,13 +70,13 @@ class ServerStatsCubit extends Cubit<ServerStatsState>
   // Stop polling while the app is not visible, and pick straight back up when
   // it returns, so a backgrounded window is not holding an SSH poll every 3s.
   @override
-  void didChangeAppLifecycleState(AppLifecycleState lifecycle) {
-    if (lifecycle == AppLifecycleState.resumed) {
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
       _paused = false;
       _backoff = _interval;
       if (!_closed) _tick();
-    } else if (lifecycle == AppLifecycleState.paused ||
-        lifecycle == AppLifecycleState.hidden) {
+    } else if (state == AppLifecycleState.paused ||
+        state == AppLifecycleState.hidden) {
       _paused = true;
       _prevCpu = null; // a gap makes the next CPU delta meaningless
       _timer?.cancel();
