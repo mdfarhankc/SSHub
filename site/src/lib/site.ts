@@ -8,10 +8,11 @@ import {
   Workflow,
   Zap,
   Activity,
+  ArrowDownUp,
   type LucideIcon,
 } from "lucide-react";
 
-export const VERSION = "4.8.0";
+export const VERSION = "4.9.0";
 export const GITHUB_URL = "https://github.com/mdfarhankc/SSHub";
 export const RELEASES_URL = `${GITHUB_URL}/releases/latest`;
 
@@ -29,7 +30,13 @@ export const FEATURES: Feature[] = [
     icon: FolderOpen,
     label: "files",
     title: "Built-in file browser",
-    body: "Browse, search and open files over SFTP, upload and download whole folders, edit permissions and ownership, and multi-select for batch actions. No second app, no separate login.",
+    body: "Browse and search over SFTP, open each file in its own tab and edit text files in place, change permissions and ownership, and multi-select for batch actions. No second app, no separate login.",
+  },
+  {
+    icon: ArrowDownUp,
+    label: "transfers",
+    title: "Transfers that finish",
+    body: "Uploads and downloads of whole folders run through a queue you can watch and pause, and an interrupted transfer resumes from where it stopped and retries on its own.",
   },
   {
     icon: Activity,
@@ -53,13 +60,13 @@ export const FEATURES: Feature[] = [
     icon: Workflow,
     label: "automation",
     title: "Command workflows",
-    body: "Chain a command with the prompt replies it needs, like a git pull that answers its own username and password, and run the whole thing in one tap.",
+    body: "Chain a command with the prompt replies it needs, like a git pull that answers its own username and password, and run the whole thing in one tap. Keep them global or tied to a single server.",
   },
   {
     icon: Zap,
     label: "reuse",
     title: "Snippets",
-    body: "Save tokens, credentials and commands, then insert, run or copy them into any session, with placeholders filled from the current server.",
+    body: "Save tokens, credentials and commands, then insert, run or copy them into any session, with placeholders filled from the current server. Keep them global or scoped to one server.",
   },
   {
     icon: KeyRound,
@@ -94,9 +101,7 @@ export const EXTRAS = [
 ] as const;
 
 export const ROADMAP = [
-  "In-place remote file editing",
-  "A transfer queue",
-  "Resume interrupted transfers",
+  "Lockable tags, to hide servers behind the app lock",
 ] as const;
 
 export type CompareValue = "yes" | "no" | "partial";

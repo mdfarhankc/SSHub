@@ -1,3 +1,22 @@
+## SSHub 4.9.0
+
+This release opens each remote file in its own tab, lets snippets and workflows live on a single server, and gives the app a smoother, flash-free launch.
+
+New
+
+- A file now opens in its own workspace tab, so you can keep several files from different sessions open at once and switch between them
+- Snippets and workflows can be scoped to a single server, or kept global for every server
+- The file viewer size limit is now set in Settings, defaulting to 2 MB
+
+Improvements
+
+- The splash screen animates in and hands off to the home screen, and on Windows the app opens straight to a maximized window with no white flash or resize jump, with the native launch screens colour-matched on Android and iOS
+- The transfer queue now shows size, percentage and a progress bar for the file in progress
+
+Fixes
+
+- A text file with a little more content than usual no longer fails to open in the viewer
+
 ## SSHub 4.8.0
 
 This release adds pick-list choices to workflow and snippet prompts, and makes a transfer recover on its own after a connection drop.
