@@ -19,6 +19,12 @@ final class WorkflowDeleted extends WorkflowListEvent {
   WorkflowDeleted(this.id);
 }
 
+// Drops every workflow tied to a server that was deleted.
+final class WorkflowsForServerRemoved extends WorkflowListEvent {
+  final String serverId;
+  WorkflowsForServerRemoved(this.serverId);
+}
+
 final class WorkflowsReordered extends WorkflowListEvent {
   final List<Workflow> workflows;
   WorkflowsReordered(this.workflows);

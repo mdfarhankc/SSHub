@@ -7,7 +7,13 @@ import 'package:sshub/features/workflows/presentation/pages/workflows_page.dart'
 
 class WorkflowPickerSheet extends StatelessWidget {
   final void Function(Workflow workflow) onSelected;
-  const WorkflowPickerSheet({super.key, required this.onSelected});
+  // The session's server, so the list shows global plus this server's workflows.
+  final String serverId;
+  const WorkflowPickerSheet({
+    super.key,
+    required this.onSelected,
+    required this.serverId,
+  });
 
   void _run(BuildContext context, Workflow workflow) {
     // Close the sheet before the callback, which may push its own dialog.
@@ -22,6 +28,10 @@ class WorkflowPickerSheet extends StatelessWidget {
     return SafeArea(
       child: BlocBuilder<WorkflowListBloc, WorkflowListState>(
         builder: (context, state) {
+          final scoped = [
+            for (final w in state.workflows)
+              if (w.serverId == null || w.serverId == serverId) w,
+          ];
           return Column(
             mainAxisSize: MainAxisSize.min,
             children: [
@@ -51,16 +61,16 @@ class WorkflowPickerSheet extends StatelessWidget {
                 ),
               ),
               const Divider(height: 1),
-              if (state.workflows.isEmpty)
+              if (scoped.isEmpty)
                 const _EmptyPicker()
               else
                 Flexible(
                   child: ListView.builder(
                     shrinkWrap: true,
                     padding: const EdgeInsets.symmetric(vertical: 8),
-                    itemCount: state.workflows.length,
+                    itemCount: scoped.length,
                     itemBuilder: (context, index) {
-                      final workflow = state.workflows[index];
+                      final workflow = scoped[index];
                       final count = workflow.steps.length;
                       return ListTile(
                         leading: Icon(

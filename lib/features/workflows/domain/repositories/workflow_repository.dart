@@ -5,6 +5,8 @@ abstract interface class WorkflowRepository {
   Future<void> addWorkflow(Workflow workflow);
   Future<void> updateWorkflow(Workflow workflow);
   Future<void> deleteWorkflow(String id);
+  // Removes every workflow that belongs to the given server.
+  Future<void> deleteWorkflowsForServer(String serverId);
   // Persists the given order verbatim.
   Future<void> reorderWorkflows(List<Workflow> workflows);
   Future<void> clearAll();

@@ -16,6 +16,7 @@ class SnippetListBloc extends Bloc<SnippetListEvent, SnippetListState> {
     on<SnippetAdded>(_onAdded);
     on<SnippetUpdated>(_onUpdated);
     on<SnippetDeleted>(_onDeleted);
+    on<SnippetsForServerRemoved>(_onServerRemoved);
     on<SnippetsReordered>(_onReordered);
   }
 
@@ -82,6 +83,25 @@ class SnippetListBloc extends Bloc<SnippetListEvent, SnippetListState> {
     } catch (e) {
       appLog("Delete snippet failed", e);
       emit(state.copyWith(errorMessage: "Could not delete snippet"));
+    }
+  }
+
+  Future<void> _onServerRemoved(
+    SnippetsForServerRemoved event,
+    Emitter<SnippetListState> emit,
+  ) async {
+    if (!state.snippets.any((s) => s.serverId == event.serverId)) return;
+    try {
+      await _repository.deleteSnippetsForServer(event.serverId);
+      emit(
+        state.copyWith(
+          snippets: state.snippets
+              .where((s) => s.serverId != event.serverId)
+              .toList(),
+        ),
+      );
+    } catch (e) {
+      appLog("Remove snippets for server failed", e);
     }
   }
 

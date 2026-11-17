@@ -16,6 +16,7 @@ class WorkflowListBloc extends Bloc<WorkflowListEvent, WorkflowListState> {
     on<WorkflowAdded>(_onAdded);
     on<WorkflowUpdated>(_onUpdated);
     on<WorkflowDeleted>(_onDeleted);
+    on<WorkflowsForServerRemoved>(_onServerRemoved);
     on<WorkflowsReordered>(_onReordered);
   }
 
@@ -85,6 +86,25 @@ class WorkflowListBloc extends Bloc<WorkflowListEvent, WorkflowListState> {
     } catch (e) {
       appLog("Delete workflow failed", e);
       emit(state.copyWith(errorMessage: "Could not delete workflow"));
+    }
+  }
+
+  Future<void> _onServerRemoved(
+    WorkflowsForServerRemoved event,
+    Emitter<WorkflowListState> emit,
+  ) async {
+    if (!state.workflows.any((w) => w.serverId == event.serverId)) return;
+    try {
+      await _repository.deleteWorkflowsForServer(event.serverId);
+      emit(
+        state.copyWith(
+          workflows: state.workflows
+              .where((w) => w.serverId != event.serverId)
+              .toList(),
+        ),
+      );
+    } catch (e) {
+      appLog("Remove workflows for server failed", e);
     }
   }
 

@@ -6,20 +6,27 @@ import 'package:sshub/core/widgets/app_snack_bar.dart';
 import 'package:sshub/core/widgets/blurred_bottom_sheet.dart';
 import 'package:sshub/core/widgets/section_header.dart';
 import 'package:sshub/features/ssh/presentation/widgets/dialog_field.dart';
+import 'package:sshub/features/ssh/presentation/widgets/scope_dropdown.dart';
 import 'package:sshub/features/workflows/domain/entities/workflow.dart';
 import 'package:uuid/uuid.dart';
 
 class WorkflowDialog extends StatefulWidget {
   final Workflow? workflow;
-  const WorkflowDialog({super.key, this.workflow});
+  // Preselected scope for a new workflow, e.g. when created from a server.
+  final String? defaultServerId;
+  const WorkflowDialog({super.key, this.workflow, this.defaultServerId});
 
-  static Future<Workflow?> show(BuildContext context, {Workflow? workflow}) =>
-      showBlurredBottomSheet<Workflow>(
-        context: context,
-        isScrollControlled: true,
-        useSafeArea: true,
-        builder: (_) => WorkflowDialog(workflow: workflow),
-      );
+  static Future<Workflow?> show(
+    BuildContext context, {
+    Workflow? workflow,
+    String? defaultServerId,
+  }) => showBlurredBottomSheet<Workflow>(
+    context: context,
+    isScrollControlled: true,
+    useSafeArea: true,
+    builder: (_) =>
+        WorkflowDialog(workflow: workflow, defaultServerId: defaultServerId),
+  );
 
   @override
   State<WorkflowDialog> createState() => _WorkflowDialogState();
@@ -49,12 +56,14 @@ class _WorkflowDialogState extends State<WorkflowDialog> {
   final _formKey = GlobalKey<FormState>();
   late final _label = TextEditingController(text: widget.workflow?.label ?? "");
   late final List<_StepFields> _steps;
+  late String? _scopeServerId;
 
   bool get _isEditing => widget.workflow != null;
 
   @override
   void initState() {
     super.initState();
+    _scopeServerId = widget.workflow?.serverId ?? widget.defaultServerId;
     final steps = widget.workflow?.steps ?? const <WorkflowStep>[];
     _steps = steps.isEmpty
         ? [_StepFields()]
@@ -106,6 +115,7 @@ class _WorkflowDialogState extends State<WorkflowDialog> {
         label: _label.text.trim(),
         steps: steps,
         pinned: widget.workflow?.pinned ?? false,
+        serverId: _scopeServerId,
       ),
     );
   }
@@ -155,6 +165,11 @@ class _WorkflowDialogState extends State<WorkflowDialog> {
           ),
           const SizedBox(height: 4),
           const _PlaceholderHint(),
+          const SizedBox(height: 16),
+          ScopeDropdown(
+            serverId: _scopeServerId,
+            onChanged: (v) => setState(() => _scopeServerId = v),
+          ),
         ],
       ),
     ),

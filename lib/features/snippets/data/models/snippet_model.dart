@@ -7,6 +7,7 @@ class SnippetModel extends Snippet {
     required super.value,
     super.type,
     super.pinned,
+    super.serverId,
   });
 
   factory SnippetModel.fromJson(Map<String, dynamic> json) => SnippetModel(
@@ -17,6 +18,8 @@ class SnippetModel extends Snippet {
     // that was hidden becomes visible on upgrade.
     type: _typeFrom(json['type'] as String?),
     pinned: json['pinned'] as bool? ?? false,
+    // Absent on older snippets, which read back as global.
+    serverId: json['serverId'] as String?,
   );
 
   static SnippetType _typeFrom(String? raw) =>
@@ -28,6 +31,7 @@ class SnippetModel extends Snippet {
     'value': value,
     'type': type.name,
     'pinned': pinned,
+    if (serverId != null) 'serverId': serverId,
   };
 
   factory SnippetModel.fromEntity(Snippet e) => SnippetModel(
@@ -36,5 +40,6 @@ class SnippetModel extends Snippet {
     value: e.value,
     type: e.type,
     pinned: e.pinned,
+    serverId: e.serverId,
   );
 }

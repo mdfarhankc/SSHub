@@ -7,19 +7,26 @@ import 'package:sshub/core/widgets/blurred_bottom_sheet.dart';
 import 'package:sshub/features/settings/presentation/cubit/settings_cubit.dart';
 import 'package:sshub/features/snippets/domain/entities/snippet.dart';
 import 'package:sshub/features/ssh/presentation/widgets/dialog_field.dart';
+import 'package:sshub/features/ssh/presentation/widgets/scope_dropdown.dart';
 import 'package:uuid/uuid.dart';
 
 class SnippetDialog extends StatefulWidget {
   final Snippet? snippet;
-  const SnippetDialog({super.key, this.snippet});
+  // Preselected scope for a new snippet, e.g. when created from a server.
+  final String? defaultServerId;
+  const SnippetDialog({super.key, this.snippet, this.defaultServerId});
 
-  static Future<Snippet?> show(BuildContext context, {Snippet? snippet}) =>
-      showBlurredBottomSheet<Snippet>(
-        context: context,
-        isScrollControlled: true,
-        useSafeArea: true,
-        builder: (_) => SnippetDialog(snippet: snippet),
-      );
+  static Future<Snippet?> show(
+    BuildContext context, {
+    Snippet? snippet,
+    String? defaultServerId,
+  }) => showBlurredBottomSheet<Snippet>(
+    context: context,
+    isScrollControlled: true,
+    useSafeArea: true,
+    builder: (_) =>
+        SnippetDialog(snippet: snippet, defaultServerId: defaultServerId),
+  );
 
   @override
   State<SnippetDialog> createState() => _SnippetDialogState();
@@ -30,6 +37,7 @@ class _SnippetDialogState extends State<SnippetDialog> {
   late final _label = TextEditingController(text: widget.snippet?.label ?? "");
   final _value = TextEditingController();
   late SnippetType _type;
+  late String? _scopeServerId;
 
   bool get _isEditing => widget.snippet != null;
   bool get _isSecret => _type == SnippetType.secret;
@@ -38,6 +46,7 @@ class _SnippetDialogState extends State<SnippetDialog> {
   void initState() {
     super.initState();
     _type = widget.snippet?.type ?? SnippetType.secret;
+    _scopeServerId = widget.snippet?.serverId ?? widget.defaultServerId;
     // Commands are not hidden, so an existing one shows its value right away.
     if (_isEditing && !widget.snippet!.isSecret) {
       _value.text = widget.snippet!.value;
@@ -65,6 +74,7 @@ class _SnippetDialogState extends State<SnippetDialog> {
         value: value,
         type: _type,
         pinned: widget.snippet?.pinned ?? false,
+        serverId: _scopeServerId,
       ),
     );
   }
@@ -147,6 +157,11 @@ class _SnippetDialogState extends State<SnippetDialog> {
           ),
           const SizedBox(height: 10),
           _PlaceholderHint(visible: !_isSecret),
+          const SizedBox(height: 16),
+          ScopeDropdown(
+            serverId: _scopeServerId,
+            onChanged: (v) => setState(() => _scopeServerId = v),
+          ),
         ],
       ),
     ),

@@ -7,6 +7,8 @@ import 'package:sshub/core/widgets/context_menu_area.dart';
 import 'package:sshub/features/snippets/domain/entities/snippet.dart';
 import 'package:sshub/features/snippets/presentation/bloc/snippet_list_bloc.dart';
 import 'package:sshub/features/snippets/presentation/widgets/snippet_dialog.dart';
+import 'package:sshub/features/ssh/presentation/bloc/server_list_bloc.dart';
+import 'package:sshub/features/ssh/presentation/widgets/scope_badge.dart';
 import 'package:uuid/uuid.dart';
 
 class SnippetsPage extends StatefulWidget {
@@ -21,6 +23,8 @@ class SnippetsPage extends StatefulWidget {
 class _SnippetsPageState extends State<SnippetsPage> {
   final _searchController = TextEditingController();
   String _query = "";
+  // Server id to label, so a scoped snippet can show which server it belongs to.
+  Map<String, String> _serverNames = const {};
 
   bool get _searching => _query.trim().isNotEmpty;
 
@@ -52,6 +56,7 @@ class _SnippetsPageState extends State<SnippetsPage> {
           label: "${snippet.label} copy",
           value: snippet.value,
           type: snippet.type,
+          serverId: snippet.serverId,
         ),
       ),
     );
@@ -114,6 +119,10 @@ class _SnippetsPageState extends State<SnippetsPage> {
 
   @override
   Widget build(BuildContext context) {
+    _serverNames = {
+      for (final s in context.watch<ServerListBloc>().state.servers)
+        s.id: s.label,
+    };
     return Scaffold(
       appBar: AppBar(title: const Text("Snippets")),
       floatingActionButton: FloatingActionButton.extended(
@@ -239,6 +248,9 @@ class _SnippetsPageState extends State<SnippetsPage> {
   Widget _tileFor(Snippet snippet, int index, bool reorderable) => _SnippetTile(
     key: ValueKey("tile-${snippet.id}"),
     snippet: snippet,
+    serverLabel: snippet.serverId == null
+        ? null
+        : _serverNames[snippet.serverId],
     index: index,
     reorderable: reorderable,
     onEdit: () => _edit(snippet),
@@ -285,6 +297,8 @@ class _SearchField extends StatelessWidget {
 
 class _SnippetTile extends StatefulWidget {
   final Snippet snippet;
+  // The owning server's name when the snippet is scoped; null when global.
+  final String? serverLabel;
   final int index;
   final bool reorderable;
   final VoidCallback onEdit;
@@ -294,6 +308,7 @@ class _SnippetTile extends StatefulWidget {
   const _SnippetTile({
     super.key,
     required this.snippet,
+    required this.serverLabel,
     required this.index,
     required this.reorderable,
     required this.onEdit,
@@ -401,6 +416,10 @@ class _SnippetTileState extends State<_SnippetTile> {
                           fontFamily: isSecret ? null : AppTheme.mono,
                         ),
                       ),
+                      if (widget.serverLabel != null) ...[
+                        const SizedBox(height: 6),
+                        ScopeBadge(serverLabel: widget.serverLabel!),
+                      ],
                     ],
                   ),
                 ),

@@ -11,7 +11,13 @@ enum SnippetUse { insert, run, copy }
 
 class SnippetPickerSheet extends StatefulWidget {
   final void Function(Snippet snippet, SnippetUse use) onSelected;
-  const SnippetPickerSheet({super.key, required this.onSelected});
+  // The session's server, so the list shows global plus this server's snippets.
+  final String serverId;
+  const SnippetPickerSheet({
+    super.key,
+    required this.onSelected,
+    required this.serverId,
+  });
 
   @override
   State<SnippetPickerSheet> createState() => _SnippetPickerSheetState();
@@ -56,7 +62,11 @@ class _SnippetPickerSheetState extends State<SnippetPickerSheet> {
     return SafeArea(
       child: BlocBuilder<SnippetListBloc, SnippetListState>(
         builder: (context, state) {
-          final visible = _visible(state.snippets);
+          final scoped = [
+            for (final s in state.snippets)
+              if (s.serverId == null || s.serverId == widget.serverId) s,
+          ];
+          final visible = _visible(scoped);
           return Column(
             mainAxisSize: MainAxisSize.min,
             children: [
@@ -85,7 +95,7 @@ class _SnippetPickerSheetState extends State<SnippetPickerSheet> {
                   ],
                 ),
               ),
-              if (state.snippets.isNotEmpty)
+              if (scoped.isNotEmpty)
                 Padding(
                   padding: const EdgeInsets.fromLTRB(16, 4, 16, 8),
                   child: TextField(
@@ -114,7 +124,7 @@ class _SnippetPickerSheetState extends State<SnippetPickerSheet> {
                   ),
                 ),
               const Divider(height: 1),
-              if (state.snippets.isEmpty)
+              if (scoped.isEmpty)
                 const _EmptyPicker()
               else if (visible.isEmpty)
                 const Padding(

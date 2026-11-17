@@ -40,15 +40,19 @@ class Workflow extends Equatable {
   final String label;
   final List<WorkflowStep> steps;
   final bool pinned;
+  // null means the workflow is global; otherwise it belongs to this one server.
+  final String? serverId;
 
   const Workflow({
     required this.id,
     required this.label,
     this.steps = const [],
     this.pinned = false,
+    this.serverId,
   });
 
   bool get hasSecret => steps.any((s) => s.secret);
+  bool get isGlobal => serverId == null;
 
   Workflow copyWith({String? label, List<WorkflowStep>? steps, bool? pinned}) =>
       Workflow(
@@ -56,8 +60,9 @@ class Workflow extends Equatable {
         label: label ?? this.label,
         steps: steps ?? this.steps,
         pinned: pinned ?? this.pinned,
+        serverId: serverId,
       );
 
   @override
-  List<Object?> get props => [id, label, steps, pinned];
+  List<Object?> get props => [id, label, steps, pinned, serverId];
 }

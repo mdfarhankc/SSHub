@@ -265,7 +265,10 @@ class TerminalSessionViewState extends State<TerminalSessionView> {
     showBlurredBottomSheet(
       context: context,
       showDragHandle: true,
-      builder: (_) => SnippetPickerSheet(onSelected: _useSnippet),
+      builder: (_) => SnippetPickerSheet(
+        onSelected: _useSnippet,
+        serverId: widget.session.server.id,
+      ),
     );
   }
 
@@ -273,7 +276,10 @@ class TerminalSessionViewState extends State<TerminalSessionView> {
     showBlurredBottomSheet(
       context: context,
       showDragHandle: true,
-      builder: (_) => WorkflowPickerSheet(onSelected: _runWorkflow),
+      builder: (_) => WorkflowPickerSheet(
+        onSelected: _runWorkflow,
+        serverId: widget.session.server.id,
+      ),
     );
   }
 

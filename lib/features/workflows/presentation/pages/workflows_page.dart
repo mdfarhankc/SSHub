@@ -4,6 +4,8 @@ import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:sshub/core/theme/app_theme.dart';
 import 'package:sshub/core/widgets/app_snack_bar.dart';
 import 'package:sshub/core/widgets/context_menu_area.dart';
+import 'package:sshub/features/ssh/presentation/bloc/server_list_bloc.dart';
+import 'package:sshub/features/ssh/presentation/widgets/scope_badge.dart';
 import 'package:sshub/features/workflows/domain/entities/workflow.dart';
 import 'package:sshub/features/workflows/presentation/bloc/workflow_list_bloc.dart';
 import 'package:sshub/features/workflows/presentation/widgets/workflow_dialog.dart';
@@ -35,6 +37,7 @@ class WorkflowsPage extends StatelessWidget {
           id: const Uuid().v7(),
           label: "${workflow.label} copy",
           steps: workflow.steps,
+          serverId: workflow.serverId,
         ),
       ),
     );
@@ -68,6 +71,10 @@ class WorkflowsPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final serverNames = {
+      for (final s in context.watch<ServerListBloc>().state.servers)
+        s.id: s.label,
+    };
     return Scaffold(
       appBar: AppBar(title: const Text("Workflows")),
       floatingActionButton: FloatingActionButton.extended(
@@ -97,6 +104,9 @@ class WorkflowsPage extends StatelessWidget {
                   final workflow = state.workflows[index];
                   return _WorkflowTile(
                     workflow: workflow,
+                    serverLabel: workflow.serverId == null
+                        ? null
+                        : serverNames[workflow.serverId],
                     onEdit: () => _edit(context, workflow),
                     onDuplicate: () => _duplicate(context, workflow),
                     onDelete: () => _delete(context, workflow),
@@ -113,11 +123,14 @@ class WorkflowsPage extends StatelessWidget {
 
 class _WorkflowTile extends StatefulWidget {
   final Workflow workflow;
+  // The owning server's name when the workflow is scoped; null when global.
+  final String? serverLabel;
   final VoidCallback onEdit;
   final VoidCallback onDuplicate;
   final VoidCallback onDelete;
   const _WorkflowTile({
     required this.workflow,
+    required this.serverLabel,
     required this.onEdit,
     required this.onDuplicate,
     required this.onDelete,
@@ -228,6 +241,10 @@ class _WorkflowTileState extends State<_WorkflowTile> {
                           fontFamily: AppTheme.mono,
                         ),
                       ),
+                      if (widget.serverLabel != null) ...[
+                        const SizedBox(height: 6),
+                        ScopeBadge(serverLabel: widget.serverLabel!),
+                      ],
                     ],
                   ),
                 ),

@@ -8,6 +8,7 @@ import 'package:sshub/core/theme/app_theme.dart';
 import 'package:sshub/core/theme/server_colors.dart';
 import 'package:sshub/core/widgets/app_snack_bar.dart';
 import 'package:sshub/core/widgets/context_menu_area.dart';
+import 'package:sshub/features/snippets/presentation/bloc/snippet_list_bloc.dart';
 import 'package:sshub/features/ssh/data/datasources/known_hosts_datasource.dart';
 import 'package:sshub/features/ssh/domain/entities/ssh_server.dart';
 import 'package:sshub/features/ssh/presentation/bloc/server_list_bloc.dart';
@@ -15,6 +16,7 @@ import 'package:sshub/features/ssh/presentation/cubit/workspace_sessions_cubit.d
 import 'package:sshub/features/ssh/presentation/pages/workspace_page.dart';
 import 'package:sshub/features/ssh/presentation/widgets/server_dialog.dart';
 import 'package:sshub/features/stats/presentation/widgets/server_stats_sheet.dart';
+import 'package:sshub/features/workflows/presentation/bloc/workflow_list_bloc.dart';
 
 class ServerCard extends StatefulWidget {
   final SshServer server;
@@ -48,7 +50,8 @@ class _ServerCardState extends State<ServerCard> {
       builder: (dialogContext) => AlertDialog(
         title: const Text("Delete server?"),
         content: Text(
-          '"${server.label}" and its stored password will be removed.',
+          '"${server.label}", its stored password, and any snippets and '
+          'workflows saved just for it will be removed.',
         ),
         actions: [
           TextButton(
@@ -67,6 +70,11 @@ class _ServerCardState extends State<ServerCard> {
     );
     if (confirmed == true && mounted) {
       context.read<ServerListBloc>().add(ServerDeleted(server.id));
+      // Scoped snippets and workflows go with the server they belonged to.
+      context.read<SnippetListBloc>().add(SnippetsForServerRemoved(server.id));
+      context.read<WorkflowListBloc>().add(
+        WorkflowsForServerRemoved(server.id),
+      );
     }
   }
 

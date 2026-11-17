@@ -19,6 +19,12 @@ final class SnippetDeleted extends SnippetListEvent {
   SnippetDeleted(this.id);
 }
 
+// Drops every snippet tied to a server that was deleted.
+final class SnippetsForServerRemoved extends SnippetListEvent {
+  final String serverId;
+  SnippetsForServerRemoved(this.serverId);
+}
+
 final class SnippetsReordered extends SnippetListEvent {
   final List<Snippet> snippets;
   SnippetsReordered(this.snippets);

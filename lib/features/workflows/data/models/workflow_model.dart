@@ -6,6 +6,7 @@ class WorkflowModel extends Workflow {
     required super.label,
     super.steps,
     super.pinned,
+    super.serverId,
   });
 
   factory WorkflowModel.fromJson(Map<String, dynamic> json) => WorkflowModel(
@@ -16,6 +17,8 @@ class WorkflowModel extends Workflow {
         _stepFrom(s as Map<String, dynamic>),
     ],
     pinned: json['pinned'] as bool? ?? false,
+    // Absent on older workflows, which read back as global.
+    serverId: json['serverId'] as String?,
   );
 
   static WorkflowStep _stepFrom(Map<String, dynamic> json) => WorkflowStep(
@@ -38,8 +41,14 @@ class WorkflowModel extends Workflow {
         },
     ],
     'pinned': pinned,
+    if (serverId != null) 'serverId': serverId,
   };
 
-  factory WorkflowModel.fromEntity(Workflow e) =>
-      WorkflowModel(id: e.id, label: e.label, steps: e.steps, pinned: e.pinned);
+  factory WorkflowModel.fromEntity(Workflow e) => WorkflowModel(
+    id: e.id,
+    label: e.label,
+    steps: e.steps,
+    pinned: e.pinned,
+    serverId: e.serverId,
+  );
 }

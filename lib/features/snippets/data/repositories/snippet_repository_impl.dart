@@ -35,6 +35,14 @@ class SnippetRepositoryImpl implements SnippetRepository {
   }
 
   @override
+  Future<void> deleteSnippetsForServer(String serverId) async {
+    final snippets = await _localDatasource.load();
+    await _localDatasource.save(
+      snippets.where((s) => s.serverId != serverId).toList(),
+    );
+  }
+
+  @override
   Future<void> reorderSnippets(List<Snippet> snippets) => _localDatasource.save(
     [for (final s in snippets) SnippetModel.fromEntity(s)],
   );

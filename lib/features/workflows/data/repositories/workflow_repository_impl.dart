@@ -45,6 +45,14 @@ class WorkflowRepositoryImpl implements WorkflowRepository {
   });
 
   @override
+  Future<void> deleteWorkflowsForServer(String serverId) => _serialize(() async {
+    final workflows = await _localDatasource.load();
+    await _localDatasource.save(
+      workflows.where((w) => w.serverId != serverId).toList(),
+    );
+  });
+
+  @override
   Future<void> reorderWorkflows(List<Workflow> workflows) => _serialize(
     () => _localDatasource.save([
       for (final w in workflows) WorkflowModel.fromEntity(w),
