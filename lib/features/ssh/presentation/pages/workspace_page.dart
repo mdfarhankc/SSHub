@@ -8,6 +8,7 @@ import 'package:sshub/core/shortcuts/shortcut_actions.dart';
 import 'package:sshub/core/theme/app_theme.dart';
 import 'package:sshub/features/settings/presentation/cubit/settings_cubit.dart';
 import 'package:sshub/features/sftp/presentation/cubit/sftp_cubit.dart';
+import 'package:sshub/features/sftp/presentation/pages/file_viewer_page.dart';
 import 'package:sshub/features/sftp/presentation/widgets/sftp_path_bar.dart';
 import 'package:sshub/features/sftp/presentation/widgets/sftp_session_view.dart';
 import 'package:sshub/features/sftp/presentation/widgets/sftp_toolbar.dart';
@@ -113,6 +114,13 @@ class _WorkspacePageState extends State<WorkspacePage> {
         final active = state.active;
         if (active == null) return const Scaffold(body: SizedBox.shrink());
         final activeIsFiles = active.kind == WorkspaceKind.files;
+        final subtitle = switch (active) {
+          FileWorkspaceSession() => "Files",
+          FileViewerWorkspaceSession(:final file) => file.name,
+          TerminalWorkspaceSession() =>
+            "${active.server.username}@${active.server.host}",
+        };
+        final subtitleMono = active is TerminalWorkspaceSession;
 
         // When enabled, the back button closes every session and leaves the
         // workspace, rather than leaving them running in tabs. The empty state
@@ -151,12 +159,12 @@ class _WorkspacePageState extends State<WorkspacePage> {
                         ),
                       ),
                       Text(
-                        activeIsFiles
-                            ? "Files"
-                            : "${active.server.username}@${active.server.host}",
+                        subtitle,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
                         style: theme.textTheme.bodySmall?.copyWith(
                           color: theme.colorScheme.onSurfaceVariant,
-                          fontFamily: activeIsFiles ? null : AppTheme.mono,
+                          fontFamily: subtitleMono ? AppTheme.mono : null,
                         ),
                       ),
                     ],
@@ -233,6 +241,12 @@ class _WorkspacePageState extends State<WorkspacePage> {
         key: ValueKey(cubit),
         cubit: cubit,
       ),
+      FileViewerWorkspaceSession(:final cubit, :final source) =>
+        BlocProvider.value(
+          key: ValueKey(cubit),
+          value: cubit,
+          child: FileViewerView(source: source),
+        ),
     };
   }
 
@@ -284,6 +298,8 @@ class _WorkspacePageState extends State<WorkspacePage> {
               : const [],
         ),
       ),
+      // The viewer carries its own toolbar, so the app bar stays out of it.
+      FileViewerWorkspaceSession() => const SizedBox.shrink(),
     };
   }
 }

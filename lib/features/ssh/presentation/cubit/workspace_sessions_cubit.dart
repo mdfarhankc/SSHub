@@ -2,7 +2,9 @@ import 'package:equatable/equatable.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import 'package:sshub/features/settings/presentation/cubit/settings_cubit.dart';
+import 'package:sshub/features/sftp/domain/entities/remote_file.dart';
 import 'package:sshub/features/sftp/domain/usecases/open_sftp_session.dart';
+import 'package:sshub/features/sftp/presentation/cubit/file_viewer_cubit.dart';
 import 'package:sshub/features/sftp/presentation/cubit/sftp_cubit.dart';
 import 'package:sshub/features/ssh/domain/entities/ssh_server.dart';
 import 'package:sshub/features/ssh/domain/usecases/connect_to_server.dart';
@@ -54,6 +56,32 @@ class WorkspaceSessionsCubit extends Cubit<WorkspaceSessionsState> {
     _add(FileWorkspaceSession(SftpCubit(_openSftpSession, server, _settings)));
   }
 
+  // Opens a file from [source]'s browser as its own tab, borrowing that
+  // connection. Reopening the same file focuses the existing tab.
+  void openFileViewer(RemoteFile file, SftpCubit source) {
+    final existing = state.sessions.indexWhere(
+      (s) =>
+          s is FileViewerWorkspaceSession &&
+          s.source == source &&
+          s.file.path == file.path,
+    );
+    if (existing != -1) {
+      setActive(existing);
+      return;
+    }
+    if (isFull) return;
+    final session = source.session;
+    if (session == null) return;
+    final maxBytes = _settings.state.settings.fileViewerMaxMb * 1024 * 1024;
+    _add(
+      FileViewerWorkspaceSession(
+        FileViewerCubit(session, file, maxBytes: maxBytes),
+        source,
+        file,
+      ),
+    );
+  }
+
   bool _focus(SshServer server, WorkspaceKind kind) {
     final index = state.sessions.indexWhere(
       (s) => s.kind == kind && s.server.id == server.id,
@@ -77,28 +105,59 @@ class WorkspaceSessionsCubit extends Cubit<WorkspaceSessionsState> {
 
   void closeSession(int index) {
     if (index < 0 || index >= state.sessions.length) return;
-    final sessions = [...state.sessions];
-    sessions.removeAt(index).close();
-
-    var active = state.activeIndex;
-    if (index < active) active -= 1;
-    if (active > sessions.length - 1) active = sessions.length - 1;
-    emit(
-      WorkspaceSessionsState(
-        sessions: sessions,
-        activeIndex: active < 0 ? 0 : active,
-      ),
-    );
+    final target = state.sessions[index];
+    // Closing a browser also closes the file viewers that borrowed it.
+    final toClose = <WorkspaceSession>{target};
+    if (target is FileWorkspaceSession) {
+      for (final s in state.sessions) {
+        if (s is FileViewerWorkspaceSession && s.source == target.cubit) {
+          toClose.add(s);
+        }
+      }
+    }
+    for (final s in toClose) {
+      s.close();
+    }
+    final remaining = [
+      for (final s in state.sessions)
+        if (!toClose.contains(s)) s,
+    ];
+    if (remaining.isEmpty) {
+      emit(const WorkspaceSessionsState());
+      return;
+    }
+    // Keep the active tab if it survived; otherwise land near the closed one.
+    final activeSession = state.active;
+    final active = activeSession != null && remaining.contains(activeSession)
+        ? remaining.indexOf(activeSession)
+        : (index < remaining.length ? index : remaining.length - 1);
+    emit(WorkspaceSessionsState(sessions: remaining, activeIndex: active));
   }
 
   // Closes every session except the one at [keepIndex], which becomes active.
   void closeOthers(int keepIndex) {
     if (keepIndex < 0 || keepIndex >= state.sessions.length) return;
     final kept = state.sessions[keepIndex];
-    for (final session in state.sessions) {
-      if (session != kept) session.close();
+    // A kept file viewer still needs the browser it borrowed.
+    final keep = <WorkspaceSession>{kept};
+    if (kept is FileViewerWorkspaceSession) {
+      for (final s in state.sessions) {
+        if (s is FileWorkspaceSession && s.cubit == kept.source) keep.add(s);
+      }
     }
-    emit(WorkspaceSessionsState(sessions: [kept]));
+    for (final session in state.sessions) {
+      if (!keep.contains(session)) session.close();
+    }
+    final remaining = [
+      for (final s in state.sessions)
+        if (keep.contains(s)) s,
+    ];
+    emit(
+      WorkspaceSessionsState(
+        sessions: remaining,
+        activeIndex: remaining.indexOf(kept),
+      ),
+    );
   }
 
   // Closes everything. The empty state pops the workspace back to Home.

@@ -9,6 +9,8 @@ class FileViewerState extends Equatable {
   final String? errorMessage;
   final bool saving;
   final String? saveError;
+  // True while the editor holds unsaved changes, so closing the tab can warn.
+  final bool dirty;
 
   const FileViewerState({
     this.status = FileViewerStatus.loading,
@@ -17,6 +19,7 @@ class FileViewerState extends Equatable {
     this.errorMessage,
     this.saving = false,
     this.saveError,
+    this.dirty = false,
   });
 
   FileViewerState copyWith({
@@ -26,6 +29,7 @@ class FileViewerState extends Equatable {
     String? errorMessage,
     bool? saving,
     String? saveError,
+    bool? dirty,
   }) => FileViewerState(
     status: status ?? this.status,
     text: text ?? this.text,
@@ -33,6 +37,7 @@ class FileViewerState extends Equatable {
     errorMessage: errorMessage ?? this.errorMessage,
     saving: saving ?? this.saving,
     saveError: saveError,
+    dirty: dirty ?? this.dirty,
   );
 
   int get lineCount => text.isEmpty ? 0 : '\n'.allMatches(text).length + 1;
@@ -45,5 +50,6 @@ class FileViewerState extends Equatable {
     errorMessage,
     saving,
     saveError,
+    dirty,
   ];
 }

@@ -31,12 +31,16 @@ class ServerPickerSheet extends StatelessWidget {
     final sessions = context.read<WorkspaceSessionsCubit>();
     show(
       context,
-      onSelected: (server, kind) => switch (kind) {
-        WorkspaceKind.terminal => sessions.openTerminal(
-          server,
-          focusExisting: false,
-        ),
-        WorkspaceKind.files => sessions.openFiles(server, focusExisting: false),
+      onSelected: (server, kind) {
+        switch (kind) {
+          case WorkspaceKind.terminal:
+            sessions.openTerminal(server, focusExisting: false);
+          case WorkspaceKind.files:
+            sessions.openFiles(server, focusExisting: false);
+          // The picker never offers the file viewer; it opens from a browser.
+          case WorkspaceKind.fileViewer:
+            break;
+        }
       },
     );
   }

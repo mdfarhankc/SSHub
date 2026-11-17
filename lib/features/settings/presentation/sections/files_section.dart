@@ -91,6 +91,34 @@ class FilesSection extends StatelessWidget {
             ),
           ],
         ),
+        const SizedBox(height: 20),
+        SettingsGroup(
+          label: "File viewer",
+          description:
+              "The viewer loads the whole file into memory, so a larger limit "
+              "uses more memory and can feel slow to open. Files past the limit "
+              "show a preview of the start; download a file to open all of it.",
+          children: [
+            SettingsRow(
+              title: "Maximum file size",
+              subtitle: "Bigger files open as a truncated preview.",
+              keepInline: true,
+              control: DropdownButton<int>(
+                value: settings.fileViewerMaxMb,
+                underline: const SizedBox.shrink(),
+                items: [
+                  for (final mb
+                      in ({1, 2, 5, 10, 20, settings.fileViewerMaxMb}.toList()
+                        ..sort()))
+                    DropdownMenuItem(value: mb, child: Text("$mb MB")),
+                ],
+                onChanged: (v) {
+                  if (v != null) cubit.updateFileViewerMaxMb(v);
+                },
+              ),
+            ),
+          ],
+        ),
       ],
     );
   }

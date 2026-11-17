@@ -106,6 +106,9 @@ class SettingsCubit extends Cubit<SettingsState> {
   void updateSftpReadOnly(bool enabled) =>
       _update(state.settings.copyWith(sftpReadOnly: enabled));
 
+  void updateFileViewerMaxMb(int mb) =>
+      _update(state.settings.copyWith(fileViewerMaxMb: mb));
+
   void updateBlockScreenshots(bool enabled) {
     SecurePlatform.setBlockScreenshots(enabled);
     _update(state.settings.copyWith(blockScreenshots: enabled));

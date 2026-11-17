@@ -5,6 +5,7 @@ import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:sshub/core/theme/app_theme.dart';
 import 'package:sshub/core/theme/server_colors.dart';
 import 'package:sshub/core/widgets/app_menu.dart';
+import 'package:sshub/features/sftp/presentation/cubit/file_viewer_cubit.dart';
 import 'package:sshub/features/sftp/presentation/cubit/sftp_cubit.dart';
 import 'package:sshub/features/sftp/presentation/widgets/sftp_status.dart';
 import 'package:sshub/features/ssh/presentation/cubit/terminal_cubit.dart';
@@ -46,7 +47,8 @@ class WorkspaceTabBar extends StatelessWidget {
                     index: index,
                     selected: index == state.activeIndex,
                     onTap: () => sessions.setActive(index),
-                    onClose: () => sessions.closeSession(index),
+                    onClose: () =>
+                        _closeTab(context, sessions, state.sessions[index]),
                   ),
                 ),
               ),
@@ -97,6 +99,7 @@ class _Tab extends StatelessWidget {
               typeIcon: LucideIcons.terminal,
               statusColor: color,
               statusLabel: label,
+              label: session.server.label,
               onTap: onTap,
               onClose: onClose,
             );
@@ -113,23 +116,84 @@ class _Tab extends StatelessWidget {
             typeIcon: LucideIcons.folder,
             statusColor: color,
             statusLabel: label,
+            label: session.server.label,
             onTap: onTap,
             onClose: onClose,
           );
         },
       ),
+      FileViewerWorkspaceSession(:final cubit, :final file) =>
+        BlocBuilder<FileViewerCubit, FileViewerState>(
+          bloc: cubit,
+          builder: (context, state) {
+            final scheme = Theme.of(context).colorScheme;
+            return _TabChrome(
+              session: session,
+              index: index,
+              selected: selected,
+              typeIcon: LucideIcons.fileText,
+              statusColor: state.dirty ? scheme.tertiary : scheme.primary,
+              statusLabel: state.dirty ? "Unsaved changes" : "Open file",
+              label: file.name,
+              onTap: onTap,
+              onClose: onClose,
+            );
+          },
+        ),
     };
   }
 }
 
 // Opens another session to the same server, matching this tab's kind.
 void _duplicate(WorkspaceSessionsCubit sessions, WorkspaceSession session) {
-  switch (session.kind) {
-    case WorkspaceKind.terminal:
+  switch (session) {
+    case TerminalWorkspaceSession():
       sessions.openTerminal(session.server, focusExisting: false);
-    case WorkspaceKind.files:
+    case FileWorkspaceSession():
       sessions.openFiles(session.server, focusExisting: false);
+    case FileViewerWorkspaceSession(:final file, :final source):
+      sessions.openFileViewer(file, source);
   }
+}
+
+// Closing a file viewer with unsaved edits warns first; everything else closes
+// straight away.
+Future<void> _closeTab(
+  BuildContext context,
+  WorkspaceSessionsCubit sessions,
+  WorkspaceSession session,
+) async {
+  if (session is FileViewerWorkspaceSession && session.cubit.state.dirty) {
+    final discard = await _confirmDiscard(context);
+    if (!discard || !context.mounted) return;
+  }
+  // The dialog may have shifted indices, so look the tab up again.
+  final index = sessions.state.sessions.indexOf(session);
+  if (index != -1) sessions.closeSession(index);
+}
+
+Future<bool> _confirmDiscard(BuildContext context) async {
+  final discard = await showDialog<bool>(
+    context: context,
+    builder: (dialogContext) => AlertDialog(
+      title: const Text("Discard changes?"),
+      content: const Text("This file has edits that have not been saved."),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(dialogContext, false),
+          child: const Text("Keep editing"),
+        ),
+        FilledButton(
+          style: FilledButton.styleFrom(
+            backgroundColor: Theme.of(dialogContext).colorScheme.error,
+          ),
+          onPressed: () => Navigator.pop(dialogContext, true),
+          child: const Text("Discard"),
+        ),
+      ],
+    ),
+  );
+  return discard ?? false;
 }
 
 class _TabChrome extends StatelessWidget {
@@ -139,6 +203,7 @@ class _TabChrome extends StatelessWidget {
   final IconData typeIcon;
   final Color statusColor;
   final String statusLabel;
+  final String label;
   final VoidCallback onTap;
   final VoidCallback onClose;
 
@@ -149,6 +214,7 @@ class _TabChrome extends StatelessWidget {
     required this.typeIcon,
     required this.statusColor,
     required this.statusLabel,
+    required this.label,
     required this.onTap,
     required this.onClose,
   });
@@ -169,7 +235,7 @@ class _TabChrome extends StatelessWidget {
         ContextMenuAction(
           icon: LucideIcons.x,
           label: "Close",
-          onPressed: () => sessions.closeSession(index),
+          onPressed: () => _closeTab(context, sessions, session),
         ),
         // Meaningless with a single tab, so left out rather than disabled.
         if (!onlyTab)
@@ -234,7 +300,7 @@ class _TabChrome extends StatelessWidget {
                   ConstrainedBox(
                     constraints: const BoxConstraints(maxWidth: 120),
                     child: Text(
-                      session.server.label,
+                      label,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: theme.textTheme.bodySmall?.copyWith(

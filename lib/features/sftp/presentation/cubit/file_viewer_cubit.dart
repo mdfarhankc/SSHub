@@ -15,10 +15,15 @@ class FileViewerCubit extends Cubit<FileViewerState> {
   final SftpSession _session;
   final RemoteFile file;
 
-  // Held in memory, so a log or a dump would otherwise take the app down.
-  static const maxBytes = 1024 * 1024;
+  // The most this viewer loads into memory; a bigger file shows a truncated
+  // preview. Set from settings, since the whole file is held in memory.
+  final int maxBytes;
 
-  FileViewerCubit(this._session, this.file) : super(const FileViewerState()) {
+  FileViewerCubit(
+    this._session,
+    this.file, {
+    this.maxBytes = 1024 * 1024,
+  }) : super(const FileViewerState()) {
     load();
   }
 
@@ -51,6 +56,11 @@ class FileViewerCubit extends Cubit<FileViewerState> {
     }
   }
 
+  // Mirrors the editor's unsaved state so closing the tab can warn.
+  void setDirty(bool value) {
+    if (!isClosed && state.dirty != value) emit(state.copyWith(dirty: value));
+  }
+
   // Writes [text] back over the file. Refused for truncated or non-text files,
   // since only part of a truncated file is held and would overwrite the rest.
   Future<void> save(String text) async {
@@ -59,7 +69,7 @@ class FileViewerCubit extends Cubit<FileViewerState> {
     try {
       await _session.writeBytes(file.path, Uint8List.fromList(utf8.encode(text)));
       if (isClosed) return;
-      emit(state.copyWith(saving: false, text: text, saveError: null));
+      emit(state.copyWith(saving: false, text: text, saveError: null, dirty: false));
     } on SshConnectionException catch (e) {
       appLog("Save file failed", e);
       if (!isClosed) emit(state.copyWith(saving: false, saveError: e.message));

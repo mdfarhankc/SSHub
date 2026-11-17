@@ -255,8 +255,14 @@ class _DartSftpSession implements SftpSession {
       _wrap(timeout: null, () async {
         final remote = await _sftp.open(file.path, mode: SftpFileOpenMode.read);
         try {
+          // Read only up to the file's real size. Passing the full cap makes the
+          // SFTP read pipeline request past end-of-file, which some servers
+          // answer with an empty chunk that dartssh2 treats as an error.
+          final length = file.size > 0 && file.size < maxBytes
+              ? file.size
+              : maxBytes;
           final builder = BytesBuilder(copy: false);
-          await for (final chunk in remote.read(length: maxBytes)) {
+          await for (final chunk in remote.read(length: length)) {
             builder.add(chunk);
             if (builder.length >= maxBytes) break;
           }

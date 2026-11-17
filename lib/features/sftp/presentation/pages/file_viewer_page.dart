@@ -9,14 +9,18 @@ import 'package:sshub/core/widgets/app_snack_bar.dart';
 import 'package:sshub/features/sftp/presentation/cubit/file_viewer_cubit.dart';
 import 'package:sshub/features/sftp/presentation/cubit/sftp_cubit.dart';
 
-class FileViewerPage extends StatefulWidget {
-  const FileViewerPage({super.key});
+// A file opened as a workspace tab: a slim toolbar over the content, reading
+// and saving over the browser connection it was opened from.
+class FileViewerView extends StatefulWidget {
+  // The browser this file was opened from; used to read, save and download it.
+  final SftpCubit source;
+  const FileViewerView({super.key, required this.source});
 
   @override
-  State<FileViewerPage> createState() => _FileViewerPageState();
+  State<FileViewerView> createState() => _FileViewerViewState();
 }
 
-class _FileViewerPageState extends State<FileViewerPage> {
+class _FileViewerViewState extends State<FileViewerView> {
   final TextEditingController _controller = TextEditingController();
   bool _editing = false;
   // The buffer edits with \n; the original EOL is reapplied on save so a
@@ -35,6 +39,9 @@ class _FileViewerPageState extends State<FileViewerPage> {
     super.dispose();
   }
 
+  // Mirrors the unsaved state to the cubit so closing the tab can warn.
+  void _syncDirty() => _viewer.setDirty(_dirty);
+
   void _startEditing(FileViewerState state) {
     _usesCrlf = state.text.contains('\r\n');
     final normalised =
@@ -42,6 +49,7 @@ class _FileViewerPageState extends State<FileViewerPage> {
     _controller.text = normalised;
     _savedText = normalised;
     setState(() => _editing = true);
+    _syncDirty();
   }
 
   void _onEditPressed(FileViewerState state) {
@@ -52,7 +60,7 @@ class _FileViewerPageState extends State<FileViewerPage> {
       );
       return;
     }
-    if (context.read<SftpCubit>().state.readOnly) {
+    if (widget.source.state.readOnly) {
       showAppSnackBar(context, "Turn off read-only mode to edit this file.");
       return;
     }
@@ -85,7 +93,10 @@ class _FileViewerPageState extends State<FileViewerPage> {
   }
 
   Future<void> _cancelEditing() async {
-    if (await _confirmDiscard() && mounted) setState(() => _editing = false);
+    if (await _confirmDiscard() && mounted) {
+      setState(() => _editing = false);
+      _syncDirty();
+    }
   }
 
   Future<void> _save() async {
@@ -101,7 +112,13 @@ class _FileViewerPageState extends State<FileViewerPage> {
     }
     _savedText = normalised;
     setState(() => _editing = false);
+    _syncDirty();
     showAppSnackBar(context, "Saved");
+  }
+
+  void _download() {
+    widget.source.download(_viewer.file);
+    showAppSnackBar(context, "Downloading. See the file browser for progress.");
   }
 
   @override
@@ -114,82 +131,95 @@ class _FileViewerPageState extends State<FileViewerPage> {
       builder: (context, state) {
         final isText = state.status == FileViewerStatus.ready;
         final editing = _editing && isText;
-        return PopScope(
-          canPop: !_dirty,
-          onPopInvokedWithResult: (didPop, _) async {
-            if (didPop) return;
-            if (await _confirmDiscard() && context.mounted) {
-              Navigator.pop(context);
-            }
-          },
-          child: Scaffold(
-            appBar: AppBar(
-              title: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    file.name,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                    ),
+        return Column(
+          children: [
+            Material(
+              color: scheme.surface,
+              child: Container(
+                decoration: BoxDecoration(
+                  border: Border(
+                    bottom: BorderSide(color: scheme.outlineVariant),
                   ),
-                  Text(
-                    editing ? "Editing" : _subtitle(state, file.size),
-                    style: theme.textTheme.bodySmall?.copyWith(
-                      color: scheme.onSurfaceVariant,
-                    ),
-                  ),
-                ],
-              ),
-              actions: editing
-                  ? _editingActions(state)
-                  : _viewingActions(context, state, isText),
-            ),
-            body: editing
-                ? _Editor(controller: _controller, onChanged: _onEdited)
-                : switch (state.status) {
-                    FileViewerStatus.loading => const Center(
-                      child: SizedBox(
-                        width: 36,
-                        height: 36,
-                        child: CircularProgressIndicator(strokeWidth: 3),
+                ),
+                padding: const EdgeInsets.fromLTRB(16, 6, 4, 6),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(
+                            file.name,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: theme.textTheme.titleSmall?.copyWith(
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          Text(
+                            editing ? "Editing" : _subtitle(state, file.size),
+                            style: theme.textTheme.bodySmall?.copyWith(
+                              color: scheme.onSurfaceVariant,
+                            ),
+                          ),
+                        ],
                       ),
                     ),
-                    FileViewerStatus.failure => _Message(
-                      icon: LucideIcons.circleAlert,
-                      iconColor: scheme.error,
-                      title: "Could not read this file",
-                      detail: state.errorMessage ?? "",
-                      onRetry: _viewer.load,
-                    ),
-                    FileViewerStatus.binary => _Message(
-                      icon: LucideIcons.braces,
-                      iconColor: scheme.onSurfaceVariant,
-                      title: "Not a text file",
-                      detail:
-                          "This looks like binary data. Download it to open "
-                          "it in another program.",
-                    ),
-                    FileViewerStatus.ready => Column(
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: [
-                        if (state.truncated)
-                          const _TruncatedBanner(shown: FileViewerCubit.maxBytes),
-                        Expanded(child: _TextBody(text: state.text)),
-                      ],
-                    ),
-                  },
-          ),
+                    ...(editing
+                        ? _editingActions(state)
+                        : _viewingActions(context, state, isText)),
+                  ],
+                ),
+              ),
+            ),
+            Expanded(
+              child: editing
+                  ? _Editor(controller: _controller, onChanged: _onEdited)
+                  : switch (state.status) {
+                      FileViewerStatus.loading => const Center(
+                        child: SizedBox(
+                          width: 36,
+                          height: 36,
+                          child: CircularProgressIndicator(strokeWidth: 3),
+                        ),
+                      ),
+                      FileViewerStatus.failure => _Message(
+                        icon: LucideIcons.circleAlert,
+                        iconColor: scheme.error,
+                        title: "Could not read this file",
+                        detail: state.errorMessage ?? "",
+                        onRetry: _viewer.load,
+                      ),
+                      FileViewerStatus.binary => _Message(
+                        icon: LucideIcons.braces,
+                        iconColor: scheme.onSurfaceVariant,
+                        title: "Not a text file",
+                        detail:
+                            "This looks like binary data. Download it to open "
+                            "it in another program.",
+                      ),
+                      FileViewerStatus.ready => Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          if (state.truncated)
+                            _TruncatedBanner(shown: _viewer.maxBytes),
+                          Expanded(child: _TextBody(text: state.text)),
+                        ],
+                      ),
+                    },
+            ),
+          ],
         );
       },
     );
   }
 
-  // Refreshes the Save button's enabled state as the buffer changes.
-  void _onEdited() => setState(() {});
+  // Refreshes the Save button's enabled state and the tab's unsaved mark.
+  void _onEdited() {
+    setState(() {});
+    _syncDirty();
+  }
 
   List<Widget> _editingActions(FileViewerState state) => [
     IconButton(
@@ -239,12 +269,7 @@ class _FileViewerPageState extends State<FileViewerPage> {
     IconButton(
       tooltip: "Download",
       icon: const Icon(LucideIcons.download),
-      // Pops first so the transfer bar on the browser is visible.
-      onPressed: () {
-        final browser = context.read<SftpCubit>();
-        Navigator.pop(context);
-        browser.download(_viewer.file);
-      },
+      onPressed: _download,
     ),
     IconButton(
       tooltip: "Reload",

@@ -42,6 +42,10 @@ class AppSettings extends Equatable {
   final bool sftpGridView;
   final bool sftpReadOnly;
 
+  // Largest file the in-app viewer loads, in MB. Bigger files open as a
+  // truncated preview. Kept modest because the whole file is held in memory.
+  final int fileViewerMaxMb;
+
   // Prefilled when adding a new server.
   final int defaultPort;
   final String defaultUsername;
@@ -77,6 +81,7 @@ class AppSettings extends Equatable {
     this.sftpShowHidden = false,
     this.sftpGridView = false,
     this.sftpReadOnly = true,
+    this.fileViewerMaxMb = 2,
     this.defaultPort = 22,
     this.defaultUsername = '',
     this.downloadDirectory,
@@ -105,6 +110,7 @@ class AppSettings extends Equatable {
     bool? sftpShowHidden,
     bool? sftpGridView,
     bool? sftpReadOnly,
+    int? fileViewerMaxMb,
     int? defaultPort,
     String? defaultUsername,
     String? downloadDirectory,
@@ -133,6 +139,7 @@ class AppSettings extends Equatable {
     sftpShowHidden: sftpShowHidden ?? this.sftpShowHidden,
     sftpGridView: sftpGridView ?? this.sftpGridView,
     sftpReadOnly: sftpReadOnly ?? this.sftpReadOnly,
+    fileViewerMaxMb: fileViewerMaxMb ?? this.fileViewerMaxMb,
     defaultPort: defaultPort ?? this.defaultPort,
     defaultUsername: defaultUsername ?? this.defaultUsername,
     downloadDirectory: clearDownloadDirectory
@@ -164,6 +171,7 @@ class AppSettings extends Equatable {
     sftpShowHidden,
     sftpGridView,
     sftpReadOnly,
+    fileViewerMaxMb,
     defaultPort,
     defaultUsername,
     downloadDirectory,
