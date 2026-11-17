@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Matches the app's dark surface, so the launch window does not flash. -->
+    <color name="splash_bg">#0F1511</color>
+</resources>

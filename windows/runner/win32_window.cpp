@@ -16,6 +16,12 @@ namespace {
 #define DWMWA_USE_IMMERSIVE_DARK_MODE 20
 #endif
 
+/// Window attribute that disables the window's open/minimize/maximize
+/// transition animations. Redefined in case the SDK is older.
+#ifndef DWMWA_TRANSITIONS_FORCEDISABLED
+#define DWMWA_TRANSITIONS_FORCEDISABLED 3
+#endif
+
 constexpr const wchar_t kWindowClassName[] = L"FLUTTER_RUNNER_WIN32_WINDOW";
 
 /// Smallest window the UI is designed for, in logical pixels.
@@ -101,7 +107,15 @@ const wchar_t* WindowClassRegistrar::GetWindowClass() {
     window_class.hInstance = GetModuleHandle(nullptr);
     window_class.hIcon =
         LoadIcon(window_class.hInstance, MAKEINTRESOURCE(IDI_APP_ICON));
-    window_class.hbrBackground = 0;
+    // Fill the window with the app's surface colour so it does not flash white
+    // before Flutter paints its first frame. Dark-mode aware.
+    DWORD light_mode = 1;
+    DWORD light_mode_size = sizeof(light_mode);
+    RegGetValue(HKEY_CURRENT_USER, kGetPreferredBrightnessRegKey,
+                kGetPreferredBrightnessRegValue, RRF_RT_REG_DWORD, nullptr,
+                &light_mode, &light_mode_size);
+    window_class.hbrBackground = CreateSolidBrush(
+        light_mode == 0 ? RGB(0x0F, 0x15, 0x11) : RGB(0xF6, 0xFB, 0xF4));
     window_class.lpszMenuName = nullptr;
     window_class.lpfnWndProc = Win32Window::WndProc;
     RegisterClass(&window_class);
@@ -148,13 +162,54 @@ bool Win32Window::Create(const std::wstring& title,
     return false;
   }
 
+  // Resize the still-hidden window to the monitor work area before Flutter
+  // builds its view, so the render surface starts at the final (maximized)
+  // size. Otherwise the surface is built small and the exposed area flashes
+  // white when the window is later shown maximized.
+  MONITORINFO monitor_info = {};
+  monitor_info.cbSize = sizeof(MONITORINFO);
+  HMONITOR window_monitor = MonitorFromWindow(window, MONITOR_DEFAULTTONEAREST);
+  if (GetMonitorInfo(window_monitor, &monitor_info)) {
+    const RECT work = monitor_info.rcWork;
+    SetWindowPos(window, nullptr, work.left, work.top, work.right - work.left,
+                 work.bottom - work.top,
+                 SWP_NOACTIVATE | SWP_NOZORDER | SWP_NOOWNERZORDER);
+  }
+
   UpdateTheme(window);
 
   return OnCreate();
 }
 
 bool Win32Window::Show() {
-  return ShowWindow(window_handle_, SW_SHOWMAXIMIZED);
+  // Turn off the window's transition animation for this first show, so it does
+  // not briefly appear at its small restored size and animate up to maximized.
+  BOOL disable = TRUE;
+  DwmSetWindowAttribute(window_handle_, DWMWA_TRANSITIONS_FORCEDISABLED,
+                        &disable, sizeof(disable));
+
+  // Point the restored rect at the monitor work area, then show maximized, so
+  // restoring later lands at a sensible size too.
+  WINDOWPLACEMENT placement = {};
+  placement.length = sizeof(WINDOWPLACEMENT);
+  HMONITOR monitor = MonitorFromWindow(window_handle_, MONITOR_DEFAULTTONEAREST);
+  MONITORINFO monitor_info = {};
+  monitor_info.cbSize = sizeof(MONITORINFO);
+  bool shown;
+  if (GetWindowPlacement(window_handle_, &placement) &&
+      GetMonitorInfo(monitor, &monitor_info)) {
+    placement.rcNormalPosition = monitor_info.rcWork;
+    placement.showCmd = SW_SHOWMAXIMIZED;
+    shown = SetWindowPlacement(window_handle_, &placement);
+  } else {
+    shown = ShowWindow(window_handle_, SW_SHOWMAXIMIZED);
+  }
+
+  // Restore normal transitions so later minimize/restore still animate.
+  disable = FALSE;
+  DwmSetWindowAttribute(window_handle_, DWMWA_TRANSITIONS_FORCEDISABLED,
+                        &disable, sizeof(disable));
+  return shown;
 }
 
 // static

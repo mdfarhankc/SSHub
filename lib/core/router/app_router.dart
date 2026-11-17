@@ -15,9 +15,9 @@ abstract final class AppRouter {
       case SplashPage.route:
         return MaterialPageRoute(builder: (_) => const SplashPage());
       case OnboardingPage.route:
-        return MaterialPageRoute(builder: (_) => const OnboardingPage());
+        return _fadeRoute(const OnboardingPage(), settings);
       case HomePage.route:
-        return MaterialPageRoute(builder: (_) => const HomePage());
+        return _fadeRoute(const HomePage(), settings);
       case WorkspacePage.route:
         return MaterialPageRoute(builder: (_) => const WorkspacePage());
       case SettingsPage.route:
@@ -33,5 +33,26 @@ abstract final class AppRouter {
           builder: (_) => const Scaffold(body: Center(child: Text("404"))),
         );
     }
+  }
+
+  // Used for the app-entry pages. Home fades in and settles from a slight
+  // zoom, so it reads as emerging from behind the splash as it rushes past.
+  static Route<dynamic> _fadeRoute(Widget page, RouteSettings settings) {
+    return PageRouteBuilder<dynamic>(
+      settings: settings,
+      transitionDuration: const Duration(milliseconds: 700),
+      reverseTransitionDuration: const Duration(milliseconds: 700),
+      pageBuilder: (_, _, _) => page,
+      transitionsBuilder: (_, animation, _, child) {
+        final curved = CurvedAnimation(parent: animation, curve: Curves.easeOut);
+        return FadeTransition(
+          opacity: curved,
+          child: ScaleTransition(
+            scale: Tween(begin: 1.08, end: 1.0).animate(curved),
+            child: child,
+          ),
+        );
+      },
+    );
   }
 }

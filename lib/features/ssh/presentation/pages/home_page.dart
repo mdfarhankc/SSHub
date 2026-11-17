@@ -52,8 +52,13 @@ class _HomePageState extends State<HomePage> {
   @override
   void initState() {
     super.initState();
-    // Servers are loaded before Home mounts, so probe them once on launch.
-    _checkReachability(context);
+    // Probe reachability once on launch, but only after the entry transition
+    // has settled; kicking it off during the fade stutters the animation.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      Future.delayed(const Duration(milliseconds: 650), () {
+        if (mounted) _checkReachability(context);
+      });
+    });
   }
 
   @override
