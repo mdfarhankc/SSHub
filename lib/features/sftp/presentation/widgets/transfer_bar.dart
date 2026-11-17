@@ -366,6 +366,17 @@ class _ActiveTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
+    final fraction = transfer.fraction;
+    final percent = fraction == null ? null : (fraction * 100).round();
+    final sizeText = transfer.total > 0
+        ? "${formatBytes(transfer.transferred)} / ${formatBytes(transfer.total)}"
+        : formatBytes(transfer.transferred);
+    final status = [
+      if (transfer.detail != null) transfer.detail!,
+      sizeText,
+      if (percent != null) "$percent%",
+    ].join("  ·  ");
+
     return ListTile(
       contentPadding: const EdgeInsets.only(right: 4),
       dense: true,
@@ -379,7 +390,18 @@ class _ActiveTile extends StatelessWidget {
         maxLines: 1,
         overflow: TextOverflow.ellipsis,
       ),
-      subtitle: const Text("In progress"),
+      subtitle: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(status, maxLines: 1, overflow: TextOverflow.ellipsis),
+          const SizedBox(height: 6),
+          ClipRRect(
+            borderRadius: BorderRadius.circular(4),
+            child: LinearProgressIndicator(value: fraction, minHeight: 4),
+          ),
+        ],
+      ),
       trailing: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
