@@ -33,6 +33,10 @@ class AppSettings extends Equatable {
   final bool lockPasswordReveal;
   final bool lockSnippetReveal;
 
+  // Servers carrying any of these tags are hidden on Home until the user
+  // authenticates to reveal them. Tags are stored normalized, as on servers.
+  final Set<String> lockedTags;
+
   // Minutes of inactivity before the lock re-arms. 0 locks immediately on
   // leaving the app; -1 never auto-locks (only a cold start does).
   final int autoLockMinutes;
@@ -76,6 +80,7 @@ class AppSettings extends Equatable {
     this.appLockEnabled = false,
     this.lockPasswordReveal = false,
     this.lockSnippetReveal = false,
+    this.lockedTags = const {},
     this.autoLockMinutes = 0,
     this.onboardingComplete = false,
     this.sftpShowHidden = false,
@@ -105,6 +110,7 @@ class AppSettings extends Equatable {
     bool? appLockEnabled,
     bool? lockPasswordReveal,
     bool? lockSnippetReveal,
+    Set<String>? lockedTags,
     int? autoLockMinutes,
     bool? onboardingComplete,
     bool? sftpShowHidden,
@@ -134,6 +140,7 @@ class AppSettings extends Equatable {
     appLockEnabled: appLockEnabled ?? this.appLockEnabled,
     lockPasswordReveal: lockPasswordReveal ?? this.lockPasswordReveal,
     lockSnippetReveal: lockSnippetReveal ?? this.lockSnippetReveal,
+    lockedTags: lockedTags ?? this.lockedTags,
     autoLockMinutes: autoLockMinutes ?? this.autoLockMinutes,
     onboardingComplete: onboardingComplete ?? this.onboardingComplete,
     sftpShowHidden: sftpShowHidden ?? this.sftpShowHidden,
@@ -166,6 +173,7 @@ class AppSettings extends Equatable {
     appLockEnabled,
     lockPasswordReveal,
     lockSnippetReveal,
+    lockedTags,
     autoLockMinutes,
     onboardingComplete,
     sftpShowHidden,

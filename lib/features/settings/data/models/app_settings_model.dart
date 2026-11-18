@@ -19,6 +19,7 @@ class AppSettingsModel extends AppSettings {
     super.appLockEnabled,
     super.lockPasswordReveal,
     super.lockSnippetReveal,
+    super.lockedTags,
     super.autoLockMinutes,
     super.onboardingComplete,
     super.sftpShowHidden,
@@ -52,6 +53,9 @@ class AppSettingsModel extends AppSettings {
     appLockEnabled: json['appLockEnabled'] as bool? ?? false,
     lockPasswordReveal: json['lockPasswordReveal'] as bool? ?? false,
     lockSnippetReveal: json['lockSnippetReveal'] as bool? ?? false,
+    lockedTags:
+        (json['lockedTags'] as List?)?.map((e) => e as String).toSet() ??
+        const {},
     autoLockMinutes: (json['autoLockMinutes'] as num?)?.toInt() ?? 0,
     onboardingComplete: json['onboardingComplete'] as bool? ?? false,
     sftpShowHidden: json['sftpShowHidden'] as bool? ?? false,
@@ -85,6 +89,7 @@ class AppSettingsModel extends AppSettings {
     'appLockEnabled': appLockEnabled,
     'lockPasswordReveal': lockPasswordReveal,
     'lockSnippetReveal': lockSnippetReveal,
+    'lockedTags': lockedTags.toList(),
     'autoLockMinutes': autoLockMinutes,
     'onboardingComplete': onboardingComplete,
     'sftpShowHidden': sftpShowHidden,
@@ -114,6 +119,7 @@ class AppSettingsModel extends AppSettings {
     appLockEnabled: e.appLockEnabled,
     lockPasswordReveal: e.lockPasswordReveal,
     lockSnippetReveal: e.lockSnippetReveal,
+    lockedTags: e.lockedTags,
     autoLockMinutes: e.autoLockMinutes,
     onboardingComplete: e.onboardingComplete,
     sftpShowHidden: e.sftpShowHidden,

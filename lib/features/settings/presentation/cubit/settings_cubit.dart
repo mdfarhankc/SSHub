@@ -79,6 +79,7 @@ class SettingsCubit extends Cubit<SettingsState> {
       appLockEnabled: false,
       lockPasswordReveal: false,
       lockSnippetReveal: false,
+      lockedTags: const {},
     ),
   );
 
@@ -90,6 +91,16 @@ class SettingsCubit extends Cubit<SettingsState> {
 
   void updateAutoLockMinutes(int minutes) =>
       _update(state.settings.copyWith(autoLockMinutes: minutes));
+
+  void setTagLocked(String tag, bool locked) {
+    final next = {...state.settings.lockedTags};
+    if (locked) {
+      next.add(tag);
+    } else {
+      next.remove(tag);
+    }
+    _update(state.settings.copyWith(lockedTags: next));
+  }
 
   void updateDefaultPort(int port) =>
       _update(state.settings.copyWith(defaultPort: port));

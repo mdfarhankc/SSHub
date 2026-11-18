@@ -12,6 +12,7 @@ import 'package:sshub/features/settings/presentation/widgets/settings_divider.da
 import 'package:sshub/features/settings/presentation/widgets/settings_dropdown.dart';
 import 'package:sshub/features/settings/presentation/widgets/settings_group.dart';
 import 'package:sshub/features/settings/presentation/widgets/settings_row.dart';
+import 'package:sshub/features/ssh/presentation/bloc/server_list_bloc.dart';
 
 class SecuritySection extends StatelessWidget {
   const SecuritySection({super.key});
@@ -29,9 +30,17 @@ class SecuritySection extends StatelessWidget {
     final settings = context.watch<SettingsCubit>().state.settings;
     final cubit = context.read<SettingsCubit>();
     final auth = sl<LocalAuthService>();
+    final tags =
+        <String>{
+          for (final s in context.watch<ServerListBloc>().state.servers)
+            ...s.tags,
+        }.toList()..sort();
 
-    return SettingsGroup(
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
+        SettingsGroup(
+          children: [
         SettingsRow(
           title: "App lock",
           subtitle: "Protect SSHub with biometric or device lock.",
@@ -90,8 +99,62 @@ class SecuritySection extends StatelessWidget {
             ),
           ),
         ],
+          ],
+        ),
+        if (settings.appLockEnabled && tags.isNotEmpty) ...[
+          const SizedBox(height: 20),
+          SettingsGroup(
+            label: "Locked tags",
+            description:
+                "Servers with a locked tag stay hidden on Home until you "
+                "unlock them with your device lock.",
+            children: [
+              for (var i = 0; i < tags.length; i++) ...[
+                if (i > 0) const SettingsDivider(),
+                SettingsRow(
+                  title: tags[i],
+                  subtitle: settings.lockedTags.contains(tags[i])
+                      ? "Hidden on Home"
+                      : "Visible on Home",
+                  keepInline: true,
+                  control: Switch(
+                    value: settings.lockedTags.contains(tags[i]),
+                    onChanged: (v) =>
+                        _toggleTag(context, cubit, auth, tags[i], v),
+                  ),
+                ),
+              ],
+            ],
+          ),
+        ],
       ],
     );
+  }
+
+  Future<void> _toggleTag(
+    BuildContext context,
+    SettingsCubit cubit,
+    LocalAuthService auth,
+    String tag,
+    bool lock,
+  ) async {
+    final result = await auth.authenticate(
+      lock ? 'Lock "$tag"' : 'Unlock "$tag"',
+    );
+    if (!context.mounted) return;
+    switch (result) {
+      case AuthResult.success:
+        cubit.setTagLocked(tag, lock);
+      case AuthResult.unavailable:
+        showAppSnackBar(
+          context,
+          "Set a screen lock on this device first. "
+          "SSHub cannot verify you without one.",
+          success: false,
+        );
+      case AuthResult.failed:
+        break;
+    }
   }
 
   Future<void> _toggleLock(

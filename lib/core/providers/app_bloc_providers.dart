@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:sshub/core/auth/local_auth_service.dart';
 import 'package:sshub/core/di/service_locator.dart';
 import 'package:sshub/features/settings/domain/entities/app_settings.dart';
 import 'package:sshub/features/settings/domain/repositories/backup_repository.dart';
@@ -13,6 +14,7 @@ import 'package:sshub/features/ssh/data/datasources/reachability_checker.dart';
 import 'package:sshub/features/ssh/domain/repositories/ssh_repository.dart';
 import 'package:sshub/features/ssh/domain/usecases/connect_to_server.dart';
 import 'package:sshub/features/ssh/presentation/bloc/server_list_bloc.dart';
+import 'package:sshub/features/ssh/presentation/cubit/hidden_servers_cubit.dart';
 import 'package:sshub/features/ssh/presentation/cubit/workspace_sessions_cubit.dart';
 import 'package:sshub/features/workflows/domain/repositories/workflow_repository.dart';
 import 'package:sshub/features/workflows/presentation/bloc/workflow_list_bloc.dart';
@@ -63,6 +65,7 @@ class AppBlocProviders extends StatelessWidget {
             context.read<SettingsCubit>(),
           ),
         ),
+        BlocProvider(create: (_) => HiddenServersCubit(sl<LocalAuthService>())),
       ],
       child: child,
     );
