@@ -6,6 +6,7 @@ import 'package:sshub/core/shortcuts/app_shortcuts.dart';
 // A rebindable command. Names are stable and used as the override storage key,
 // so do not rename them without a migration.
 enum ShortcutAction {
+  commandPalette,
   addServer,
   focusSearch,
   openSnippets,
@@ -117,6 +118,13 @@ class ShortcutDef {
 }
 
 const kShortcutDefs = <ShortcutDef>[
+  ShortcutDef(
+    action: ShortcutAction.commandPalette,
+    label: "Command palette",
+    category: "General",
+    group: ShortcutGroup.home,
+    defaultBinding: KeyBinding(LogicalKeyboardKey.keyK),
+  ),
   ShortcutDef(
     action: ShortcutAction.addServer,
     label: "Add a server",
