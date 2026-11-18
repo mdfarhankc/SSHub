@@ -57,6 +57,26 @@
         document.documentElement.classList.toggle("dark", theme !== "light");
       })();
     </script>
+    <script>
+      // Restores a deep link that 404.html redirected here, so the router can
+      // handle a direct visit to a path like /SSHub/guide on GitHub Pages.
+      (function (l) {
+        if (l.search[1] === "/") {
+          var decoded = l.search
+            .slice(1)
+            .split("&")
+            .map(function (s) {
+              return s.replace(/~and~/g, "&");
+            })
+            .join("?");
+          window.history.replaceState(
+            null,
+            null,
+            l.pathname.slice(0, -1) + decoded + l.hash
+          );
+        }
+      })(window.location);
+    </script>
   </head>
   <body>
     <div id="root"></div>

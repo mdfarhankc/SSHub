@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { Link } from "react-router-dom";
 import { Star } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { GithubIcon } from "@/components/GithubIcon";
@@ -8,8 +9,9 @@ import { ThemeToggle } from "@/components/ThemeToggle";
 import { cn } from "@/lib/utils";
 import { GITHUB_URL, RELEASES_URL } from "@/lib/site";
 
-const NAV = [
+const NAV: { label: string; href?: string; to?: string }[] = [
   { label: "Features", href: "#features" },
+  { label: "Guide", to: "/guide" },
   { label: "Compare", href: "#compare" },
   { label: "FAQ", href: "#faq" },
   { label: "Download", href: "#download" },
@@ -47,15 +49,19 @@ export function Header() {
         </a>
 
         <nav className="hidden items-center gap-1 md:flex">
-          {NAV.map((item) => (
-            <a
-              key={item.label}
-              href={item.href}
-              className="rounded-md px-3 py-2 text-sm text-muted-foreground transition-colors hover:text-foreground"
-            >
-              {item.label}
-            </a>
-          ))}
+          {NAV.map((item) => {
+            const className =
+              "rounded-md px-3 py-2 text-sm text-muted-foreground transition-colors hover:text-foreground";
+            return item.to ? (
+              <Link key={item.label} to={item.to} className={className}>
+                {item.label}
+              </Link>
+            ) : (
+              <a key={item.label} href={item.href} className={className}>
+                {item.label}
+              </a>
+            );
+          })}
         </nav>
 
         <div className="flex items-center gap-1.5">

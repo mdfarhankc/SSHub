@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import 'package:sshub/core/shortcuts/app_shortcuts.dart';
 import 'package:sshub/core/shortcuts/shortcut_actions.dart';
 import 'package:sshub/core/theme/app_theme.dart';
+import 'package:sshub/core/widgets/app_snack_bar.dart';
 import 'package:sshub/features/settings/presentation/cubit/settings_cubit.dart';
 
 class HelpPage extends StatelessWidget {
@@ -48,8 +50,9 @@ class HelpPage extends StatelessWidget {
         "Save reusable text. A Secret stays hidden and reveal-gated; a Command "
             "is shown in full. In a terminal, ${bindingFor(ShortcutAction.snippets, overrides).display} "
             "opens the picker to insert, run or copy one. Commands can carry "
-            "{{host}}, {{user}} or {{port}} for the current session, or "
-            "{{prompt:Label}} to ask for a value when used.",
+            "{{host}}, {{user}} or {{port}} for the current session, "
+            "{{Label}} to ask for a value when used, or {{Label[a,b]}} for a "
+            "dropdown of choices.",
       ),
       (
         LucideIcons.textCursorInput,
@@ -94,6 +97,10 @@ class HelpPage extends StatelessWidget {
           child: ListView(
             padding: const EdgeInsets.fromLTRB(16, 16, 16, 48),
             children: [
+              const _SectionLabel("Command guide"),
+              const SizedBox(height: 8),
+              const _GuideLinkCard(),
+              const SizedBox(height: 28),
               const _SectionLabel("Keyboard shortcuts"),
               const SizedBox(height: 8),
               for (final (keys, desc) in shortcuts)
@@ -177,6 +184,77 @@ class _Kbd extends StatelessWidget {
         style: theme.textTheme.labelMedium?.copyWith(
           fontWeight: FontWeight.w600,
           fontFamily: AppTheme.mono,
+        ),
+      ),
+    );
+  }
+}
+
+// Opens the online developer cheatsheet (Linux, Postgres, Docker and more) in
+// the browser. Not SSHub-specific; kept on the site so it grows without a
+// release.
+class _GuideLinkCard extends StatelessWidget {
+  const _GuideLinkCard();
+
+  static final _url = Uri.parse("https://mdfarhankc.github.io/SSHub/guide");
+
+  Future<void> _open(BuildContext context) async {
+    final ok = await launchUrl(_url, mode: LaunchMode.externalApplication);
+    if (!ok && context.mounted) {
+      showAppSnackBar(context, "Could not open the guide", success: false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
+    return Material(
+      color: scheme.surfaceContainerLow,
+      borderRadius: BorderRadius.circular(16),
+      child: InkWell(
+        onTap: () => _open(context),
+        borderRadius: BorderRadius.circular(16),
+        child: Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: scheme.outlineVariant),
+          ),
+          child: Row(
+            children: [
+              Icon(LucideIcons.bookOpen, size: 20, color: scheme.primary),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      "Command cheatsheet",
+                      style: theme.textTheme.titleSmall?.copyWith(
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      "Linux, systemd, Postgres, Docker, Nginx, Git and more. "
+                      "Opens in your browser.",
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: scheme.onSurfaceVariant,
+                        height: 1.4,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 10),
+              Icon(
+                LucideIcons.externalLink,
+                size: 16,
+                color: scheme.onSurfaceVariant,
+              ),
+            ],
+          ),
         ),
       ),
     );
