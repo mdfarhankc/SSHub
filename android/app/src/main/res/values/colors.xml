@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <color name="ic_launcher_background">#000000</color>
     <!-- Matches the app's light surface, so the launch window does not flash. -->
     <color name="splash_bg">#F6FBF4</color>
 </resources>
