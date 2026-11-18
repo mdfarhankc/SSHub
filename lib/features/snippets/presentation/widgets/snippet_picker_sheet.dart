@@ -102,11 +102,16 @@ class _SnippetPickerSheetState extends State<SnippetPickerSheet> {
                     controller: _searchController,
                     autofocus: true,
                     onChanged: (v) => setState(() => _query = v),
-                    // Enter drops in the top match, so it is a quick palette.
+                    // Enter uses the top match, running it if it is auto-run.
                     onSubmitted: (_) {
-                      if (visible.isNotEmpty) {
-                        _use(visible.first, SnippetUse.insert);
-                      }
+                      if (visible.isEmpty) return;
+                      final top = visible.first;
+                      _use(
+                        top,
+                        top.autoRun && !top.isSecret
+                            ? SnippetUse.run
+                            : SnippetUse.insert,
+                      );
                     },
                     decoration: InputDecoration(
                       isDense: true,
@@ -182,6 +187,13 @@ class _PickerRow extends StatelessWidget {
             const SizedBox(width: 6),
             Icon(LucideIcons.pin, size: 12, color: scheme.primary),
           ],
+          if (snippet.autoRun && !isSecret) ...[
+            const SizedBox(width: 6),
+            Tooltip(
+              message: "Runs when selected",
+              child: Icon(LucideIcons.play, size: 11, color: scheme.primary),
+            ),
+          ],
         ],
       ),
       subtitle: Text(
@@ -193,8 +205,9 @@ class _PickerRow extends StatelessWidget {
           fontFamily: isSecret ? null : AppTheme.mono,
         ),
       ),
-      // Tapping inserts; run and copy are explicit.
-      onTap: onInsert,
+      // Tapping runs an auto-run command, otherwise inserts; run and copy stay
+      // explicit on the right.
+      onTap: (snippet.autoRun && !isSecret) ? onRun : onInsert,
       trailing: Row(
         mainAxisSize: MainAxisSize.min,
         children: [

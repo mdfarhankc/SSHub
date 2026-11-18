@@ -38,6 +38,7 @@ class _SnippetDialogState extends State<SnippetDialog> {
   final _value = TextEditingController();
   late SnippetType _type;
   late String? _scopeServerId;
+  late bool _autoRun;
 
   bool get _isEditing => widget.snippet != null;
   bool get _isSecret => _type == SnippetType.secret;
@@ -47,6 +48,7 @@ class _SnippetDialogState extends State<SnippetDialog> {
     super.initState();
     _type = widget.snippet?.type ?? SnippetType.secret;
     _scopeServerId = widget.snippet?.serverId ?? widget.defaultServerId;
+    _autoRun = widget.snippet?.autoRun ?? false;
     // Commands are not hidden, so an existing one shows its value right away.
     if (_isEditing && !widget.snippet!.isSecret) {
       _value.text = widget.snippet!.value;
@@ -74,6 +76,8 @@ class _SnippetDialogState extends State<SnippetDialog> {
         value: value,
         type: _type,
         pinned: widget.snippet?.pinned ?? false,
+        // Secrets are never auto-run; running one would execute it on screen.
+        autoRun: !_isSecret && _autoRun,
         serverId: _scopeServerId,
       ),
     );
@@ -99,7 +103,7 @@ class _SnippetDialogState extends State<SnippetDialog> {
     if (_isSecret) {
       return _isEditing ? "Leave blank to keep current" : "Token or password";
     }
-    return "e.g. sudo systemctl restart {{prompt:service}}";
+    return "e.g. sudo systemctl restart {{service}}";
   }
 
   @override
@@ -157,6 +161,13 @@ class _SnippetDialogState extends State<SnippetDialog> {
           ),
           const SizedBox(height: 10),
           _PlaceholderHint(visible: !_isSecret),
+          if (!_isSecret) ...[
+            const SizedBox(height: 12),
+            _RunOnTap(
+              value: _autoRun,
+              onChanged: (v) => setState(() => _autoRun = v),
+            ),
+          ],
           const SizedBox(height: 16),
           ScopeDropdown(
             serverId: _scopeServerId,
@@ -166,6 +177,45 @@ class _SnippetDialogState extends State<SnippetDialog> {
       ),
     ),
   );
+}
+
+// Toggles whether selecting the snippet runs it or just types it in.
+class _RunOnTap extends StatelessWidget {
+  final bool value;
+  final ValueChanged<bool> onChanged;
+  const _RunOnTap({required this.value, required this.onChanged});
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
+    return Row(
+      children: [
+        Expanded(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                "Run on select",
+                style: theme.textTheme.bodyMedium?.copyWith(
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              Text(
+                "Send and run it when picked, instead of only typing it in.",
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: scheme.onSurfaceVariant,
+                ),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(width: 12),
+        Switch(value: value, onChanged: onChanged),
+      ],
+    );
+  }
 }
 
 // Explains the tokens a command can carry. Hidden for secrets, which are pasted
@@ -187,8 +237,8 @@ class _PlaceholderHint extends StatelessWidget {
         Expanded(
           child: Text(
             "Insert {{host}}, {{user}} or {{port}} for the current session, or "
-            "{{prompt:Label}} to ask when used. Add choices with "
-            "{{prompt:branch|main,develop}}.",
+            "{{Label}} to ask when used. Add a dropdown with "
+            "{{Branch[main,develop]}}, or just {{[main,develop]}}.",
             style: theme.textTheme.bodySmall?.copyWith(
               color: scheme.onSurfaceVariant,
             ),

@@ -7,6 +7,7 @@ class SnippetModel extends Snippet {
     required super.value,
     super.type,
     super.pinned,
+    super.autoRun,
     super.serverId,
   });
 
@@ -18,6 +19,7 @@ class SnippetModel extends Snippet {
     // that was hidden becomes visible on upgrade.
     type: _typeFrom(json['type'] as String?),
     pinned: json['pinned'] as bool? ?? false,
+    autoRun: json['autoRun'] as bool? ?? false,
     // Absent on older snippets, which read back as global.
     serverId: json['serverId'] as String?,
   );
@@ -31,6 +33,7 @@ class SnippetModel extends Snippet {
     'value': value,
     'type': type.name,
     'pinned': pinned,
+    if (autoRun) 'autoRun': autoRun,
     if (serverId != null) 'serverId': serverId,
   };
 
@@ -40,6 +43,7 @@ class SnippetModel extends Snippet {
     value: e.value,
     type: e.type,
     pinned: e.pinned,
+    autoRun: e.autoRun,
     serverId: e.serverId,
   );
 }
