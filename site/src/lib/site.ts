@@ -12,7 +12,7 @@ import {
   type LucideIcon,
 } from "lucide-react";
 
-export const VERSION = "4.9.0";
+export const VERSION = "4.10.0";
 export const GITHUB_URL = "https://github.com/mdfarhankc/SSHub";
 export const RELEASES_URL = `${GITHUB_URL}/releases/latest`;
 
@@ -94,14 +94,14 @@ export const EXTRAS = [
   "Auto-reconnect with backoff",
   "Server tags and filtering",
   "Color-coded servers",
-  "Keyboard shortcuts",
-  "App lock",
+  "Keyboard shortcuts and command palette",
+  "App lock with lockable tags",
   "Light and dark themes",
   "In-app update check",
 ] as const;
 
 export const ROADMAP = [
-  "Lockable tags, to hide servers behind the app lock",
+  "Full keyboard navigation, to drive everything without a mouse",
 ] as const;
 
 export type CompareValue = "yes" | "no" | "partial";

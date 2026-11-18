@@ -1,3 +1,18 @@
+## SSHub 4.10.0
+
+This release adds a keyboard command palette, lets you hide servers behind the app lock, and simplifies how snippet and workflow prompts are written.
+
+New
+
+- A command palette opens with Ctrl or Cmd and K to run any action or jump straight to a server, all from the keyboard
+- Tags can be locked so their servers stay hidden on the home screen until you unlock them with your device lock
+- A snippet can be set to run on its own when picked, instead of only being typed into the terminal
+- A command guide on the website collects the everyday Linux, Postgres, Docker and other server commands, reachable from Help inside the app
+
+Improvements
+
+- Snippet and workflow placeholders now use a simpler bracket syntax: {{Label}} asks for a value, {{Label[a,b,c]}} or {{[a,b,c]}} offers a pick list, and {{host}}, {{user}} and {{port}} fill from the connected server. Prompts written in the old format need to be rewritten
+
 ## SSHub 4.9.0
 
 This release opens each remote file in its own tab, lets snippets and workflows live on a single server, and gives the app a smoother, flash-free launch.
