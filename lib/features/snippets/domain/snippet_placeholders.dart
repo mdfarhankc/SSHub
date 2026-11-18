@@ -1,10 +1,11 @@
-// Snippet values can carry placeholders like {{host}} or {{prompt:Log path}}.
-// Context tokens resolve from the active session; prompt tokens ask the user. A
-// prompt can suggest values with {{prompt:branch|main,develop}}, shown as
-// options the user can pick or override.
+// Snippet and workflow text can carry placeholders in {{ }}:
+//   {{host}} {{user}} {{port}}   fill from the connected server
+//   {{Label}}                    ask for a value, shown as "Label"
+//   {{Label[a,b,c]}}             ask with a dropdown of a, b, c
+//   {{[a,b,c]}}                  ask with a dropdown, no label
 final _placeholder = RegExp(r'\{\{\s*([^}]+?)\s*\}\}');
 
-const _promptPrefix = 'prompt:';
+const _reserved = {'host', 'user', 'port'};
 
 class SnippetContext {
   final String? host;
@@ -13,44 +14,56 @@ class SnippetContext {
   const SnippetContext({this.host, this.user, this.port});
 }
 
-// A value the user is asked for, with any suggested options to choose from.
+// A value the user is asked for. [key] identifies it in the answers map; [label]
+// is what the prompt shows; [options] are the dropdown choices, if any.
 class SnippetPrompt {
+  final String key;
   final String label;
   final List<String> options;
-  const SnippetPrompt(this.label, {this.options = const []});
+  const SnippetPrompt({
+    required this.key,
+    required this.label,
+    this.options = const [],
+  });
 }
 
 bool snippetHasPlaceholders(String value) => _placeholder.hasMatch(value);
 
-// The label before a '|' names the prompt; anything after it is a comma list of
-// suggested options.
-({String label, List<String> options}) _parsePrompt(String spec) {
-  final sep = spec.indexOf('|');
-  if (sep == -1) return (label: spec.trim(), options: const []);
+// The prompt a token describes, or null for a reserved context name. The key is
+// the label, or the raw option list when unlabelled, so the same token always
+// resolves to the same answer.
+SnippetPrompt? _promptFor(String token) {
+  if (_reserved.contains(token)) return null;
+
+  final open = token.indexOf('[');
+  if (open == -1 || !token.endsWith(']')) {
+    return SnippetPrompt(key: token, label: token);
+  }
+
+  final label = token.substring(0, open).trim();
   final options = [
-    for (final o in spec.substring(sep + 1).split(','))
+    for (final o in token.substring(open + 1, token.length - 1).split(','))
       if (o.trim().isNotEmpty) o.trim(),
   ];
-  return (label: spec.substring(0, sep).trim(), options: options);
+  final key = label.isNotEmpty ? label : options.join(',');
+  if (key.isEmpty) return null;
+  return SnippetPrompt(key: key, label: label, options: options);
 }
 
-// The distinct prompts a snippet asks the user for, in first-seen order. When
-// one label appears more than once, its first set of options wins.
+// The distinct prompts in first-seen order, deduplicated by key.
 List<SnippetPrompt> snippetPrompts(String value) {
   final seen = <String>{};
   final prompts = <SnippetPrompt>[];
   for (final match in _placeholder.allMatches(value)) {
-    final token = match.group(1)!.trim();
-    if (!token.startsWith(_promptPrefix)) continue;
-    final parsed = _parsePrompt(token.substring(_promptPrefix.length).trim());
-    if (parsed.label.isEmpty || !seen.add(parsed.label)) continue;
-    prompts.add(SnippetPrompt(parsed.label, options: parsed.options));
+    final prompt = _promptFor(match.group(1)!.trim());
+    if (prompt == null || !seen.add(prompt.key)) continue;
+    prompts.add(prompt);
   }
   return prompts;
 }
 
-// Fills in context and prompt tokens. Unknown tokens are left untouched so a
-// typo shows up in the output rather than silently vanishing.
+// Fills context and prompt tokens. A token with no value is left untouched, so a
+// mistake shows up in the output rather than silently vanishing.
 String resolveSnippet(
   String value, {
   SnippetContext context = const SnippetContext(),
@@ -66,12 +79,8 @@ String resolveSnippet(
       case 'port':
         return context.port?.toString() ?? match.group(0)!;
     }
-    if (token.startsWith(_promptPrefix)) {
-      final label = _parsePrompt(
-        token.substring(_promptPrefix.length).trim(),
-      ).label;
-      return answers[label] ?? match.group(0)!;
-    }
-    return match.group(0)!;
+    final prompt = _promptFor(token);
+    if (prompt == null) return match.group(0)!;
+    return answers[prompt.key] ?? match.group(0)!;
   });
 }

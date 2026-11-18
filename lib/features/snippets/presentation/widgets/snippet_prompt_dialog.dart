@@ -2,9 +2,9 @@ import 'package:flutter/material.dart';
 
 import 'package:sshub/features/snippets/domain/snippet_placeholders.dart';
 
-// Collects the values a command's {{prompt:Label}} tokens ask for. A prompt with
+// Collects the values a command's {{Label}} tokens ask for. A prompt with
 // suggested options shows them as chips the user can pick or type past. Returns
-// the label-to-value map, or null if cancelled.
+// the key-to-value map, or null if cancelled.
 class SnippetPromptDialog extends StatefulWidget {
   final String title;
   final List<SnippetPrompt> prompts;
@@ -31,7 +31,7 @@ class _SnippetPromptDialogState extends State<SnippetPromptDialog> {
   // Seeded with the first option so a pick-list prompt has a sensible default.
   late final Map<String, TextEditingController> _controllers = {
     for (final prompt in widget.prompts)
-      prompt.label: TextEditingController(
+      prompt.key: TextEditingController(
         text: prompt.options.isNotEmpty ? prompt.options.first : '',
       ),
   };
@@ -63,7 +63,7 @@ class _SnippetPromptDialogState extends State<SnippetPromptDialog> {
               if (i > 0) const SizedBox(height: 16),
               _PromptField(
                 prompt: widget.prompts[i],
-                controller: _controllers[widget.prompts[i].label]!,
+                controller: _controllers[widget.prompts[i].key]!,
                 autofocus: i == 0,
                 isLast: i == widget.prompts.length - 1,
                 onSubmit: _submit,
@@ -133,7 +133,11 @@ class _PromptFieldState extends State<_PromptField> {
           textInputAction: widget.isLast
               ? TextInputAction.done
               : TextInputAction.next,
-          decoration: InputDecoration(labelText: widget.prompt.label),
+          decoration: InputDecoration(
+            labelText: widget.prompt.label.isEmpty
+                ? "Select an option"
+                : widget.prompt.label,
+          ),
           // Keeps the selected chip in step with what is typed.
           onChanged: options.isEmpty ? null : (_) => setState(() {}),
           onSubmitted: (_) {

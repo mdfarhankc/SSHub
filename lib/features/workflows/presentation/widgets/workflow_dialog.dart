@@ -261,7 +261,7 @@ class _StepCard extends StatelessWidget {
             decoration: const InputDecoration(
               isDense: true,
               labelText: "Send",
-              hintText: "e.g. git pull  ·  {{user}}  ·  {{prompt:Token}}",
+              hintText: "e.g. git pull  ·  {{user}}  ·  {{Token}}",
             ),
           ),
           const SizedBox(height: 4),
@@ -300,8 +300,8 @@ class _PlaceholderHint extends StatelessWidget {
         Expanded(
           child: Text(
             "A step sends its text, then Enter. Use {{host}}, {{user}}, {{port}} "
-            "for the current server, or {{prompt:Label}} to ask when it runs. "
-            "Add choices with {{prompt:command|pull,push,status}}.",
+            "for the current server, or {{Label}} to ask when it runs. "
+            "Add a dropdown with {{Command[pull,push,status]}}.",
             style: theme.textTheme.bodySmall?.copyWith(
               color: scheme.onSurfaceVariant,
             ),

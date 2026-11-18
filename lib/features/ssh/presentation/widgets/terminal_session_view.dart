@@ -298,7 +298,7 @@ class TerminalSessionViewState extends State<TerminalSessionView> {
     final seenPrompts = <String>{};
     for (final step in workflow.steps) {
       for (final prompt in snippetPrompts(step.send)) {
-        if (seenPrompts.add(prompt.label)) prompts.add(prompt);
+        if (seenPrompts.add(prompt.key)) prompts.add(prompt);
       }
     }
     var answers = const <String, String>{};
