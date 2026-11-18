@@ -5,11 +5,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
+import 'package:sshub/core/auth/reveal_guard.dart';
 import 'package:sshub/core/responsive/responsive.dart';
 import 'package:sshub/core/shortcuts/app_shortcuts.dart';
 import 'package:sshub/core/shortcuts/shortcut_actions.dart';
 import 'package:sshub/core/theme/app_theme.dart';
 import 'package:sshub/core/widgets/app_snack_bar.dart';
+import 'package:sshub/core/widgets/command_palette.dart';
 import 'package:sshub/core/widgets/page_title.dart';
 import 'package:sshub/features/help/presentation/pages/help_page.dart';
 import 'package:sshub/features/settings/presentation/cubit/settings_cubit.dart';
@@ -17,6 +19,9 @@ import 'package:sshub/features/settings/presentation/pages/settings_page.dart';
 import 'package:sshub/features/snippets/presentation/pages/snippets_page.dart';
 import 'package:sshub/features/ssh/domain/entities/ssh_server.dart';
 import 'package:sshub/features/ssh/presentation/bloc/server_list_bloc.dart';
+import 'package:sshub/features/ssh/presentation/cubit/hidden_servers_cubit.dart';
+import 'package:sshub/features/ssh/presentation/cubit/workspace_sessions_cubit.dart';
+import 'package:sshub/features/ssh/presentation/pages/workspace_page.dart';
 import 'package:sshub/features/ssh/presentation/widgets/home_header.dart';
 import 'package:sshub/features/ssh/presentation/widgets/server_card.dart';
 import 'package:sshub/features/ssh/presentation/widgets/server_dialog.dart';
@@ -109,25 +114,91 @@ class _HomePageState extends State<HomePage> {
 
   void _focusSearch() => _searchFocus.requestFocus();
 
+  // Authenticates, then reveals servers behind a locked tag for this session.
+  Future<void> _revealHidden(BuildContext context) async {
+    final ok = await context.confirmReveal(
+      locked: true,
+      reason: "Show hidden servers",
+    );
+    if (ok && context.mounted) context.read<HiddenServersCubit>().reveal();
+  }
+
+  // The rebindable actions and their handlers, shared by the shortcut map and
+  // the command palette so neither drifts from the other.
+  Map<ShortcutAction, VoidCallback> _actionHandlers(BuildContext context) => {
+    ShortcutAction.commandPalette: () => _openPalette(context),
+    ShortcutAction.addServer: () => _addServer(context),
+    ShortcutAction.focusSearch: _focusSearch,
+    ShortcutAction.openSnippets: () =>
+        Navigator.pushNamed(context, SnippetsPage.route),
+    ShortcutAction.openSettings: () => _openSettings(context),
+    ShortcutAction.refreshServers: () => _checkReachability(context),
+    ShortcutAction.toggleTheme: () =>
+        context.read<SettingsCubit>().toggleThemeMode(),
+  };
+
   Map<ShortcutActivator, VoidCallback> _shortcutBindings(
     BuildContext context,
     Map<String, String> overrides,
   ) => {
-    ...buildShortcuts({
-      ShortcutAction.addServer: () => _addServer(context),
-      ShortcutAction.focusSearch: _focusSearch,
-      ShortcutAction.openSnippets: () =>
-          Navigator.pushNamed(context, SnippetsPage.route),
-      ShortcutAction.openSettings: () => _openSettings(context),
-      ShortcutAction.refreshServers: () => _checkReachability(context),
-      ShortcutAction.toggleTheme: () =>
-          context.read<SettingsCubit>().toggleThemeMode(),
-    }, overrides),
+    ...buildShortcuts(_actionHandlers(context), overrides),
     // Fixed function keys stay out of the customisable set.
     const SingleActivator(LogicalKeyboardKey.f1): () =>
         Navigator.pushNamed(context, HelpPage.route),
     const SingleActivator(LogicalKeyboardKey.f5): () =>
         _checkReachability(context),
+  };
+
+  // Lists the rebindable commands plus a connect and browse entry for every
+  // server, so anything on Home is reachable by typing.
+  void _openPalette(BuildContext context) {
+    final overrides =
+        context.read<SettingsCubit>().state.settings.shortcutOverrides;
+    final servers = context.read<ServerListBloc>().state.servers;
+    final sessions = context.read<WorkspaceSessionsCubit>();
+
+    final commands = <PaletteCommand>[
+      for (final entry in _actionHandlers(context).entries)
+        if (entry.key != ShortcutAction.commandPalette)
+          PaletteCommand(
+            label: shortcutDef(entry.key).label,
+            hint: shortcutDef(entry.key).category,
+            trailing: bindingFor(entry.key, overrides).display,
+            icon: _paletteIcon(entry.key),
+            onRun: entry.value,
+          ),
+      for (final s in servers) ...[
+        PaletteCommand(
+          label: "Connect to ${s.label}",
+          hint: "${s.username}@${s.host}",
+          icon: LucideIcons.terminal,
+          onRun: () {
+            sessions.openTerminal(s);
+            Navigator.pushNamed(context, WorkspacePage.route);
+          },
+        ),
+        PaletteCommand(
+          label: "Browse files on ${s.label}",
+          hint: "${s.username}@${s.host}",
+          icon: LucideIcons.folderOpen,
+          onRun: () {
+            sessions.openFiles(s);
+            Navigator.pushNamed(context, WorkspacePage.route);
+          },
+        ),
+      ],
+    ];
+    showCommandPalette(context, commands: commands);
+  }
+
+  static IconData _paletteIcon(ShortcutAction action) => switch (action) {
+    ShortcutAction.addServer => LucideIcons.plus,
+    ShortcutAction.focusSearch => LucideIcons.search,
+    ShortcutAction.openSnippets => LucideIcons.zap,
+    ShortcutAction.openSettings => LucideIcons.settings,
+    ShortcutAction.refreshServers => LucideIcons.refreshCw,
+    ShortcutAction.toggleTheme => LucideIcons.moon,
+    _ => LucideIcons.chevronRight,
   };
 
   @override
@@ -138,6 +209,15 @@ class _HomePageState extends State<HomePage> {
     final overrides = context.select<SettingsCubit, Map<String, String>>(
       (c) => c.state.settings.shortcutOverrides,
     );
+    // Locked tags only hide servers while app lock is on, so a disabled lock
+    // (or a backup restored onto a device without one) reveals everything.
+    final lockedTags = context.select<SettingsCubit, Set<String>>(
+      (c) => c.state.settings.appLockEnabled
+          ? c.state.settings.lockedTags
+          : const {},
+    );
+    final hiddenServers = context.watch<HiddenServersCubit>();
+    final revealed = hiddenServers.state;
 
     return Scaffold(
       body: CallbackShortcuts(
@@ -155,15 +235,28 @@ class _HomePageState extends State<HomePage> {
                   showAppSnackBar(context, state.errorMessage!, success: false);
                 },
                 builder: (context, state) {
+                  // Servers behind a locked tag stay out of the grid, search and
+                  // tag chips until the user authenticates to reveal them.
+                  final lockedCount = lockedTags.isEmpty
+                      ? 0
+                      : state.servers
+                            .where((s) => s.tags.any(lockedTags.contains))
+                            .length;
+                  final visible = revealed || lockedCount == 0
+                      ? state.servers
+                      : [
+                          for (final s in state.servers)
+                            if (!s.tags.any(lockedTags.contains)) s,
+                        ];
                   final allTags = <String>{
-                    for (final s in state.servers) ...s.tags,
+                    for (final s in visible) ...s.tags,
                   }.toList()..sort();
                   // Drop a selection whose tag no longer exists on any server.
                   final activeTag =
                       (_tagFilter != null && !allTags.contains(_tagFilter))
                       ? null
                       : _tagFilter;
-                  final servers = _filter(state.servers, activeTag);
+                  final servers = _filter(visible, activeTag);
                   final isLoading =
                       state.status == ServerListStatus.loading ||
                       state.status == ServerListStatus.initial;
@@ -172,7 +265,7 @@ class _HomePageState extends State<HomePage> {
                   final isMobile = context.isMobile;
                   final showStats =
                       !isLoading &&
-                      state.servers.isNotEmpty &&
+                      visible.isNotEmpty &&
                       _query.isEmpty &&
                       activeTag == null;
                   final isChecking = state.reachability.values.contains(
@@ -268,15 +361,14 @@ class _HomePageState extends State<HomePage> {
                                         children: [
                                           _HeaderStat(
                                             icon: LucideIcons.server,
-                                            value: state.servers.length
-                                                .toString(),
+                                            value: visible.length.toString(),
                                             label: "Servers",
                                             compact: isMobile,
                                           ),
                                           SizedBox(width: isMobile ? 14 : 20),
                                           _HeaderStat(
                                             icon: LucideIcons.history,
-                                            value: state.servers
+                                            value: visible
                                                 .where(
                                                   (s) =>
                                                       s.lastConnectedAt != null,
@@ -315,6 +407,19 @@ class _HomePageState extends State<HomePage> {
                                   setState(() => _tagFilter = value),
                             ),
                           ),
+                        if (!isLoading &&
+                            lockedCount > 0 &&
+                            hiddenServers.canEnforce)
+                          SliverToBoxAdapter(
+                            child: _HiddenServersBar(
+                              hPad: hPad,
+                              revealed: revealed,
+                              count: lockedCount,
+                              onReveal: () => _revealHidden(context),
+                              onHide: () =>
+                                  context.read<HiddenServersCubit>().hide(),
+                            ),
+                          ),
                         if (isLoading)
                           SliverPadding(
                             padding: EdgeInsets.fromLTRB(hPad, 16, hPad, 16),
@@ -338,6 +443,7 @@ class _HomePageState extends State<HomePage> {
                             child: _EmptyState(
                               searching:
                                   _query.trim().isNotEmpty || activeTag != null,
+                              hidden: visible.isEmpty && lockedCount > 0,
                             ),
                           )
                         else
@@ -411,6 +517,77 @@ class _ToolbarHeaderDelegate extends SliverPersistentHeaderDelegate {
       oldDelegate.child != child ||
       oldDelegate.hPad != hPad ||
       oldDelegate.height != height;
+}
+
+// Shown when any server carries a locked tag: unlock to reveal them, or hide
+// them again once revealed.
+class _HiddenServersBar extends StatelessWidget {
+  final double hPad;
+  final bool revealed;
+  final int count;
+  final VoidCallback onReveal;
+  final VoidCallback onHide;
+  const _HiddenServersBar({
+    required this.hPad,
+    required this.revealed,
+    required this.count,
+    required this.onReveal,
+    required this.onHide,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
+    return Padding(
+      padding: EdgeInsets.fromLTRB(hPad, 0, hPad, 4),
+      child: Material(
+        color: scheme.surfaceContainerHighest.withValues(alpha: 0.4),
+        borderRadius: BorderRadius.circular(AppTheme.radiusMd),
+        child: InkWell(
+          onTap: revealed ? onHide : onReveal,
+          borderRadius: BorderRadius.circular(AppTheme.radiusMd),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+            child: Row(
+              children: [
+                Icon(
+                  revealed ? LucideIcons.eye : LucideIcons.eyeOff,
+                  size: 16,
+                  color: scheme.onSurfaceVariant,
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Text(
+                    revealed
+                        ? "Showing hidden servers"
+                        : "$count ${count == 1 ? 'server' : 'servers'} hidden",
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: scheme.onSurfaceVariant,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+                Text(
+                  revealed ? "Hide" : "Show",
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    color: scheme.primary,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                const SizedBox(width: 4),
+                Icon(
+                  revealed ? LucideIcons.lock : LucideIcons.fingerprint,
+                  size: 14,
+                  color: scheme.primary,
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
 }
 
 // A horizontally scrolling row of tag filters above the server grid. Tapping a
@@ -504,12 +681,26 @@ class _HeaderStat extends StatelessWidget {
 
 class _EmptyState extends StatelessWidget {
   final bool searching;
-  const _EmptyState({required this.searching});
+  // Every server is behind a locked tag, so there is nothing to show until the
+  // user unlocks them from the bar above.
+  final bool hidden;
+  const _EmptyState({required this.searching, this.hidden = false});
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final scheme = theme.colorScheme;
+    final icon = hidden
+        ? LucideIcons.eyeOff
+        : (searching ? LucideIcons.searchX : LucideIcons.server);
+    final title = hidden
+        ? "Servers are hidden"
+        : (searching ? "No servers found" : "No servers added yet");
+    final body = hidden
+        ? "Unlock them from the bar above to view them."
+        : (searching
+              ? "We couldn't find any servers matching your search query. Try something else?"
+              : "Start by adding your first SSH server to manage it from SSHub.");
     return Center(
       child: Padding(
         padding: const EdgeInsets.all(32.0),
@@ -522,15 +713,11 @@ class _EmptyState extends StatelessWidget {
                 color: scheme.primaryContainer.withValues(alpha: 0.2),
                 shape: BoxShape.circle,
               ),
-              child: Icon(
-                searching ? LucideIcons.searchX : LucideIcons.server,
-                size: 64,
-                color: scheme.primary,
-              ),
+              child: Icon(icon, size: 64, color: scheme.primary),
             ),
             const SizedBox(height: 24),
             Text(
-              searching ? "No servers found" : "No servers added yet",
+              title,
               textAlign: TextAlign.center,
               style: theme.textTheme.headlineSmall?.copyWith(
                 fontWeight: FontWeight.bold,
@@ -538,15 +725,13 @@ class _EmptyState extends StatelessWidget {
             ),
             const SizedBox(height: 8),
             Text(
-              searching
-                  ? "We couldn't find any servers matching your search query. Try something else?"
-                  : "Start by adding your first SSH server to manage it from SSHub.",
+              body,
               textAlign: TextAlign.center,
               style: theme.textTheme.bodyMedium?.copyWith(
                 color: scheme.onSurfaceVariant,
               ),
             ),
-            if (!searching) ...[
+            if (!searching && !hidden) ...[
               const SizedBox(height: 24),
               FilledButton.icon(
                 onPressed: () {
